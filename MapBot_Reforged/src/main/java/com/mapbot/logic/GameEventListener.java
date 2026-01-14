@@ -11,8 +11,8 @@ package com.mapbot.logic;
 
 import com.google.gson.JsonObject;
 import com.mapbot.MapBot;
+import com.mapbot.config.BotConfig;
 import com.mapbot.network.BotClient;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -29,15 +29,17 @@ import org.slf4j.LoggerFactory;
 public class GameEventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/Event");
 
-    // TODO: 应从配置文件读取
-    private static final long TARGET_GROUP_ID = 123456789L;
-
     /**
      * 监听玩家聊天事件
      * 忽略以 / 开头的命令消息
      */
     @SubscribeEvent
     public static void onServerChat(ServerChatEvent event) {
+        long targetGroupId = BotConfig.getTargetGroupId();
+        if (targetGroupId == 0L) {
+            return; // 未配置群号，跳过
+        }
+
         String message = event.getMessage().getString();
         ServerPlayer player = event.getPlayer();
 
@@ -53,7 +55,7 @@ public class GameEventListener {
 
         // 构建 OneBot v11 格式的 JSON
         JsonObject params = new JsonObject();
-        params.addProperty("group_id", TARGET_GROUP_ID);
+        params.addProperty("group_id", targetGroupId);
         params.addProperty("message", formattedMessage);
 
         JsonObject packet = new JsonObject();
@@ -69,6 +71,11 @@ public class GameEventListener {
      */
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        long targetGroupId = BotConfig.getTargetGroupId();
+        if (targetGroupId == 0L) {
+            return;
+        }
+
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
@@ -79,7 +86,7 @@ public class GameEventListener {
         LOGGER.info("玩家登录: {}", playerName);
 
         JsonObject params = new JsonObject();
-        params.addProperty("group_id", TARGET_GROUP_ID);
+        params.addProperty("group_id", targetGroupId);
         params.addProperty("message", formattedMessage);
 
         JsonObject packet = new JsonObject();
@@ -95,6 +102,11 @@ public class GameEventListener {
      */
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        long targetGroupId = BotConfig.getTargetGroupId();
+        if (targetGroupId == 0L) {
+            return;
+        }
+
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
@@ -105,7 +117,7 @@ public class GameEventListener {
         LOGGER.info("玩家登出: {}", playerName);
 
         JsonObject params = new JsonObject();
-        params.addProperty("group_id", TARGET_GROUP_ID);
+        params.addProperty("group_id", targetGroupId);
         params.addProperty("message", formattedMessage);
 
         JsonObject packet = new JsonObject();

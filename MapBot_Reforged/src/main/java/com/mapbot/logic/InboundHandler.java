@@ -13,6 +13,7 @@ package com.mapbot.logic;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mapbot.config.BotConfig;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
@@ -59,6 +60,18 @@ public class InboundHandler {
 
         // 仅处理群消息
         if (!"group".equals(messageType)) {
+            return;
+        }
+
+        // 安全检查: 验证消息来源群号
+        long targetGroupId = BotConfig.getTargetGroupId();
+        if (targetGroupId == 0L) {
+            return; // 未配置群号，跳过
+        }
+
+        long sourceGroupId = getLongOrZero(json, "group_id");
+        if (sourceGroupId != targetGroupId) {
+            LOGGER.debug("忽略来自其他群的消息: {}", sourceGroupId);
             return;
         }
 
@@ -133,5 +146,20 @@ public class InboundHandler {
             return element.getAsString();
         }
         return null;
+    }
+
+    /**
+     * 安全地从 JsonObject 获取 long 值
+     */
+    private static long getLongOrZero(JsonObject json, String key) {
+        JsonElement element = json.get(key);
+        if (element != null && !element.isJsonNull()) {
+            try {
+                return element.getAsLong();
+            } catch (NumberFormatException e) {
+                return 0L;
+            }
+        }
+        return 0L;
     }
 }

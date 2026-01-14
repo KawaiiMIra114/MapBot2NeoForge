@@ -1,46 +1,41 @@
 package com.mapbot.network;
 
-import com.google.gson.JsonObject;
-
 /**
  * 临时测试类，用于验证 BotClient 逻辑
- * 警告: 请勿在模组中注册此类
+ * 
+ * ⚠️ 警告: 请勿在模组中注册此类
+ * 
+ * ⚠️ 重要说明 (Task #006 更新):
+ * 由于 BotClient 现在依赖 BotConfig (NeoForge ModConfigSpec)，
+ * 此测试类在独立运行时将无法工作。
+ * 
+ * BotConfig 需要 NeoForge 运行时环境来初始化配置系统。
+ * 如需测试，请使用以下方法之一:
+ * 1. 在 Minecraft 客户端/服务端环境中运行 (推荐)
+ * 2. 编写 JUnit 测试并 Mock BotConfig 类
+ * 
+ * 此文件保留用于代码结构参考。
  */
 public class MainTest {
+
+    /**
+     * 此 main 方法已被标记为过时
+     * 不再能够独立运行
+     */
+    @Deprecated
     public static void main(String[] args) {
         System.out.println("=== MapBot Network Test ===");
+        System.out.println("错误: 此测试类已过时。");
+        System.out.println("BotClient 现在依赖 NeoForge 配置系统 (BotConfig)。");
+        System.out.println("请在 Minecraft 环境中测试，或编写 Mock 测试。");
+        System.out.println("");
+        System.out.println("配置文件位置: config/mapbot-common.toml");
+        System.out.println("配置项:");
+        System.out.println("  - wsUrl: WebSocket 服务器地址");
+        System.out.println("  - targetGroupId: 目标 QQ 群号");
+        System.out.println("  - reconnectInterval: 重连间隔 (秒)");
+        System.out.println("  - debugMode: 调试模式开关");
 
-        // 获取实例
-        BotClient client = BotClient.INSTANCE;
-
-        // 模拟连接
-        System.out.println("[Test] 启动连接...");
-        client.connect();
-
-        // 模拟发送数据
-        JsonObject testPacket = new JsonObject();
-        testPacket.addProperty("action", "test_ping");
-        testPacket.addProperty("msg", "HelloWorld");
-
-        // 循环保持主线程存活，以便观察重连日志
-        // 在实际测试中，如果开启了 NapCat，应该能看到连接成功
-        // 如果未开启，应该每5秒看到重连尝试
-
-        try {
-            for (int i = 0; i < 15; i++) {
-                Thread.sleep(1000);
-                System.out.println("[Test] Main Thread Running... " + i);
-
-                if (i == 3) {
-                    System.out.println("[Test] 尝试发送数据包...");
-                    client.sendPacket(testPacket);
-                }
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        System.out.println("[Test] 测试结束。");
-        System.exit(0);
+        System.exit(1);
     }
 }
