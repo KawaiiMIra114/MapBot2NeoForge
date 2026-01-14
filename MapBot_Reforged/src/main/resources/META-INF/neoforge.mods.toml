@@ -1,0 +1,12 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="${mod_license}"
+issueTrackerURL="https://github.com/KawaiiMIra114/MapBot2NeoForge/issues"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+displayURL="https://github.com/KawaiiMIra114/MapBot2NeoForge"
+authors="${mod_authors}"
+description='''${mod_description}'''
