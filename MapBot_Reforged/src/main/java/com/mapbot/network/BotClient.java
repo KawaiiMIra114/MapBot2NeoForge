@@ -1,6 +1,7 @@
 package com.mapbot.network;
 
 import com.google.gson.JsonObject;
+import com.mapbot.logic.InboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,8 +131,15 @@ public class BotClient {
 
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
-            LOGGER.info("收到消息: {}", data);
-            // TODO: 解析逻辑将在后续任务实现
+            LOGGER.debug("收到原始消息: {}", data);
+
+            // 调用入站处理器解析消息
+            try {
+                InboundHandler.handleMessage(data.toString());
+            } catch (Exception e) {
+                LOGGER.error("处理入站消息时发生异常: {}", e.getMessage());
+            }
+
             webSocket.request(1); // 请求下一条消息
             return null;
         }
