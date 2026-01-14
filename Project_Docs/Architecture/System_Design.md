@@ -30,7 +30,8 @@ sequenceDiagram
     W->>S: 解析指令 (Main Thread)
     S->>S: 执行逻辑 (如 /whitelist)
 ```
-### 3. 模块划分
+
+## 3. 模块划分
 * **BotClient**: 负责维护 WebSocket 长连接，处理断线重连。
 * **GameListener**: 注册 NeoForge EventBus，监听 ServerChatEvent, PlayerLoggedInEvent。
 * **CommandHandler**: 解析来自 QQ 的指令并调度到游戏主线程执行。
