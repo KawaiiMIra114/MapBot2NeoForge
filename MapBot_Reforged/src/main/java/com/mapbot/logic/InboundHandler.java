@@ -96,17 +96,105 @@ public class InboundHandler {
         LOGGER.info("收到群消息: {} -> {}", nickname, message);
 
         // === 命令分发 ===
-        if (message.startsWith("#inv ")) {
-            // Task #007: 库存查询命令
-            handleInventoryCommand(message);
-        } else if (message.startsWith("#")) {
-            // 其他命令，暂不处理
-            LOGGER.debug("未知命令: {}", message);
+        if (message.startsWith("#")) {
+            handleCommand(message);
         } else {
             // 普通消息，转发到游戏
             String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, message);
             broadcastToServer(formattedMessage);
         }
+    }
+
+    /**
+     * 处理命令
+     */
+    private static void handleCommand(String message) {
+        String cmd = message.substring(1).trim().toLowerCase();
+        
+        // 命令路由
+        if (cmd.startsWith("inv ")) {
+            // #inv <玩家名>
+            handleInventoryCommand(message);
+        } else if (cmd.equals("list") || cmd.equals("在线")) {
+            // #list
+            handleListCommand();
+        } else if (cmd.equals("tps") || cmd.equals("status") || cmd.equals("状态")) {
+            // #tps / #status
+            handleStatusCommand();
+        } else if (cmd.equals("help") || cmd.equals("菜单")) {
+            // #help
+            sendReplyToQQ(ServerStatusManager.getHelp());
+        } else if (cmd.equals("stopserver") || cmd.equals("关服")) {
+            // #stopserver (TODO: 权限检查)
+            handleStopServerCommand();
+        } else {
+            LOGGER.debug("未知命令: {}", message);
+            sendReplyToQQ("❓ 未知命令，输入 #help 查看帮助");
+        }
+    }
+
+    /**
+     * 处理 #list 命令
+     */
+    private static void handleListCommand() {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendReplyToQQ("❌ 服务器未就绪");
+            return;
+        }
+        
+        // 线程安全: 调度到主线程
+        server.execute(() -> {
+            String result = ServerStatusManager.getList();
+            sendReplyToQQ(result);
+        });
+    }
+
+    /**
+     * 处理 #tps / #status 命令
+     */
+    private static void handleStatusCommand() {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendReplyToQQ("❌ 服务器未就绪");
+            return;
+        }
+        
+        // 线程安全: 调度到主线程
+        server.execute(() -> {
+            String result = ServerStatusManager.getServerInfo();
+            sendReplyToQQ(result);
+        });
+    }
+
+    /**
+     * 处理 #stopserver 命令
+     * TODO: 实现权限检查
+     */
+    private static void handleStopServerCommand() {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendReplyToQQ("❌ 服务器未就绪");
+            return;
+        }
+        
+        // TODO: 权限检查
+        // long senderQQ = ...;
+        // if (!BotConfig.getAdminList().contains(senderQQ)) {
+        //     sendReplyToQQ("❌ 权限不足");
+        //     return;
+        // }
+        
+        sendReplyToQQ("⏹️ 服务器正在关闭...");
+        
+        // 线程安全: 调度到主线程
+        server.execute(() -> {
+            LOGGER.warn("收到远程停服命令，服务器即将关闭...");
+            server.halt(false);
+        });
     }
 
     /**
