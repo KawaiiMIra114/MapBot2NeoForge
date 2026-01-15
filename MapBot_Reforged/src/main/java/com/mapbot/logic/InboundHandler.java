@@ -6,6 +6,11 @@
  * 
  * 参考: ./Project_Docs/Architecture/Protocol_Spec.md
  * 关键: 使用 ServerLifecycleHooks 实现跨线程安全调用。
+ * 
+ * Task #009 更新:
+ * - Java 21 Switch 表达式语法
+ * - #stopserver 权限检查
+ * - 新增 #addadmin 命令
  */
 
 package com.mapbot.logic;
@@ -14,6 +19,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mapbot.config.BotConfig;
+import com.mapbot.data.DataManager;
 import com.mapbot.network.BotClient;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -41,12 +47,10 @@ public class InboundHandler {
             // 检查是否为消息类型
             String postType = getStringOrNull(json, "post_type");
 
-            if ("message".equals(postType)) {
-                handleGroupMessage(json);
-            } else if ("meta_event".equals(postType)) {
-                handleMetaEvent(json);
-            } else {
-                LOGGER.debug("忽略未知事件类型: {}", postType);
+            switch (postType) {
+                case "message" -> handleGroupMessage(json);
+                case "meta_event" -> handleMetaEvent(json);
+                default -> LOGGER.debug("忽略未知事件类型: {}", postType);
             }
 
         } catch (Exception e) {
@@ -83,6 +87,9 @@ public class InboundHandler {
             return;
         }
 
+        // 提取发送者 QQ
+        long senderQQ = getLongOrZero(json, "user_id");
+
         // 提取发送者信息
         JsonObject sender = json.getAsJsonObject("sender");
         String nickname = "未知用户";
@@ -93,11 +100,11 @@ public class InboundHandler {
             }
         }
 
-        LOGGER.info("收到群消息: {} -> {}", nickname, message);
+        LOGGER.info("收到群消息: {} ({}) -> {}", nickname, senderQQ, message);
 
         // === 命令分发 ===
         if (message.startsWith("#")) {
-            handleCommand(message);
+            handleCommand(message, senderQQ);
         } else {
             // 普通消息，转发到游戏
             String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, message);
@@ -106,30 +113,33 @@ public class InboundHandler {
     }
 
     /**
-     * 处理命令
+     * 处理命令 (Java 21 Switch 表达式)
+     * 
+     * @param message 完整命令字符串
+     * @param senderQQ 发送者 QQ
      */
-    private static void handleCommand(String message) {
-        String cmd = message.substring(1).trim().toLowerCase();
+    private static void handleCommand(String message, long senderQQ) {
+        String rawCmd = message.substring(1).trim();
+        String cmd = rawCmd.toLowerCase();
         
-        // 命令路由
-        if (cmd.startsWith("inv ")) {
-            // #inv <玩家名>
-            handleInventoryCommand(message);
-        } else if (cmd.equals("list") || cmd.equals("在线")) {
-            // #list
-            handleListCommand();
-        } else if (cmd.equals("tps") || cmd.equals("status") || cmd.equals("状态")) {
-            // #tps / #status
-            handleStatusCommand();
-        } else if (cmd.equals("help") || cmd.equals("菜单")) {
-            // #help
-            sendReplyToQQ(ServerStatusManager.getHelp());
-        } else if (cmd.equals("stopserver") || cmd.equals("关服")) {
-            // #stopserver (TODO: 权限检查)
-            handleStopServerCommand();
-        } else {
-            LOGGER.debug("未知命令: {}", message);
-            sendReplyToQQ("❓ 未知命令，输入 #help 查看帮助");
+        // 提取命令和参数
+        String[] parts = cmd.split("\\s+", 2);
+        String commandName = parts[0];
+        String args = parts.length > 1 ? parts[1] : "";
+        
+        // Java 21 Switch 表达式
+        switch (commandName) {
+            case "inv" -> handleInventoryCommand(message);
+            case "list", "在线" -> handleListCommand();
+            case "tps", "status", "状态" -> handleStatusCommand();
+            case "help", "菜单" -> sendReplyToQQ(ServerStatusManager.getHelp());
+            case "stopserver", "关服" -> handleStopServerCommand(senderQQ);
+            case "addadmin" -> handleAddAdminCommand(args, senderQQ);
+            case "removeadmin" -> handleRemoveAdminCommand(args, senderQQ);
+            default -> {
+                LOGGER.debug("未知命令: {}", message);
+                sendReplyToQQ("❓ 未知命令，输入 #help 查看帮助");
+            }
         }
     }
 
@@ -171,9 +181,11 @@ public class InboundHandler {
 
     /**
      * 处理 #stopserver 命令
-     * TODO: 实现权限检查
+     * 需要管理员权限
+     * 
+     * @param senderQQ 发送者 QQ
      */
-    private static void handleStopServerCommand() {
+    private static void handleStopServerCommand(long senderQQ) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         
         if (server == null) {
@@ -181,20 +193,96 @@ public class InboundHandler {
             return;
         }
         
-        // TODO: 权限检查
-        // long senderQQ = ...;
-        // if (!BotConfig.getAdminList().contains(senderQQ)) {
-        //     sendReplyToQQ("❌ 权限不足");
-        //     return;
-        // }
+        // 权限检查
+        if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
+            sendReplyToQQ("❌ 权限不足: 只有管理员可以执行此命令");
+            LOGGER.warn("用户 {} 尝试执行 #stopserver 但权限不足", senderQQ);
+            return;
+        }
         
         sendReplyToQQ("⏹️ 服务器正在关闭...");
         
         // 线程安全: 调度到主线程
         server.execute(() -> {
-            LOGGER.warn("收到远程停服命令，服务器即将关闭...");
+            LOGGER.warn("收到远程停服命令 (操作者: {})，服务器即将关闭...", senderQQ);
             server.halt(false);
         });
+    }
+
+    /**
+     * 处理 #addadmin <qq> 命令
+     * 只有现有管理员可以添加新管理员
+     * 
+     * @param args 命令参数
+     * @param senderQQ 发送者 QQ
+     */
+    private static void handleAddAdminCommand(String args, long senderQQ) {
+        // 权限检查: 只有管理员可以添加管理员
+        // 特殊情况: 如果没有任何管理员，允许第一个添加
+        if (DataManager.INSTANCE.getAdmins().isEmpty()) {
+            LOGGER.info("当前无管理员，允许首次添加");
+        } else if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
+            sendReplyToQQ("❌ 权限不足: 只有管理员可以添加新管理员");
+            return;
+        }
+        
+        // 解析目标 QQ
+        if (args.isEmpty()) {
+            sendReplyToQQ("❌ 用法: #addadmin <QQ号>");
+            return;
+        }
+        
+        try {
+            long targetQQ = Long.parseLong(args.trim());
+            
+            if (DataManager.INSTANCE.addAdmin(targetQQ)) {
+                sendReplyToQQ(String.format("✅ 已添加管理员: %d", targetQQ));
+                LOGGER.info("用户 {} 添加了新管理员: {}", senderQQ, targetQQ);
+            } else {
+                sendReplyToQQ(String.format("⚠️ %d 已经是管理员", targetQQ));
+            }
+        } catch (NumberFormatException e) {
+            sendReplyToQQ("❌ 无效的 QQ 号格式");
+        }
+    }
+
+    /**
+     * 处理 #removeadmin <qq> 命令
+     * 
+     * @param args 命令参数
+     * @param senderQQ 发送者 QQ
+     */
+    private static void handleRemoveAdminCommand(String args, long senderQQ) {
+        // 权限检查
+        if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
+            sendReplyToQQ("❌ 权限不足: 只有管理员可以移除管理员");
+            return;
+        }
+        
+        // 解析目标 QQ
+        if (args.isEmpty()) {
+            sendReplyToQQ("❌ 用法: #removeadmin <QQ号>");
+            return;
+        }
+        
+        try {
+            long targetQQ = Long.parseLong(args.trim());
+            
+            // 防止自我移除
+            if (targetQQ == senderQQ) {
+                sendReplyToQQ("⚠️ 无法移除自己的管理员权限");
+                return;
+            }
+            
+            if (DataManager.INSTANCE.removeAdmin(targetQQ)) {
+                sendReplyToQQ(String.format("✅ 已移除管理员: %d", targetQQ));
+                LOGGER.info("用户 {} 移除了管理员: {}", senderQQ, targetQQ);
+            } else {
+                sendReplyToQQ(String.format("⚠️ %d 不是管理员", targetQQ));
+            }
+        } catch (NumberFormatException e) {
+            sendReplyToQQ("❌ 无效的 QQ 号格式");
+        }
     }
 
     /**
@@ -239,11 +327,13 @@ public class InboundHandler {
     private static void handleMetaEvent(JsonObject json) {
         String metaEventType = getStringOrNull(json, "meta_event_type");
 
-        if ("heartbeat".equals(metaEventType)) {
-            LOGGER.debug("收到心跳事件");
-        } else if ("lifecycle".equals(metaEventType)) {
-            String subType = getStringOrNull(json, "sub_type");
-            LOGGER.info("生命周期事件: {}", subType);
+        switch (metaEventType) {
+            case "heartbeat" -> LOGGER.debug("收到心跳事件");
+            case "lifecycle" -> {
+                String subType = getStringOrNull(json, "sub_type");
+                LOGGER.info("生命周期事件: {}", subType);
+            }
+            default -> LOGGER.debug("忽略未知元事件: {}", metaEventType);
         }
     }
 

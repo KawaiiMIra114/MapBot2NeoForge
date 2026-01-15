@@ -11,6 +11,7 @@
 package com.mapbot;
 
 import com.mapbot.config.BotConfig;
+import com.mapbot.data.DataManager;
 import com.mapbot.network.BotClient;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
@@ -57,6 +58,10 @@ public class MapBot {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("服务器正在启动，准备连接到 NapCat...");
+
+        // 初始化数据管理器
+        DataManager.INSTANCE.init();
+        LOGGER.info("数据管理器已初始化");
 
         long groupId = BotConfig.getTargetGroupId();
         if (groupId == 0L) {

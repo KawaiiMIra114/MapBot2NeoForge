@@ -114,6 +114,11 @@ public class ServerStatusManager {
             #tps / #status - 查看服务器状态
             #inv <玩家名> - 查看玩家背包
             ─────────────────────
+            ⚙️ 管理员命令:
+            #stopserver - 关闭服务器
+            #addadmin <QQ> - 添加管理员
+            #removeadmin <QQ> - 移除管理员
+            ─────────────────────
             普通消息将转发到游戏内""";
     }
 

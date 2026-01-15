@@ -159,6 +159,9 @@ public class BotClient {
      * 内部 WebSocket 监听器
      */
     private class WSListener implements WebSocket.Listener {
+        
+        /** 消息分片缓冲区 - 用于处理大消息被 WebSocket 拆分的情况 */
+        private final StringBuilder messageBuffer = new StringBuilder();
 
         @Override
         public void onOpen(WebSocket webSocket) {
@@ -168,17 +171,30 @@ public class BotClient {
 
         @Override
         public CompletionStage<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+            // 将数据追加到缓冲区
+            messageBuffer.append(data);
+            
             if (BotConfig.isDebugMode()) {
-                LOGGER.info("[DEBUG] 收到原始消息: {}", data);
+                LOGGER.info("[DEBUG] 收到消息片段 (last={}): {}", last, data);
             } else {
-                LOGGER.debug("收到消息 (长度: {})", data.length());
+                LOGGER.debug("收到消息片段 (长度: {}, last={})", data.length(), last);
             }
-
-            // 调用入站处理器解析消息
-            try {
-                InboundHandler.handleMessage(data.toString());
-            } catch (Exception e) {
-                LOGGER.error("处理入站消息时发生异常: {}", e.getMessage());
+            
+            // 只有当 last == true 时，才处理完整消息
+            if (last) {
+                String completeMessage = messageBuffer.toString();
+                messageBuffer.setLength(0); // 清空缓冲区
+                
+                if (BotConfig.isDebugMode()) {
+                    LOGGER.info("[DEBUG] 完整消息: {}", completeMessage);
+                }
+                
+                // 调用入站处理器解析消息
+                try {
+                    InboundHandler.handleMessage(completeMessage);
+                } catch (Exception e) {
+                    LOGGER.error("处理入站消息时发生异常: {}", e.getMessage());
+                }
             }
 
             webSocket.request(1); // 请求下一条消息
