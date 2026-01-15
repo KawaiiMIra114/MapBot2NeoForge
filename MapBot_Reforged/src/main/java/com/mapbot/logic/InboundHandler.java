@@ -14,8 +14,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mapbot.config.BotConfig;
+import com.mapbot.network.BotClient;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,28 +64,17 @@ public class InboundHandler {
         if (!"group".equals(messageType)) {
             return;
         }
-
+        
         // 安全检查: 验证消息来源群号
         long targetGroupId = BotConfig.getTargetGroupId();
         if (targetGroupId == 0L) {
             return; // 未配置群号，跳过
         }
-
+        
         long sourceGroupId = getLongOrZero(json, "group_id");
         if (sourceGroupId != targetGroupId) {
             LOGGER.debug("忽略来自其他群的消息: {}", sourceGroupId);
             return;
-        }
-
-        // 提取发送者信息
-        JsonObject sender = json.getAsJsonObject("sender");
-        if (sender == null) {
-            return;
-        }
-
-        String nickname = getStringOrNull(sender, "nickname");
-        if (nickname == null) {
-            nickname = "未知用户";
         }
 
         // 提取消息内容
@@ -92,14 +83,66 @@ public class InboundHandler {
             return;
         }
 
-        // 格式化消息
-        String formattedMessage = String.format("[QQ] <%s> %s", nickname, message);
+        // 提取发送者信息
+        JsonObject sender = json.getAsJsonObject("sender");
+        String nickname = "未知用户";
+        if (sender != null) {
+            String senderNick = getStringOrNull(sender, "nickname");
+            if (senderNick != null) {
+                nickname = senderNick;
+            }
+        }
 
         LOGGER.info("收到群消息: {} -> {}", nickname, message);
 
-        // 关键: 跨线程安全广播
-        // WebSocket 回调在独立线程中，必须调度到服务器主线程
-        broadcastToServer(formattedMessage);
+        // === 命令分发 ===
+        if (message.startsWith("#inv ")) {
+            // Task #007: 库存查询命令
+            handleInventoryCommand(message);
+        } else if (message.startsWith("#")) {
+            // 其他命令，暂不处理
+            LOGGER.debug("未知命令: {}", message);
+        } else {
+            // 普通消息，转发到游戏
+            String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, message);
+            broadcastToServer(formattedMessage);
+        }
+    }
+
+    /**
+     * 处理 #inv <玩家名> 命令
+     * Task #007 新增
+     */
+    private static void handleInventoryCommand(String message) {
+        // 解析玩家名
+        String targetPlayerName = message.substring(5).trim();
+        
+        if (targetPlayerName.isEmpty()) {
+            sendReplyToQQ("❌ 用法: #inv <玩家名>");
+            return;
+        }
+        
+        LOGGER.info("收到库存查询请求: {}", targetPlayerName);
+        
+        // 关键: 线程调度
+        // 必须在服务器主线程执行 getPlayerList() 操作
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendReplyToQQ("❌ 服务器未就绪");
+            return;
+        }
+        
+        // 调度到服务器主线程
+        server.execute(() -> {
+            ServerPlayer player = server.getPlayerList().getPlayerByName(targetPlayerName);
+            
+            // 调用 InventoryManager 获取库存信息
+            String result = InventoryManager.getPlayerInventory(player);
+            
+            // 发送结果回 QQ
+            sendReplyToQQ(result);
+        });
     }
 
     /**
@@ -114,6 +157,28 @@ public class InboundHandler {
             String subType = getStringOrNull(json, "sub_type");
             LOGGER.info("生命周期事件: {}", subType);
         }
+    }
+
+    /**
+     * 发送回复消息到 QQ 群
+     */
+    private static void sendReplyToQQ(String message) {
+        long targetGroupId = BotConfig.getTargetGroupId();
+        if (targetGroupId == 0L) {
+            LOGGER.warn("无法发送回复: 目标群号未配置");
+            return;
+        }
+        
+        JsonObject params = new JsonObject();
+        params.addProperty("group_id", targetGroupId);
+        params.addProperty("message", message);
+        
+        JsonObject packet = new JsonObject();
+        packet.addProperty("action", "send_group_msg");
+        packet.add("params", params);
+        packet.addProperty("echo", "reply_" + System.currentTimeMillis());
+        
+        BotClient.INSTANCE.sendPacket(packet);
     }
 
     /**
@@ -147,7 +212,7 @@ public class InboundHandler {
         }
         return null;
     }
-
+    
     /**
      * 安全地从 JsonObject 获取 long 值
      */
