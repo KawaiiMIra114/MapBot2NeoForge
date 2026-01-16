@@ -130,6 +130,30 @@ public class BotClient {
     }
 
     /**
+     * 发送群消息的辅助方法
+     * 简化向 QQ 群发送消息的操作
+     * 
+     * @param groupId 目标群号
+     * @param message 消息内容
+     */
+    public void sendGroupMessage(long groupId, String message) {
+        if (!isConnected || groupId == 0L) {
+            return;
+        }
+        
+        JsonObject params = new JsonObject();
+        params.addProperty("group_id", groupId);
+        params.addProperty("message", message);
+        
+        JsonObject packet = new JsonObject();
+        packet.addProperty("action", "send_group_msg");
+        packet.add("params", params);
+        packet.addProperty("echo", "event_" + System.currentTimeMillis());
+        
+        this.sendPacket(packet);
+    }
+
+    /**
      * 调度重连任务
      */
     private void scheduleReconnect() {

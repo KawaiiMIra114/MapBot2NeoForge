@@ -2,129 +2,132 @@
  * MapBot Reforged - 游戏事件监听器
  * 
  * 遵从 .ai_rules.md 中定义的治理规则。
- * 负责捕获 Minecraft 服务端事件并转发到 QQ 群。
+ * 捕获 Minecraft 游戏事件并转发到 QQ 群。
  * 
- * 参考: ./Project_Docs/Architecture/System_Design.md
+ * Task #011: 实现 Game-to-QQ 事件桥接
+ * - 聊天同步
+ * - 加入/退出通知
+ * - 死亡消息
  */
 
 package com.mapbot.logic;
 
-import com.google.gson.JsonObject;
 import com.mapbot.MapBot;
 import com.mapbot.config.BotConfig;
 import com.mapbot.network.BotClient;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.ServerChatEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * 游戏事件监听器
- * 监听 Minecraft 服务端事件并通过 BotClient 发送到 QQ 群
+ * 将服务器事件转发到 QQ 群
  */
-@EventBusSubscriber(modid = MapBot.MODID)
+@EventBusSubscriber(modid = MapBot.MODID, bus = EventBusSubscriber.Bus.GAME)
 public class GameEventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/Event");
 
     /**
-     * 监听玩家聊天事件
-     * 忽略以 / 开头的命令消息
+     * 聊天消息同步
+     * 当玩家在游戏内发送消息时，转发到 QQ 群
      */
     @SubscribeEvent
     public static void onServerChat(ServerChatEvent event) {
-        long targetGroupId = BotConfig.getTargetGroupId();
-        if (targetGroupId == 0L) {
-            return; // 未配置群号，跳过
-        }
-
-        String message = event.getMessage().getString();
-        ServerPlayer player = event.getPlayer();
-
-        // 忽略命令消息，避免泄露
-        if (message.startsWith("/")) {
+        long groupId = BotConfig.getTargetGroupId();
+        if (groupId == 0L) {
             return;
         }
-
-        String playerName = player.getName().getString();
-        String formattedMessage = String.format("[服务器] <%s> %s", playerName, message);
-
-        LOGGER.debug("捕获聊天: {} -> {}", playerName, message);
-
-        // 构建 OneBot v11 格式的 JSON
-        JsonObject params = new JsonObject();
-        params.addProperty("group_id", targetGroupId);
-        params.addProperty("message", formattedMessage);
-
-        JsonObject packet = new JsonObject();
-        packet.addProperty("action", "send_group_msg");
-        packet.add("params", params);
-        packet.addProperty("echo", "chat_" + System.currentTimeMillis());
-
-        BotClient.INSTANCE.sendPacket(packet);
+        
+        String playerName = event.getPlayer().getName().getString();
+        String message = event.getRawText();
+        
+        // 格式: [玩家名] 消息内容
+        String formattedMessage = String.format("[%s] %s", playerName, message);
+        
+        LOGGER.debug("转发聊天消息: {}", formattedMessage);
+        BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
     }
 
     /**
-     * 监听玩家登录事件
+     * 玩家加入服务器同步
      */
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        long targetGroupId = BotConfig.getTargetGroupId();
-        if (targetGroupId == 0L) {
+        long groupId = BotConfig.getTargetGroupId();
+        if (groupId == 0L) {
             return;
         }
-
+        
+        // 确保是服务端玩家
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-
+        
         String playerName = player.getName().getString();
-        String formattedMessage = String.format("🟢 玩家 %s 加入了服务器", playerName);
-
-        LOGGER.info("玩家登录: {}", playerName);
-
-        JsonObject params = new JsonObject();
-        params.addProperty("group_id", targetGroupId);
-        params.addProperty("message", formattedMessage);
-
-        JsonObject packet = new JsonObject();
-        packet.addProperty("action", "send_group_msg");
-        packet.add("params", params);
-        packet.addProperty("echo", "join_" + System.currentTimeMillis());
-
-        BotClient.INSTANCE.sendPacket(packet);
+        
+        // 格式: [+] 玩家名 加入了服务器
+        String formattedMessage = String.format("[+] %s 加入了服务器", playerName);
+        
+        LOGGER.info("玩家加入: {}", playerName);
+        BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
     }
 
     /**
-     * 监听玩家登出事件
+     * 玩家离开服务器同步
      */
     @SubscribeEvent
     public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        long targetGroupId = BotConfig.getTargetGroupId();
-        if (targetGroupId == 0L) {
+        long groupId = BotConfig.getTargetGroupId();
+        if (groupId == 0L) {
             return;
         }
-
+        
+        // 确保是服务端玩家
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
-
+        
         String playerName = player.getName().getString();
-        String formattedMessage = String.format("🔴 玩家 %s 离开了服务器", playerName);
+        
+        // 格式: [-] 玩家名 离开了服务器
+        String formattedMessage = String.format("[-] %s 离开了服务器", playerName);
+        
+        LOGGER.info("玩家离开: {}", playerName);
+        BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
+    }
 
-        LOGGER.info("玩家登出: {}", playerName);
-
-        JsonObject params = new JsonObject();
-        params.addProperty("group_id", targetGroupId);
-        params.addProperty("message", formattedMessage);
-
-        JsonObject packet = new JsonObject();
-        packet.addProperty("action", "send_group_msg");
-        packet.add("params", params);
-        packet.addProperty("echo", "leave_" + System.currentTimeMillis());
-
-        BotClient.INSTANCE.sendPacket(packet);
+    /**
+     * 玩家死亡消息同步
+     */
+    @SubscribeEvent
+    public static void onLivingDeath(LivingDeathEvent event) {
+        long groupId = BotConfig.getTargetGroupId();
+        if (groupId == 0L) {
+            return;
+        }
+        
+        LivingEntity entity = event.getEntity();
+        
+        // 只处理玩家死亡
+        if (!(entity instanceof ServerPlayer player)) {
+            return;
+        }
+        
+        // 获取原版死亡消息
+        String deathMessage = event.getSource()
+                .getLocalizedDeathMessage(player)
+                .getString();
+        
+        // 格式: [☠️] 死亡消息
+        String formattedMessage = String.format("[☠️] %s", deathMessage);
+        
+        LOGGER.info("玩家死亡: {}", deathMessage);
+        BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
     }
 }
