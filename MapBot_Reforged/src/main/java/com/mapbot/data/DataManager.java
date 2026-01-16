@@ -281,6 +281,51 @@ public class DataManager {
         }
     }
     
+    /**
+     * 检查 QQ 是否已绑定 (别名方法)
+     * 
+     * @param qq QQ 号
+     * @return 是否已绑定
+     */
+    public boolean isQQBound(long qq) {
+        return isBound(qq);
+    }
+    
+    /**
+     * 检查 UUID 是否已被绑定
+     * 
+     * @param uuid 玩家 UUID
+     * @return 是否已被绑定
+     */
+    public boolean isUUIDBound(String uuid) {
+        lock.readLock().lock();
+        try {
+            return data.playerBindings.containsValue(uuid);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    /**
+     * 根据 UUID 获取绑定的 QQ 号
+     * 
+     * @param uuid 玩家 UUID
+     * @return 绑定的 QQ 号，未绑定返回 -1
+     */
+    public long getQQByUUID(String uuid) {
+        lock.readLock().lock();
+        try {
+            for (Map.Entry<Long, String> entry : data.playerBindings.entrySet()) {
+                if (entry.getValue().equals(uuid)) {
+                    return entry.getKey();
+                }
+            }
+            return -1L;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
     // ================== 内部数据模型 ==================
     
     /**

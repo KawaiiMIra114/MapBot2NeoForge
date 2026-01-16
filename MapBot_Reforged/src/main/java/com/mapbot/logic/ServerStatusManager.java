@@ -109,10 +109,12 @@ public class ServerStatusManager {
         return """
             📖 MapBot Reforged 命令帮助
             ─────────────────────
-            #help / #菜单 - 显示此帮助
+            #id <游戏ID> - 绑定QQ与游戏账号
+            #unbind - 解绑游戏账号
             #list / #在线 - 查看在线玩家
             #tps / #status - 查看服务器状态
             #inv <玩家名> - 查看玩家背包
+            #help / #菜单 - 显示此帮助
             ─────────────────────
             ⚙️ 管理员命令:
             #stopserver - 关闭服务器
