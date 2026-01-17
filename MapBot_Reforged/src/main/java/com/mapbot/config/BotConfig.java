@@ -5,6 +5,8 @@
  * 使用 NeoForge ModConfigSpec 原生配置系统。
  * 
  * 配置文件将自动生成于: config/mapbot-common.toml
+ * 
+ * Task #012-STEP2: 新增双群结构 (playerGroupId + adminGroupId)
  */
 
 package com.mapbot.config;
@@ -24,7 +26,8 @@ public class BotConfig {
 
     // 配置项
     public final ModConfigSpec.ConfigValue<String> wsUrl;
-    public final ModConfigSpec.LongValue targetGroupId;
+    public final ModConfigSpec.LongValue playerGroupId;
+    public final ModConfigSpec.LongValue adminGroupId;
     public final ModConfigSpec.IntValue reconnectInterval;
     public final ModConfigSpec.BooleanValue debugMode;
 
@@ -54,11 +57,17 @@ public class BotConfig {
 
         builder.push("messaging");
 
-        targetGroupId = builder
-                .comment("目标 QQ 群号")
-                .comment("设置为 0 将禁用消息同步功能")
-                .comment("只有来自此群的消息会被转发到游戏")
-                .defineInRange("targetGroupId", 0L, 0L, Long.MAX_VALUE);
+        playerGroupId = builder
+                .comment("玩家群号")
+                .comment("普通消息将从此群转发到游戏")
+                .comment("设置为 0 将禁用消息转发功能")
+                .defineInRange("playerGroupId", 0L, 0L, Long.MAX_VALUE);
+        
+        adminGroupId = builder
+                .comment("管理群号")
+                .comment("敏感命令 (#inv, #stopserver 等) 仅限此群使用")
+                .comment("设置为 0 将禁用管理群功能 (不推荐)")
+                .defineInRange("adminGroupId", 0L, 0L, Long.MAX_VALUE);
 
         builder.pop();
 
@@ -80,10 +89,26 @@ public class BotConfig {
     }
 
     /**
-     * 获取目标群号
+     * 获取玩家群号 (消息转发源)
      */
+    public static long getPlayerGroupId() {
+        return INSTANCE.playerGroupId.get();
+    }
+    
+    /**
+     * 获取管理群号 (敏感命令专用)
+     */
+    public static long getAdminGroupId() {
+        return INSTANCE.adminGroupId.get();
+    }
+    
+    /**
+     * 获取目标群号 (兼容旧代码，即将废弃)
+     * @deprecated 请使用 getPlayerGroupId() 或 getAdminGroupId()
+     */
+    @Deprecated
     public static long getTargetGroupId() {
-        return INSTANCE.targetGroupId.get();
+        return getPlayerGroupId();
     }
 
     /**
