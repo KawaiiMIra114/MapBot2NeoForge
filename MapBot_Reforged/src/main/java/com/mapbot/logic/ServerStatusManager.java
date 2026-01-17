@@ -15,6 +15,7 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -73,8 +74,8 @@ public class ServerStatusManager {
         sb.append("─────────\n");
         
         // MSPT (Milliseconds Per Tick)
-        // 1.21 使用 getAverageTickTimeNanos() 或 getAverageTickTime()
-        double mspt = server.getAverageTickTime();
+        // 1.21.1: 从 tickTimes 数组手动计算 (纳秒 -> 毫秒)
+        double mspt = Arrays.stream(server.tickTimes).average().orElse(0) * 1.0E-6D;
         double tps = Math.min(20.0, 1000.0 / Math.max(mspt, 1.0));
         
         sb.append(String.format("⏱️ MSPT: %.2f ms\n", mspt));
