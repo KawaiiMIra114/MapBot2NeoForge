@@ -670,8 +670,8 @@ public class InboundHandler {
     }
 
     /**
-     * 处理 #inv <玩家名> 命令
-     * Task #007 新增
+     * 处理 #inv <玩家名> [-e] 命令
+     * Task #007 新增, Task #012-STEP5 更新
      * 
      * @param message 完整命令字符串
      * @param senderQQ 发送者 QQ
@@ -684,15 +684,26 @@ public class InboundHandler {
             return;
         }
         
-        // 解析玩家名
-        String targetPlayerName = message.substring(5).trim();
+        // 解析参数: #inv <玩家名> [-e]
+        String argsStr = message.substring(4).trim(); // 去掉 "#inv"
         
-        if (targetPlayerName.isEmpty()) {
-            sendReplyToQQ(sourceGroupId, "❌ 用法: #inv <玩家名>");
+        if (argsStr.isEmpty()) {
+            sendReplyToQQ(sourceGroupId, "❌ 用法: #inv <玩家名> [-e]\n  -e  查看末影箱");
             return;
         }
         
-        LOGGER.info("收到库存查询请求: {}", targetPlayerName);
+        // 检查是否包含 -e 参数
+        boolean queryEnderChest = argsStr.contains("-e") || argsStr.contains("-E");
+        
+        // 提取玩家名 (移除 -e 参数)
+        String targetPlayerName = argsStr.replace("-e", "").replace("-E", "").trim();
+        
+        if (targetPlayerName.isEmpty()) {
+            sendReplyToQQ(sourceGroupId, "❌ 请指定玩家名");
+            return;
+        }
+        
+        LOGGER.info("收到{}查询请求: {}", queryEnderChest ? "末影箱" : "库存", targetPlayerName);
         
         // 关键: 线程调度
         // 必须在服务器主线程执行 getPlayerList() 操作
@@ -703,17 +714,27 @@ public class InboundHandler {
             return;
         }
         
+        // 使用 final 变量传递到 lambda
+        final boolean isEnderChest = queryEnderChest;
+        final String playerName = targetPlayerName;
+        
         // 调度到服务器主线程
         server.execute(() -> {
-            ServerPlayer player = server.getPlayerList().getPlayerByName(targetPlayerName);
+            ServerPlayer player = server.getPlayerList().getPlayerByName(playerName);
             
-            // 调用 InventoryManager 获取库存信息
-            String result = InventoryManager.getPlayerInventory(player);
+            // 根据参数调用不同方法
+            String result;
+            if (isEnderChest) {
+                result = InventoryManager.getPlayerEnderChest(player);
+            } else {
+                result = InventoryManager.getPlayerInventory(player);
+            }
             
             // 发送结果回 QQ
             sendReplyToQQ(sourceGroupId, result);
         });
     }
+
 
     /**
      * 处理元事件 (心跳等)

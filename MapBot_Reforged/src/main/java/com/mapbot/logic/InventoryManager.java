@@ -90,6 +90,46 @@ public class InventoryManager {
     }
 
     /**
+     * 获取玩家末影箱的可读字符串
+     * Task #012-STEP5 新增
+     * 
+     * @param player 目标玩家
+     * @return 格式化的末影箱信息
+     */
+    public static String getPlayerEnderChest(ServerPlayer player) {
+        if (player == null) {
+            return "❌ 玩家不存在或已离线";
+        }
+
+        List<String> lines = new ArrayList<>();
+        lines.add(String.format("🟣 %s 的末影箱:", player.getName().getString()));
+
+        var enderChest = player.getEnderChestInventory();
+        int itemCount = 0;
+
+        // 末影箱固定 27 格 (3行 x 9列)
+        for (int slot = 0; slot < enderChest.getContainerSize(); slot++) {
+            ItemStack stack = enderChest.getItem(slot);
+
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            itemCount++;
+            String itemInfo = formatItemStack(slot, stack);
+            lines.add(itemInfo);
+        }
+
+        if (itemCount == 0) {
+            lines.add("(空)");
+        } else {
+            lines.add(String.format("--- 共 %d 个物品 ---", itemCount));
+        }
+
+        return String.join("\n", lines);
+    }
+
+    /**
      * 格式化单个物品堆
      * 使用 DataComponents API 获取附魔和耐久信息
      * 
