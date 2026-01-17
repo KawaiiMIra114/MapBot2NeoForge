@@ -15,6 +15,11 @@
  * Task #010 更新:
  * - 新增 #id / #bind 命令 (玩家绑定 + 白名单)
  * - 新增 #unbind / #removeid 命令 (解绑 + 移除白名单)
+ * 
+ * Task #012-STEP3 更新:
+ * - 双群结构支持 (playerGroup + adminGroup)
+ * - CQ码解析 (图片/表情/回复)
+ * - 命令权限分离 (敏感命令仅管理群可用)
  */
 
 package com.mapbot.logic;
@@ -36,7 +41,10 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mapbot.utils.CQCodeParser;
+
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
@@ -50,6 +58,12 @@ public class InboundHandler {
     
     /** 玩家名正则验证: 3-16 位字母数字下划线 */
     private static final Pattern PLAYER_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]{3,16}$");
+    
+    /** 仅限管理群使用的命令集合 */
+    private static final Set<String> ADMIN_ONLY_COMMANDS = Set.of(
+            "inv", "stopserver", "关服", "reload", 
+            "addadmin", "removeadmin", "adminunbind"
+    );
 
     /**
      * 处理从 WebSocket 接收到的原始文本消息
@@ -91,21 +105,24 @@ public class InboundHandler {
             return;
         }
         
-        // 安全检查: 验证消息来源群号
-        long targetGroupId = BotConfig.getTargetGroupId();
-        if (targetGroupId == 0L) {
-            return; // 未配置群号，跳过
-        }
-        
+        // === 双群结构: 检查消息来源 ===
+        long playerGroupId = BotConfig.getPlayerGroupId();
+        long adminGroupId = BotConfig.getAdminGroupId();
         long sourceGroupId = getLongOrZero(json, "group_id");
-        if (sourceGroupId != targetGroupId) {
-            LOGGER.debug("忽略来自其他群的消息: {}", sourceGroupId);
+        
+        // 判断消息来源类型
+        boolean isFromPlayerGroup = (sourceGroupId == playerGroupId && playerGroupId != 0L);
+        boolean isFromAdminGroup = (sourceGroupId == adminGroupId && adminGroupId != 0L);
+        
+        // 如果既不是玩家群也不是管理群，忽略
+        if (!isFromPlayerGroup && !isFromAdminGroup) {
+            LOGGER.debug("忽略来自未配置群的消息: {}", sourceGroupId);
             return;
         }
 
-        // 提取消息内容
-        String message = getStringOrNull(json, "raw_message");
-        if (message == null || message.isEmpty()) {
+        // 提取原始消息内容
+        String rawMessage = getStringOrNull(json, "raw_message");
+        if (rawMessage == null || rawMessage.isEmpty()) {
             return;
         }
 
@@ -122,25 +139,39 @@ public class InboundHandler {
             }
         }
 
-        LOGGER.info("收到群消息: {} ({}) -> {}", nickname, senderQQ, message);
+        LOGGER.info("收到群消息 [{}]: {} ({}) -> {}", 
+                isFromAdminGroup ? "管理群" : "玩家群", nickname, senderQQ, rawMessage);
 
         // === 命令分发 ===
-        if (message.startsWith("#")) {
-            handleCommand(message, senderQQ);
-        } else {
-            // 普通消息，转发到游戏
-            String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, message);
+        if (rawMessage.startsWith("#")) {
+            handleCommand(rawMessage, senderQQ, sourceGroupId, isFromAdminGroup);
+        } else if (isFromPlayerGroup) {
+            // 仅从玩家群转发普通消息到游戏 (管理群的普通消息不转发)
+            // 解析 CQ 码
+            String parsedMessage = CQCodeParser.parse(rawMessage);
+            
+            // 如果解析后为空 (纯图片/表情)，跳过
+            if (parsedMessage.isEmpty()) {
+                LOGGER.debug("消息解析后为空，跳过转发");
+                return;
+            }
+            
+            String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, parsedMessage);
             broadcastToServer(formattedMessage);
         }
+        // 管理群的普通消息不做任何处理
     }
 
     /**
      * 处理命令 (Java 21 Switch 表达式)
+     * Task #012-STEP3: 新增群来源参数，支持命令权限分离
      * 
      * @param message 完整命令字符串
      * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
+     * @param isFromAdminGroup 是否来自管理群
      */
-    private static void handleCommand(String message, long senderQQ) {
+    private static void handleCommand(String message, long senderQQ, long sourceGroupId, boolean isFromAdminGroup) {
         String rawCmd = message.substring(1).trim();
         String cmd = rawCmd.toLowerCase();
         
@@ -152,22 +183,29 @@ public class InboundHandler {
         String[] rawParts = rawCmd.split("\\s+", 2);
         String rawArgs = rawParts.length > 1 ? rawParts[1] : "";
         
+        // === 权限检查: 敏感命令仅限管理群 ===
+        if (ADMIN_ONLY_COMMANDS.contains(commandName) && !isFromAdminGroup) {
+            sendReplyToQQ(sourceGroupId, "❌ 此命令仅限管理群使用");
+            LOGGER.info("用户 {} 在玩家群尝试执行管理命令: {}", senderQQ, commandName);
+            return;
+        }
+        
         // Java 21 Switch 表达式
         switch (commandName) {
-            case "inv" -> handleInventoryCommand(message, senderQQ);
-            case "list", "在线" -> handleListCommand();
-            case "tps", "status", "状态" -> handleStatusCommand();
-            case "help", "菜单" -> sendReplyToQQ(ServerStatusManager.getHelp());
-            case "stopserver", "关服" -> handleStopServerCommand(senderQQ);
-            case "addadmin" -> handleAddAdminCommand(args, senderQQ);
-            case "removeadmin" -> handleRemoveAdminCommand(args, senderQQ);
-            case "id", "bind", "绑定" -> handleBindCommand(rawArgs, senderQQ);
-            case "unbind", "removeid", "解绑" -> handleUnbindCommand(senderQQ);
-            case "adminunbind" -> handleAdminUnbindCommand(args, senderQQ);
-            case "reload" -> handleReloadCommand(senderQQ);
+            case "inv" -> handleInventoryCommand(message, senderQQ, sourceGroupId);
+            case "list", "在线" -> handleListCommand(sourceGroupId);
+            case "tps", "status", "状态" -> handleStatusCommand(sourceGroupId);
+            case "help", "菜单" -> sendReplyToQQ(sourceGroupId, ServerStatusManager.getHelp());
+            case "stopserver", "关服" -> handleStopServerCommand(senderQQ, sourceGroupId);
+            case "addadmin" -> handleAddAdminCommand(args, senderQQ, sourceGroupId);
+            case "removeadmin" -> handleRemoveAdminCommand(args, senderQQ, sourceGroupId);
+            case "id", "bind", "绑定" -> handleBindCommand(rawArgs, senderQQ, sourceGroupId);
+            case "unbind", "removeid", "解绑" -> handleUnbindCommand(senderQQ, sourceGroupId);
+            case "adminunbind" -> handleAdminUnbindCommand(args, senderQQ, sourceGroupId);
+            case "reload" -> handleReloadCommand(senderQQ, sourceGroupId);
             default -> {
                 LOGGER.debug("未知命令: {}", message);
-                sendReplyToQQ("❓ 未知命令，输入 #help 查看帮助");
+                sendReplyToQQ(sourceGroupId, "❓ 未知命令，输入 #help 查看帮助");
             }
         }
     }
@@ -180,31 +218,32 @@ public class InboundHandler {
      * 
      * @param playerName 玩家名
      * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleBindCommand(String playerName, long senderQQ) {
+    private static void handleBindCommand(String playerName, long senderQQ, long sourceGroupId) {
         // Step A: 快速验证
         if (playerName.isEmpty()) {
-            sendReplyToQQ("❌ 用法: #id <游戏ID>\n例如: #id Steve");
+            sendReplyToQQ(sourceGroupId, "❌ 用法: #id <游戏ID>\n例如: #id Steve");
             return;
         }
         
         // 正则验证玩家名格式
         if (!PLAYER_NAME_PATTERN.matcher(playerName).matches()) {
-            sendReplyToQQ("❌ 无效的游戏ID格式\n只能包含字母、数字、下划线，长度3-16位");
+            sendReplyToQQ(sourceGroupId, "❌ 无效的游戏ID格式\n只能包含字母、数字、下划线，长度3-16位");
             return;
         }
         
         // 检查 QQ 是否已绑定
         if (DataManager.INSTANCE.isQQBound(senderQQ)) {
             String existingUUID = DataManager.INSTANCE.getBinding(senderQQ);
-            sendReplyToQQ("❌ 你已经绑定了游戏账号\n如需更换，请先使用 #unbind 解绑");
+            sendReplyToQQ(sourceGroupId, "❌ 你已经绑定了游戏账号\n如需更换，请先使用 #unbind 解绑");
             LOGGER.info("用户 {} 尝试重复绑定，已绑定 UUID: {}", senderQQ, existingUUID);
             return;
         }
         
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) {
-            sendReplyToQQ("❌ 服务器未就绪");
+            sendReplyToQQ(sourceGroupId, "❌ 服务器未就绪");
             return;
         }
         
@@ -219,7 +258,7 @@ public class InboundHandler {
         }).thenAcceptAsync(profile -> {
             // Step C: 在服务器主线程执行绑定操作
             if (profile == null) {
-                sendReplyToQQ("❌ 找不到玩家 " + playerName + "\n请确认ID正确，或先尝试进服一次");
+                sendReplyToQQ(sourceGroupId, "❌ 找不到玩家 " + playerName + "\n请确认ID正确，或先尝试进服一次");
                 return;
             }
             
@@ -228,7 +267,7 @@ public class InboundHandler {
             // 检查 UUID 是否已被其他人绑定
             if (DataManager.INSTANCE.isUUIDBound(uuid)) {
                 long boundQQ = DataManager.INSTANCE.getQQByUUID(uuid);
-                sendReplyToQQ("❌ 该游戏ID已被其他QQ绑定\n如有疑问请联系管理员");
+                sendReplyToQQ(sourceGroupId, "❌ 该游戏ID已被其他QQ绑定\n如有疑问请联系管理员");
                 LOGGER.warn("UUID {} 已被 QQ {} 绑定，拒绝 QQ {} 的绑定请求", uuid, boundQQ, senderQQ);
                 return;
             }
@@ -236,7 +275,7 @@ public class InboundHandler {
             // 执行绑定
             boolean bindSuccess = DataManager.INSTANCE.bind(senderQQ, uuid);
             if (!bindSuccess) {
-                sendReplyToQQ("❌ 绑定失败，请稍后重试");
+                sendReplyToQQ(sourceGroupId, "❌ 绑定失败，请稍后重试");
                 return;
             }
             
@@ -249,12 +288,12 @@ public class InboundHandler {
                     LOGGER.info("已将玩家 {} ({}) 添加到白名单", profile.getName(), uuid);
                 }
                 
-                sendReplyToQQ(String.format("✅ 绑定成功！\n已将 %s 加入白名单\n现在可以进入服务器了", profile.getName()));
+                sendReplyToQQ(sourceGroupId, String.format("✅ 绑定成功！\n已将 %s 加入白名单\n现在可以进入服务器了", profile.getName()));
                 LOGGER.info("绑定成功: QQ {} -> {} ({})", senderQQ, profile.getName(), uuid);
                 
             } catch (Exception e) {
                 LOGGER.error("添加白名单失败: {}", e.getMessage());
-                sendReplyToQQ("⚠️ 绑定成功，但添加白名单时出错\n请联系管理员");
+                sendReplyToQQ(sourceGroupId, "⚠️ 绑定成功，但添加白名单时出错\n请联系管理员");
             }
             
         }, server); // 使用 server 作为 Executor，确保在主线程执行
@@ -305,11 +344,12 @@ public class InboundHandler {
      * 解绑 QQ 与 Minecraft 玩家的关联，并从白名单移除
      * 
      * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleUnbindCommand(long senderQQ) {
+    private static void handleUnbindCommand(long senderQQ, long sourceGroupId) {
         // 检查是否已绑定
         if (!DataManager.INSTANCE.isQQBound(senderQQ)) {
-            sendReplyToQQ("❌ 你还没有绑定游戏账号\n使用 #id <游戏ID> 进行绑定");
+            sendReplyToQQ(sourceGroupId, "❌ 你还没有绑定游戏账号\n使用 #id <游戏ID> 进行绑定");
             return;
         }
         
@@ -326,7 +366,7 @@ public class InboundHandler {
             // 执行解绑
             boolean unbindSuccess = DataManager.INSTANCE.unbind(senderQQ);
             if (!unbindSuccess) {
-                sendReplyToQQ("❌ 解绑失败，请稍后重试");
+                sendReplyToQQ(sourceGroupId, "❌ 解绑失败，请稍后重试");
                 return;
             }
             
@@ -334,12 +374,12 @@ public class InboundHandler {
             try {
                 removeFromWhitelistByUUID(server, uuid);
                 
-                sendReplyToQQ("✅ 解绑成功！\n已从白名单中移除");
+                sendReplyToQQ(sourceGroupId, "✅ 解绑成功！\n已从白名单中移除");
                 LOGGER.info("解绑成功: QQ {} (原UUID: {})", senderQQ, uuid);
                 
             } catch (Exception e) {
                 LOGGER.error("移除白名单失败: {}", e.getMessage());
-                sendReplyToQQ("⚠️ 解绑成功，但移除白名单时出错\n请联系管理员");
+                sendReplyToQQ(sourceGroupId, "⚠️ 解绑成功，但移除白名单时出错\n请联系管理员");
             }
         });
     }
@@ -350,16 +390,17 @@ public class InboundHandler {
      * 
      * @param args 目标 QQ
      * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleAdminUnbindCommand(String args, long senderQQ) {
+    private static void handleAdminUnbindCommand(String args, long senderQQ, long sourceGroupId) {
         // 权限检查
         if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
-            sendReplyToQQ("❌ 权限不足: 只有管理员可以执行此命令");
+            sendReplyToQQ(sourceGroupId, "❌ 权限不足: 只有管理员可以执行此命令");
             return;
         }
         
         if (args.isEmpty()) {
-            sendReplyToQQ("❌ 用法: #adminunbind <QQ号>");
+            sendReplyToQQ(sourceGroupId, "❌ 用法: #adminunbind <QQ号>");
             return;
         }
         
@@ -367,13 +408,13 @@ public class InboundHandler {
         try {
             targetQQ = Long.parseLong(args.trim());
         } catch (NumberFormatException e) {
-            sendReplyToQQ("❌ 无效的 QQ 号格式");
+            sendReplyToQQ(sourceGroupId, "❌ 无效的 QQ 号格式");
             return;
         }
         
         // 检查目标是否已绑定
         if (!DataManager.INSTANCE.isQQBound(targetQQ)) {
-            sendReplyToQQ(String.format("⚠️ QQ %d 未绑定任何游戏账号", targetQQ));
+            sendReplyToQQ(sourceGroupId, String.format("⚠️ QQ %d 未绑定任何游戏账号", targetQQ));
             return;
         }
         
@@ -382,7 +423,7 @@ public class InboundHandler {
         
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) {
-            sendReplyToQQ("❌ 服务器未就绪");
+            sendReplyToQQ(sourceGroupId, "❌ 服务器未就绪");
             return;
         }
         
@@ -391,7 +432,7 @@ public class InboundHandler {
             // 执行解绑
             boolean unbindSuccess = DataManager.INSTANCE.unbind(targetQQ);
             if (!unbindSuccess) {
-                sendReplyToQQ("❌ 解绑失败，请稍后重试");
+                sendReplyToQQ(sourceGroupId, "❌ 解绑失败，请稍后重试");
                 return;
             }
             
@@ -399,12 +440,12 @@ public class InboundHandler {
             try {
                 removeFromWhitelistByUUID(server, uuid);
                 
-                sendReplyToQQ(String.format("✅ 已强制解绑 QQ %d\n已从白名单移除", targetQQ));
+                sendReplyToQQ(sourceGroupId, String.format("✅ 已强制解绑 QQ %d\n已从白名单移除", targetQQ));
                 LOGGER.info("管理员 {} 强制解绑: QQ {} (UUID: {})", senderQQ, targetQQ, uuid);
                 
             } catch (Exception e) {
                 LOGGER.error("移除白名单失败: {}", e.getMessage());
-                sendReplyToQQ(String.format("⚠️ 已解绑 QQ %d，但移除白名单时出错", targetQQ));
+                sendReplyToQQ(sourceGroupId, String.format("⚠️ 已解绑 QQ %d，但移除白名单时出错", targetQQ));
             }
         });
     }
@@ -414,11 +455,12 @@ public class InboundHandler {
      * 重载配置文件和数据
      * 
      * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleReloadCommand(long senderQQ) {
+    private static void handleReloadCommand(long senderQQ, long sourceGroupId) {
         // 权限检查
         if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
-            sendReplyToQQ("❌ 权限不足: 只有管理员可以执行此命令");
+            sendReplyToQQ(sourceGroupId, "❌ 权限不足: 只有管理员可以执行此命令");
             return;
         }
         
@@ -429,12 +471,12 @@ public class InboundHandler {
             // 注: BotConfig 使用 ModConfigSpec，会自动同步配置文件变更
             // 无需手动重载
             
-            sendReplyToQQ("🔄 配置和数据已重载\n• mapbot_data.json ✓\n• mapbot-common.toml (自动同步)");
+            sendReplyToQQ(sourceGroupId, "🔄 配置和数据已重载\n• mapbot_data.json ✓\n• mapbot-common.toml (自动同步)");
             LOGGER.info("管理员 {} 执行了配置重载", senderQQ);
             
         } catch (Exception e) {
             LOGGER.error("重载配置失败: {}", e.getMessage());
-            sendReplyToQQ("❌ 重载失败: " + e.getMessage());
+            sendReplyToQQ(sourceGroupId, "❌ 重载失败: " + e.getMessage());
         }
     }
 
@@ -474,37 +516,39 @@ public class InboundHandler {
 
     /**
      * 处理 #list 命令
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleListCommand() {
+    private static void handleListCommand(long sourceGroupId) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         
         if (server == null) {
-            sendReplyToQQ("❌ 服务器未就绪");
+            sendReplyToQQ(sourceGroupId, "❌ 服务器未就绪");
             return;
         }
         
         // 线程安全: 调度到主线程
         server.execute(() -> {
             String result = ServerStatusManager.getList();
-            sendReplyToQQ(result);
+            sendReplyToQQ(sourceGroupId, result);
         });
     }
 
     /**
      * 处理 #tps / #status 命令
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleStatusCommand() {
+    private static void handleStatusCommand(long sourceGroupId) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         
         if (server == null) {
-            sendReplyToQQ("❌ 服务器未就绪");
+            sendReplyToQQ(sourceGroupId, "❌ 服务器未就绪");
             return;
         }
         
         // 线程安全: 调度到主线程
         server.execute(() -> {
             String result = ServerStatusManager.getServerInfo();
-            sendReplyToQQ(result);
+            sendReplyToQQ(sourceGroupId, result);
         });
     }
 
@@ -513,23 +557,24 @@ public class InboundHandler {
      * 需要管理员权限
      * 
      * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleStopServerCommand(long senderQQ) {
+    private static void handleStopServerCommand(long senderQQ, long sourceGroupId) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         
         if (server == null) {
-            sendReplyToQQ("❌ 服务器未就绪");
+            sendReplyToQQ(sourceGroupId, "❌ 服务器未就绪");
             return;
         }
         
         // 权限检查
         if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
-            sendReplyToQQ("❌ 权限不足: 只有管理员可以执行此命令");
+            sendReplyToQQ(sourceGroupId, "❌ 权限不足: 只有管理员可以执行此命令");
             LOGGER.warn("用户 {} 尝试执行 #stopserver 但权限不足", senderQQ);
             return;
         }
         
-        sendReplyToQQ("⏹️ 服务器正在关闭...");
+        sendReplyToQQ(sourceGroupId, "⏹️ 服务器正在关闭...");
         
         // 线程安全: 调度到主线程
         server.execute(() -> {
@@ -544,20 +589,21 @@ public class InboundHandler {
      * 
      * @param args 命令参数
      * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleAddAdminCommand(String args, long senderQQ) {
+    private static void handleAddAdminCommand(String args, long senderQQ, long sourceGroupId) {
         // 权限检查: 只有管理员可以添加管理员
         // 特殊情况: 如果没有任何管理员，允许第一个添加
         if (DataManager.INSTANCE.getAdmins().isEmpty()) {
             LOGGER.info("当前无管理员，允许首次添加");
         } else if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
-            sendReplyToQQ("❌ 权限不足: 只有管理员可以添加新管理员");
+            sendReplyToQQ(sourceGroupId, "❌ 权限不足: 只有管理员可以添加新管理员");
             return;
         }
         
         // 解析目标 QQ
         if (args.isEmpty()) {
-            sendReplyToQQ("❌ 用法: #addadmin <QQ号>");
+            sendReplyToQQ(sourceGroupId, "❌ 用法: #addadmin <QQ号>");
             return;
         }
         
@@ -565,13 +611,13 @@ public class InboundHandler {
             long targetQQ = Long.parseLong(args.trim());
             
             if (DataManager.INSTANCE.addAdmin(targetQQ)) {
-                sendReplyToQQ(String.format("✅ 已添加管理员: %d", targetQQ));
+                sendReplyToQQ(sourceGroupId, String.format("✅ 已添加管理员: %d", targetQQ));
                 LOGGER.info("用户 {} 添加了新管理员: {}", senderQQ, targetQQ);
             } else {
-                sendReplyToQQ(String.format("⚠️ %d 已经是管理员", targetQQ));
+                sendReplyToQQ(sourceGroupId, String.format("⚠️ %d 已经是管理员", targetQQ));
             }
         } catch (NumberFormatException e) {
-            sendReplyToQQ("❌ 无效的 QQ 号格式");
+            sendReplyToQQ(sourceGroupId, "❌ 无效的 QQ 号格式");
         }
     }
 
@@ -580,17 +626,18 @@ public class InboundHandler {
      * 
      * @param args 命令参数
      * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleRemoveAdminCommand(String args, long senderQQ) {
+    private static void handleRemoveAdminCommand(String args, long senderQQ, long sourceGroupId) {
         // 权限检查
         if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
-            sendReplyToQQ("❌ 权限不足: 只有管理员可以移除管理员");
+            sendReplyToQQ(sourceGroupId, "❌ 权限不足: 只有管理员可以移除管理员");
             return;
         }
         
         // 解析目标 QQ
         if (args.isEmpty()) {
-            sendReplyToQQ("❌ 用法: #removeadmin <QQ号>");
+            sendReplyToQQ(sourceGroupId, "❌ 用法: #removeadmin <QQ号>");
             return;
         }
         
@@ -599,18 +646,18 @@ public class InboundHandler {
             
             // 防止自我移除
             if (targetQQ == senderQQ) {
-                sendReplyToQQ("⚠️ 无法移除自己的管理员权限");
+                sendReplyToQQ(sourceGroupId, "⚠️ 无法移除自己的管理员权限");
                 return;
             }
             
             if (DataManager.INSTANCE.removeAdmin(targetQQ)) {
-                sendReplyToQQ(String.format("✅ 已移除管理员: %d", targetQQ));
+                sendReplyToQQ(sourceGroupId, String.format("✅ 已移除管理员: %d", targetQQ));
                 LOGGER.info("用户 {} 移除了管理员: {}", senderQQ, targetQQ);
             } else {
-                sendReplyToQQ(String.format("⚠️ %d 不是管理员", targetQQ));
+                sendReplyToQQ(sourceGroupId, String.format("⚠️ %d 不是管理员", targetQQ));
             }
         } catch (NumberFormatException e) {
-            sendReplyToQQ("❌ 无效的 QQ 号格式");
+            sendReplyToQQ(sourceGroupId, "❌ 无效的 QQ 号格式");
         }
     }
 
@@ -620,11 +667,12 @@ public class InboundHandler {
      * 
      * @param message 完整命令字符串
      * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
      */
-    private static void handleInventoryCommand(String message, long senderQQ) {
+    private static void handleInventoryCommand(String message, long senderQQ, long sourceGroupId) {
         // 权限检查: 仅管理员可用
         if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
-            sendReplyToQQ("❌ 权限不足: 仅管理员可用");
+            sendReplyToQQ(sourceGroupId, "❌ 权限不足: 仅管理员可用");
             return;
         }
         
@@ -632,7 +680,7 @@ public class InboundHandler {
         String targetPlayerName = message.substring(5).trim();
         
         if (targetPlayerName.isEmpty()) {
-            sendReplyToQQ("❌ 用法: #inv <玩家名>");
+            sendReplyToQQ(sourceGroupId, "❌ 用法: #inv <玩家名>");
             return;
         }
         
@@ -643,7 +691,7 @@ public class InboundHandler {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         
         if (server == null) {
-            sendReplyToQQ("❌ 服务器未就绪");
+            sendReplyToQQ(sourceGroupId, "❌ 服务器未就绪");
             return;
         }
         
@@ -655,7 +703,7 @@ public class InboundHandler {
             String result = InventoryManager.getPlayerInventory(player);
             
             // 发送结果回 QQ
-            sendReplyToQQ(result);
+            sendReplyToQQ(sourceGroupId, result);
         });
     }
 
@@ -681,17 +729,20 @@ public class InboundHandler {
     }
 
     /**
-     * 发送回复消息到 QQ 群
+     * 发送回复消息到指定 QQ 群
+     * Task #012-STEP3: 新增指定群号版本
+     * 
+     * @param groupId 目标群号
+     * @param message 消息内容
      */
-    private static void sendReplyToQQ(String message) {
-        long targetGroupId = BotConfig.getTargetGroupId();
-        if (targetGroupId == 0L) {
+    private static void sendReplyToQQ(long groupId, String message) {
+        if (groupId == 0L) {
             LOGGER.warn("无法发送回复: 目标群号未配置");
             return;
         }
         
         JsonObject params = new JsonObject();
-        params.addProperty("group_id", targetGroupId);
+        params.addProperty("group_id", groupId);
         params.addProperty("message", message);
         
         JsonObject packet = new JsonObject();
@@ -700,6 +751,15 @@ public class InboundHandler {
         packet.addProperty("echo", "reply_" + System.currentTimeMillis());
         
         BotClient.INSTANCE.sendPacket(packet);
+    }
+    
+    /**
+     * 发送回复消息到默认玩家群 (兼容旧代码)
+     * @deprecated 请使用 sendReplyToQQ(long groupId, String message)
+     */
+    @Deprecated
+    private static void sendReplyToQQ(String message) {
+        sendReplyToQQ(BotConfig.getPlayerGroupId(), message);
     }
 
     /**
