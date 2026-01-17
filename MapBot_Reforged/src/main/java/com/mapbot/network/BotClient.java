@@ -239,6 +239,10 @@ public class BotClient {
                 String completeMessage = messageBuffer.toString();
                 messageBuffer.setLength(0); // 清空缓冲区
                 
+                // Task #013-STEP4: 延迟排查时间戳
+                long receiveTime = System.currentTimeMillis();
+                LOGGER.debug("[TIMING] WS收到完整消息: {}", receiveTime);
+                
                 if (BotConfig.isDebugMode()) {
                     LOGGER.info("[DEBUG] 完整消息: {}", completeMessage);
                 }
@@ -249,6 +253,9 @@ public class BotClient {
                 } catch (Exception e) {
                     LOGGER.error("处理入站消息时发生异常: {}", e.getMessage());
                 }
+                
+                // Task #013-STEP4: 记录处理总耗时
+                LOGGER.debug("[TIMING] 消息处理完成: {}ms", System.currentTimeMillis() - receiveTime);
             }
 
             webSocket.request(1); // 请求下一条消息

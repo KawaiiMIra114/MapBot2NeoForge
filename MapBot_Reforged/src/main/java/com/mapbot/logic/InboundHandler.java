@@ -98,8 +98,12 @@ public class InboundHandler {
 
     /**
      * 处理群消息事件
+     * Task #013-STEP4: 添加时间戳日志用于延迟排查
      */
     private static void handleGroupMessage(JsonObject json) {
+        // Task #013-STEP4: 延迟排查时间戳
+        final long t0 = System.currentTimeMillis();
+        
         String messageType = getStringOrNull(json, "message_type");
 
         // 仅处理群消息
@@ -140,6 +144,9 @@ public class InboundHandler {
                 nickname = senderNick;
             }
         }
+        
+        // Task #013-STEP4: 解析完成
+        LOGGER.debug("[TIMING] handleGroupMessage 解析完成: {}ms", System.currentTimeMillis() - t0);
 
         LOGGER.info("收到群消息 [{}]: {} ({}) -> {}", 
                 isFromAdminGroup ? "管理群" : "玩家群", nickname, senderQQ, rawMessage);
@@ -162,6 +169,9 @@ public class InboundHandler {
             notifyAtMentions(rawMessage, nickname);
             
             String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, parsedMessage);
+            
+            // Task #013-STEP4: 记录调度前时间
+            LOGGER.debug("[TIMING] 准备调度到主线程: {}ms (since t0)", System.currentTimeMillis() - t0);
             broadcastToServer(formattedMessage);
         }
         // 管理群的普通消息不做任何处理
@@ -832,6 +842,7 @@ public class InboundHandler {
 
     /**
      * 安全地在服务器主线程广播消息
+     * Task #013-STEP4: 添加时间戳日志
      * 
      * @param message 要广播的消息
      */
@@ -844,10 +855,15 @@ public class InboundHandler {
         }
 
         // 使用 execute() 将任务调度到服务器主线程
+        long scheduleTime = System.currentTimeMillis();
         server.execute(() -> {
+            long execStart = System.currentTimeMillis();
+            LOGGER.debug("[TIMING] 主线程执行开始 (排队: {}ms)", execStart - scheduleTime);
+            
             Component chatComponent = Component.literal(message);
             server.getPlayerList().broadcastSystemMessage(chatComponent, false);
-            LOGGER.debug("消息已广播到服务器");
+            
+            LOGGER.debug("[TIMING] 主线程执行完成: {}ms", System.currentTimeMillis() - execStart);
         });
     }
 
