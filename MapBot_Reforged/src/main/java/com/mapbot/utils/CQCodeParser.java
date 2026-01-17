@@ -114,10 +114,10 @@ public class CQCodeParser {
      * 优先级: 绑定玩家名 > 群昵称缓存 > QQ号
      * 
      * Task #013-STEP2 优化
-     * Task #014-STEP3 更新: @内容粗体金色显示
+     * Task #014-Fix: 还原普通格式（醒目格式化在发送阶段处理）
      * 
      * @param params CQ 码参数部分
-     * @return 可读文本 (粗体金色格式)
+     * @return 可读文本
      */
     private static String parseAt(String params) {
         Pattern qqPattern = Pattern.compile("qq=([^,\\]]+)");
@@ -128,7 +128,7 @@ public class CQCodeParser {
             
             // @全体成员
             if ("all".equalsIgnoreCase(qq)) {
-                return "§l§6@全体成员§r";
+                return "@全体成员";
             }
             
             try {
@@ -142,7 +142,7 @@ public class CQCodeParser {
                         try {
                             Optional<GameProfile> profile = server.getProfileCache().get(UUID.fromString(uuid));
                             if (profile.isPresent()) {
-                                return "§l§6@" + profile.get().getName() + "§r";
+                                return "@" + profile.get().getName();
                             }
                         } catch (IllegalArgumentException e) {
                             LOGGER.debug("无效的 UUID 格式: {}", uuid);
@@ -153,7 +153,7 @@ public class CQCodeParser {
                 // 2. 其次查群昵称缓存
                 String nickname = GroupMemberCache.INSTANCE.getNickname(qqNum);
                 if (nickname != null && !nickname.isEmpty()) {
-                    return "§l§6@" + nickname + "§r";
+                    return "@" + nickname;
                 }
                 
             } catch (NumberFormatException e) {
@@ -161,9 +161,9 @@ public class CQCodeParser {
             }
             
             // 3. 兜底: 显示 QQ 号
-            return "§l§6@" + qq + "§r";
+            return "@" + qq;
         }
-        return "§l§6@未知§r";
+        return "@未知";
     }
     
     /**

@@ -39,6 +39,7 @@ import com.mapbot.utils.CQCodeParser;
 import com.mapbot.data.GroupMemberCache;
 import com.google.gson.JsonArray;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -168,9 +169,6 @@ public class InboundHandler {
                 return;
             }
             
-            // Task #012-STEP4: @提及通知
-            notifyAtMentions(rawMessage, nickname);
-            
             // Task #014-STEP2: 检测回复消息，向原发送者发送通知
             String replyMsgId = CQCodeParser.extractReplyId(rawMessage);
             if (replyMsgId != null) {
@@ -178,11 +176,16 @@ public class InboundHandler {
                 requestOriginalMessage(replyMsgId, nickname);
             }
             
+            // 提取被@的 QQ 号列表
+            List<Long> atQQList = CQCodeParser.extractAtTargets(rawMessage);
+            
             String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, parsedMessage);
             
             // Task #013-STEP4: 记录调度前时间
             LOGGER.debug("[TIMING] 准备调度到主线程: {}ms (since t0)", System.currentTimeMillis() - t0);
-            broadcastToServer(formattedMessage);
+            
+            // Task #014-Fix: 个性化消息发送（被@者看到醒目格式+Title）
+            sendPersonalizedMessage(formattedMessage, atQQList, nickname);
         }
         // 管理群的普通消息不做任何处理
     }
@@ -956,6 +959,73 @@ public class InboundHandler {
             
             LOGGER.info("已向玩家 {} 发送回复通知 (来自 {})", playerName, replierNickname);
         });
+    }
+
+    /**
+     * 发送个性化消息到所有在线玩家
+     * Task #014-Fix 新增
+     * 
+     * 被@的玩家看到醒目格式 + 收到 Title 通知
+     * 其他玩家看到普通格式
+     * 
+     * @param baseMessage 基础消息（普通@格式）
+     * @param atQQList 被@的 QQ 号列表
+     * @param senderNickname 发送者昵称
+     */
+    private static void sendPersonalizedMessage(String baseMessage, List<Long> atQQList, String senderNickname) {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            LOGGER.warn("服务器实例不可用，无法发送消息");
+            return;
+        }
+        
+        server.execute(() -> {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                String playerUUID = player.getUUID().toString();
+                boolean isAtTarget = false;
+                
+                // 检查此玩家是否被 @
+                for (Long qq : atQQList) {
+                    String boundUUID = DataManager.INSTANCE.getBinding(qq);
+                    if (playerUUID.equals(boundUUID)) {
+                        isAtTarget = true;
+                        break;
+                    }
+                }
+                
+                // 构建个性化消息
+                String personalMessage;
+                if (isAtTarget) {
+                    // 被@者: 将消息中的 @xxx 替换为醒目格式
+                    personalMessage = highlightAtMentions(baseMessage, player.getName().getString());
+                    
+                    // 发送 Title 通知
+                    player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 70, 20));
+                    player.connection.send(new ClientboundSetTitleTextPacket(
+                            Component.literal("§b[QQ] §f" + senderNickname + " §6@了你!")
+                    ));
+                } else {
+                    // 其他人: 普通格式
+                    personalMessage = baseMessage;
+                }
+                
+                player.sendSystemMessage(Component.literal(personalMessage));
+            }
+            LOGGER.debug("个性化消息已发送给 {} 个玩家", server.getPlayerList().getPlayerCount());
+        });
+    }
+    
+    /**
+     * 高亮消息中与玩家相关的 @提及
+     * Task #014-Fix 新增
+     * 
+     * @param message 原始消息
+     * @param playerName 目标玩家名
+     * @return 高亮后的消息
+     */
+    private static String highlightAtMentions(String message, String playerName) {
+        // 将 @玩家名 替换为粗体金色格式
+        return message.replace("@" + playerName, "§l§6@" + playerName + "§r");
     }
 
     /**
