@@ -6,16 +6,24 @@
  * 
  * CQ码格式: [CQ:type,param1=value1,param2=value2,...]
  * 
- * Task #012-STEP1
+ * Task #012-STEP1 创建
+ * Task #013-STEP2 更新: @提及昵称解析优化
  */
 
 package com.mapbot.utils;
 
+import com.mapbot.data.DataManager;
+import com.mapbot.data.GroupMemberCache;
+import com.mojang.authlib.GameProfile;
+import net.minecraft.server.MinecraftServer;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -102,8 +110,9 @@ public class CQCodeParser {
     
     /**
      * 解析 @ 提及 CQ 码
-     * - [CQ:at,qq=123456] → @123456
-     * - [CQ:at,qq=all] → @全体成员
+     * 优先级: 绑定玩家名 > 群昵称缓存 > QQ号
+     * 
+     * Task #013-STEP2 优化
      * 
      * @param params CQ 码参数部分
      * @return 可读文本
@@ -114,9 +123,42 @@ public class CQCodeParser {
         
         if (qqMatcher.find()) {
             String qq = qqMatcher.group(1);
+            
+            // @全体成员
             if ("all".equalsIgnoreCase(qq)) {
                 return "@全体成员";
             }
+            
+            try {
+                long qqNum = Long.parseLong(qq);
+                
+                // 1. 优先查绑定的玩家名
+                String uuid = DataManager.INSTANCE.getBinding(qqNum);
+                if (uuid != null) {
+                    MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+                    if (server != null && server.getProfileCache() != null) {
+                        try {
+                            Optional<GameProfile> profile = server.getProfileCache().get(UUID.fromString(uuid));
+                            if (profile.isPresent()) {
+                                return "@" + profile.get().getName();
+                            }
+                        } catch (IllegalArgumentException e) {
+                            LOGGER.debug("无效的 UUID 格式: {}", uuid);
+                        }
+                    }
+                }
+                
+                // 2. 其次查群昵称缓存
+                String nickname = GroupMemberCache.INSTANCE.getNickname(qqNum);
+                if (nickname != null && !nickname.isEmpty()) {
+                    return "@" + nickname;
+                }
+                
+            } catch (NumberFormatException e) {
+                LOGGER.debug("无法解析 QQ 号: {}", qq);
+            }
+            
+            // 3. 兖底: 显示 QQ 号
             return "@" + qq;
         }
         return "@未知";

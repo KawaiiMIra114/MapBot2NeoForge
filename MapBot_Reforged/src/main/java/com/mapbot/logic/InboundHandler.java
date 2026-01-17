@@ -7,22 +7,11 @@
  * 参考: ./Project_Docs/Architecture/Protocol_Spec.md
  * 关键: 使用 ServerLifecycleHooks 实现跨线程安全调用。
  * 
- * Task #009 更新:
- * - Java 21 Switch 表达式语法
- * - #stopserver 权限检查
- * - 新增 #addadmin 命令
- * 
- * Task #010 更新:
- * - 新增 #id / #bind 命令 (玩家绑定 + 白名单)
- * - 新增 #unbind / #removeid 命令 (解绑 + 移除白名单)
- * 
- * Task #012-STEP3 更新:
- * - 双群结构支持 (playerGroup + adminGroup)
- * - CQ码解析 (图片/表情/回复)
- * - 命令权限分离 (敏感命令仅管理群可用)
- * 
- * Task #012-STEP4 更新:
- * - @提及游戏内通知 (Title 显示)
+ * Task #009 更新: Java 21 Switch, #stopserver, #addadmin
+ * Task #010 更新: #id/#bind, #unbind
+ * Task #012-STEP3 更新: 双群结构, CQ码解析, 权限分离
+ * Task #012-STEP4 更新: @提及游戏内 Title 通知
+ * Task #013-STEP3 更新: 处理群成员列表响应, 加载昵称缓存
  */
 
 package com.mapbot.logic;
@@ -47,6 +36,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.mapbot.utils.CQCodeParser;
+import com.mapbot.data.GroupMemberCache;
+import com.google.gson.JsonArray;
 
 import java.util.Optional;
 import java.util.Set;
@@ -84,7 +75,13 @@ public class InboundHandler {
             
             // 空值检查: echo 响应或其他非事件数据包没有 post_type
             if (postType == null) {
-                LOGGER.debug("忽略无 post_type 的数据包 (echo 响应?)");
+                // Task #013-STEP3: 检查是否为群成员列表响应
+                String echo = getStringOrNull(json, "echo");
+                if (echo != null && echo.startsWith("load_members_")) {
+                    handleGroupMemberListResponse(json);
+                } else {
+                    LOGGER.debug("忽略无 post_type 的数据包 (echo 响应?)");
+                }
                 return;
             }
 
@@ -755,6 +752,48 @@ public class InboundHandler {
             }
             default -> LOGGER.debug("忽略未知元事件: {}", metaEventType);
         }
+    }
+
+    /**
+     * 处理群成员列表响应
+     * Task #013-STEP3 新增
+     * 
+     * 解析 get_group_member_list 的返回数据，将成员昵称加载到缓存
+     * 
+     * @param json OneBot 响应 JSON
+     */
+    private static void handleGroupMemberListResponse(JsonObject json) {
+        JsonElement dataElement = json.get("data");
+        if (dataElement == null || !dataElement.isJsonArray()) {
+            LOGGER.warn("群成员列表响应格式异常");
+            return;
+        }
+        
+        JsonArray data = dataElement.getAsJsonArray();
+        java.util.Map<Long, String> members = new java.util.HashMap<>();
+        
+        for (JsonElement elem : data) {
+            if (!elem.isJsonObject()) continue;
+            
+            JsonObject member = elem.getAsJsonObject();
+            JsonElement userIdElem = member.get("user_id");
+            
+            if (userIdElem == null) continue;
+            
+            long userId = userIdElem.getAsLong();
+            
+            // 优先使用群名片 (card), 其次使用 QQ 昵称 (nickname)
+            String card = getStringOrNull(member, "card");
+            String nickname = getStringOrNull(member, "nickname");
+            
+            String displayName = (card != null && !card.isEmpty()) ? card : nickname;
+            if (displayName != null && !displayName.isEmpty()) {
+                members.put(userId, displayName);
+            }
+        }
+        
+        GroupMemberCache.INSTANCE.loadMembers(members);
+        LOGGER.info("成功加载 {} 个群成员昵称到缓存", members.size());
     }
 
     /**

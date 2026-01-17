@@ -25,6 +25,8 @@ import java.util.concurrent.TimeUnit;
  * - 自动重连 (间隔从配置读取)
  * - 纯 Java 21 标准库实现
  * - 配置驱动 (wsUrl, reconnectInterval, debugMode)
+ * 
+ * Task #013-STEP3 更新: 连接成功后预加载群成员列表
  */
 public class BotClient {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/WS");
@@ -76,6 +78,9 @@ public class BotClient {
                             this.isConnected = true;
                             this.isReconnecting = false;
                             LOGGER.info("连接成功建立!");
+                            
+                            // Task #013-STEP3: 连接成功后预加载群成员列表
+                            requestGroupMemberList();
                         }
                     });
         } catch (Exception e) {
@@ -151,6 +156,31 @@ public class BotClient {
         packet.addProperty("echo", "event_" + System.currentTimeMillis());
         
         this.sendPacket(packet);
+    }
+
+    /**
+     * 请求群成员列表
+     * Task #013-STEP3 新增
+     * 
+     * 连接成功后自动调用，用于预加载群成员昵称到缓存
+     */
+    private void requestGroupMemberList() {
+        long playerGroupId = BotConfig.getPlayerGroupId();
+        if (playerGroupId == 0L) {
+            LOGGER.warn("玩家群未配置，跳过群成员列表加载");
+            return;
+        }
+        
+        JsonObject params = new JsonObject();
+        params.addProperty("group_id", playerGroupId);
+        
+        JsonObject packet = new JsonObject();
+        packet.addProperty("action", "get_group_member_list");
+        packet.add("params", params);
+        packet.addProperty("echo", "load_members_" + System.currentTimeMillis());
+        
+        this.sendPacket(packet);
+        LOGGER.info("已请求玩家群 {} 的成员列表", playerGroupId);
     }
 
     /**
