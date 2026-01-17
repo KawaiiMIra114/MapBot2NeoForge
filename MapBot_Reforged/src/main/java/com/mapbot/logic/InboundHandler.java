@@ -20,6 +20,9 @@
  * - 双群结构支持 (playerGroup + adminGroup)
  * - CQ码解析 (图片/表情/回复)
  * - 命令权限分离 (敏感命令仅管理群可用)
+ * 
+ * Task #012-STEP4 更新:
+ * - @提及游戏内通知 (Title 显示)
  */
 
 package com.mapbot.logic;
@@ -33,6 +36,8 @@ import com.mapbot.network.BotClient;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.UserWhiteList;
@@ -155,6 +160,9 @@ public class InboundHandler {
                 LOGGER.debug("消息解析后为空，跳过转发");
                 return;
             }
+            
+            // Task #012-STEP4: @提及通知
+            notifyAtMentions(rawMessage, nickname);
             
             String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, parsedMessage);
             broadcastToServer(formattedMessage);
@@ -807,5 +815,69 @@ public class InboundHandler {
             }
         }
         return 0L;
+    }
+
+    // ================== @提及通知 (Task #012-STEP4) ==================
+
+    /**
+     * 处理 @提及 通知
+     * 解析消息中的 @目标，向对应的在线玩家发送 Title 通知
+     * 
+     * @param rawMessage 原始消息 (包含 CQ 码)
+     * @param senderNickname 发送者昵称 (用于通知内容)
+     */
+    private static void notifyAtMentions(String rawMessage, String senderNickname) {
+        // 提取被 @ 的 QQ 号列表
+        java.util.List<Long> atTargets = CQCodeParser.extractAtTargets(rawMessage);
+        
+        if (atTargets.isEmpty()) {
+            return;
+        }
+        
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return;
+        }
+        
+        // 在主线程执行玩家查找和通知
+        server.execute(() -> {
+            for (Long targetQQ : atTargets) {
+                // 获取 QQ 绑定的 UUID
+                String uuidStr = DataManager.INSTANCE.getBinding(targetQQ);
+                if (uuidStr == null) {
+                    LOGGER.debug("QQ {} 未绑定，跳过通知", targetQQ);
+                    continue;
+                }
+                
+                try {
+                    UUID uuid = UUID.fromString(uuidStr);
+                    ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+                    
+                    if (player != null) {
+                        // 发送 Title 通知
+                        sendAtNotification(player, senderNickname);
+                        LOGGER.debug("已向玩家 {} 发送 @通知", player.getName().getString());
+                    }
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warn("无效的 UUID 格式: {}", uuidStr);
+                }
+            }
+        });
+    }
+
+    /**
+     * 向玩家发送 @提及 Title 通知
+     * 
+     * @param player 目标玩家
+     * @param senderNickname 发送者昵称
+     */
+    private static void sendAtNotification(ServerPlayer player, String senderNickname) {
+        // 设置 Title 动画时间: fadeIn=10, stay=70, fadeOut=20 (单位: tick)
+        player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 70, 20));
+        
+        // 发送 Title 主标题
+        player.connection.send(new ClientboundSetTitleTextPacket(
+                Component.literal("§b[QQ] §f" + senderNickname + " §6@了你!")
+        ));
     }
 }
