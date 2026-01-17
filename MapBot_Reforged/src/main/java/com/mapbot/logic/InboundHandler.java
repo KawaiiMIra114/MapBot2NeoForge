@@ -979,16 +979,23 @@ public class InboundHandler {
             return;
         }
         
+        // Task #014-Debug: 调试日志
+        LOGGER.info("[DEBUG] sendPersonalizedMessage: atQQList={}, sender={}", atQQList, senderNickname);
+        
         server.execute(() -> {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 String playerUUID = player.getUUID().toString();
+                String playerName = player.getName().getString();
                 boolean isAtTarget = false;
                 
                 // 检查此玩家是否被 @
                 for (Long qq : atQQList) {
                     String boundUUID = DataManager.INSTANCE.getBinding(qq);
+                    LOGGER.debug("[DEBUG] 检查: player={}, playerUUID={}, qq={}, boundUUID={}", 
+                            playerName, playerUUID, qq, boundUUID);
                     if (playerUUID.equals(boundUUID)) {
                         isAtTarget = true;
+                        LOGGER.info("[DEBUG] 匹配成功! 玩家 {} 被 @", playerName);
                         break;
                     }
                 }
@@ -997,7 +1004,8 @@ public class InboundHandler {
                 String personalMessage;
                 if (isAtTarget) {
                     // 被@者: 将消息中的 @xxx 替换为醒目格式
-                    personalMessage = highlightAtMentions(baseMessage, player.getName().getString());
+                    personalMessage = highlightAtMentions(baseMessage, playerName);
+                    LOGGER.info("[DEBUG] 向玩家 {} 发送 Title 通知", playerName);
                     
                     // 发送 Title 通知
                     player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 70, 20));

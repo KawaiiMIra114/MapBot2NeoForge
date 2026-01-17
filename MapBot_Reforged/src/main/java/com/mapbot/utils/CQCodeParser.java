@@ -168,6 +168,7 @@ public class CQCodeParser {
     
     /**
      * 提取消息中所有被 @ 的 QQ 号
+     * Task #014-Debug: 修复正则支持多参数格式
      * 
      * @param raw 原始消息
      * @return 被 @ 的 QQ 号列表 (不包含 "all")
@@ -179,19 +180,21 @@ public class CQCodeParser {
             return targets;
         }
         
-        // 匹配 [CQ:at,qq=xxx]
-        Pattern atPattern = Pattern.compile("\\[CQ:at,qq=(\\d+)]");
+        // 修复: 匹配 [CQ:at,qq=xxx] 或 [CQ:at,qq=xxx,...] 格式
+        Pattern atPattern = Pattern.compile("\\[CQ:at,qq=(\\d+)[^\\]]*\\]");
         Matcher matcher = atPattern.matcher(raw);
         
         while (matcher.find()) {
             try {
                 long qq = Long.parseLong(matcher.group(1));
                 targets.add(qq);
+                LOGGER.debug("[DEBUG] extractAtTargets: 找到 @QQ={}", qq);
             } catch (NumberFormatException e) {
                 LOGGER.debug("无法解析 QQ 号: {}", matcher.group(1));
             }
         }
         
+        LOGGER.debug("[DEBUG] extractAtTargets: 总共找到 {} 个 @目标", targets.size());
         return targets;
     }
     
