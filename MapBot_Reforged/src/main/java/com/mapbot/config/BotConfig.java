@@ -7,6 +7,7 @@
  * 配置文件将自动生成于: config/mapbot-common.toml
  * 
  * Task #012-STEP2: 新增双群结构 (playerGroupId + adminGroupId)
+ * Task #014-STEP2: 新增 botQQ 配置项
  */
 
 package com.mapbot.config;
@@ -28,6 +29,7 @@ public class BotConfig {
     public final ModConfigSpec.ConfigValue<String> wsUrl;
     public final ModConfigSpec.LongValue playerGroupId;
     public final ModConfigSpec.LongValue adminGroupId;
+    public final ModConfigSpec.LongValue botQQ;
     public final ModConfigSpec.IntValue reconnectInterval;
     public final ModConfigSpec.BooleanValue debugMode;
 
@@ -68,6 +70,11 @@ public class BotConfig {
                 .comment("敏感命令 (#inv, #stopserver 等) 仅限此群使用")
                 .comment("设置为 0 将禁用管理群功能 (不推荐)")
                 .defineInRange("adminGroupId", 0L, 0L, Long.MAX_VALUE);
+        
+        botQQ = builder
+                .comment("机器人 QQ 号")
+                .comment("用于识别机器人转发的消息，实现回复通知功能")
+                .defineInRange("botQQ", 0L, 0L, Long.MAX_VALUE);
 
         builder.pop();
 
@@ -123,5 +130,13 @@ public class BotConfig {
      */
     public static boolean isDebugMode() {
         return INSTANCE.debugMode.get();
+    }
+    
+    /**
+     * 获取机器人 QQ 号
+     * Task #014-STEP2 新增
+     */
+    public static long getBotQQ() {
+        return INSTANCE.botQQ.get();
     }
 }

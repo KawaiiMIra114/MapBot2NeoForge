@@ -8,6 +8,7 @@
  * 
  * Task #012-STEP1 创建
  * Task #013-STEP2 更新: @提及昵称解析优化
+ * Task #014-STEP1 更新: 添加 reply CQ 码解析
  */
 
 package com.mapbot.utils;
@@ -113,9 +114,10 @@ public class CQCodeParser {
      * 优先级: 绑定玩家名 > 群昵称缓存 > QQ号
      * 
      * Task #013-STEP2 优化
+     * Task #014-STEP3 更新: @内容粗体金色显示
      * 
      * @param params CQ 码参数部分
-     * @return 可读文本
+     * @return 可读文本 (粗体金色格式)
      */
     private static String parseAt(String params) {
         Pattern qqPattern = Pattern.compile("qq=([^,\\]]+)");
@@ -126,7 +128,7 @@ public class CQCodeParser {
             
             // @全体成员
             if ("all".equalsIgnoreCase(qq)) {
-                return "@全体成员";
+                return "§l§6@全体成员§r";
             }
             
             try {
@@ -140,7 +142,7 @@ public class CQCodeParser {
                         try {
                             Optional<GameProfile> profile = server.getProfileCache().get(UUID.fromString(uuid));
                             if (profile.isPresent()) {
-                                return "@" + profile.get().getName();
+                                return "§l§6@" + profile.get().getName() + "§r";
                             }
                         } catch (IllegalArgumentException e) {
                             LOGGER.debug("无效的 UUID 格式: {}", uuid);
@@ -151,17 +153,17 @@ public class CQCodeParser {
                 // 2. 其次查群昵称缓存
                 String nickname = GroupMemberCache.INSTANCE.getNickname(qqNum);
                 if (nickname != null && !nickname.isEmpty()) {
-                    return "@" + nickname;
+                    return "§l§6@" + nickname + "§r";
                 }
                 
             } catch (NumberFormatException e) {
                 LOGGER.debug("无法解析 QQ 号: {}", qq);
             }
             
-            // 3. 兖底: 显示 QQ 号
-            return "@" + qq;
+            // 3. 兜底: 显示 QQ 号
+            return "§l§6@" + qq + "§r";
         }
-        return "@未知";
+        return "§l§6@未知§r";
     }
     
     /**
@@ -202,5 +204,42 @@ public class CQCodeParser {
      */
     public static boolean isAtTarget(String raw, long targetQQ) {
         return extractAtTargets(raw).contains(targetQQ);
+    }
+    
+    /**
+     * 提取回复消息的 message_id
+     * Task #014-STEP1 新增
+     * 
+     * 解析 [CQ:reply,id=xxx] 格式
+     * 
+     * @param raw 原始消息
+     * @return 被回复消息的 ID，未找到返回 null
+     */
+    public static String extractReplyId(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return null;
+        }
+        
+        // 匹配 [CQ:reply,id=xxx] 格式
+        Pattern replyPattern = Pattern.compile("\\[CQ:reply,id=([^,\\]]+)");
+        Matcher matcher = replyPattern.matcher(raw);
+        
+        if (matcher.find()) {
+            String replyId = matcher.group(1);
+            LOGGER.debug("检测到回复消息 ID: {}", replyId);
+            return replyId;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 检查消息是否包含回复
+     * 
+     * @param raw 原始消息
+     * @return 是否包含回复
+     */
+    public static boolean hasReply(String raw) {
+        return extractReplyId(raw) != null;
     }
 }

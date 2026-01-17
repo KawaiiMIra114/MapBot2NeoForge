@@ -79,6 +79,9 @@ public class InboundHandler {
                 String echo = getStringOrNull(json, "echo");
                 if (echo != null && echo.startsWith("load_members_")) {
                     handleGroupMemberListResponse(json);
+                } else if (echo != null && echo.startsWith("get_reply_msg_")) {
+                    // Task #014-STEP2: 处理 get_msg API 响应
+                    handleGetMsgResponse(json, echo);
                 } else {
                     LOGGER.debug("忽略无 post_type 的数据包 (echo 响应?)");
                 }
@@ -167,6 +170,13 @@ public class InboundHandler {
             
             // Task #012-STEP4: @提及通知
             notifyAtMentions(rawMessage, nickname);
+            
+            // Task #014-STEP2: 检测回复消息，向原发送者发送通知
+            String replyMsgId = CQCodeParser.extractReplyId(rawMessage);
+            if (replyMsgId != null) {
+                // 发送 get_msg API 获取被回复的消息内容
+                requestOriginalMessage(replyMsgId, nickname);
+            }
             
             String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, parsedMessage);
             
@@ -804,6 +814,148 @@ public class InboundHandler {
         
         GroupMemberCache.INSTANCE.loadMembers(members);
         LOGGER.info("成功加载 {} 个群成员昵称到缓存", members.size());
+    }
+
+    /**
+     * 请求获取原消息内容
+     * Task #014-STEP2 新增
+     * 
+     * 用于回复消息通知：当群成员回复机器人转发的消息时，
+     * 需要获取原消息内容以解析原发送者玩家名
+     * 
+     * @param messageId 被回复消息的 ID
+     * @param replierNickname 回复者昵称 (用于日志)
+     */
+    private static void requestOriginalMessage(String messageId, String replierNickname) {
+        JsonObject params = new JsonObject();
+        params.addProperty("message_id", messageId);
+        
+        JsonObject packet = new JsonObject();
+        packet.addProperty("action", "get_msg");
+        packet.add("params", params);
+        // echo 中编码回复者昵称，用于后续通知
+        packet.addProperty("echo", "get_reply_msg_" + replierNickname + "_" + messageId);
+        
+        BotClient.INSTANCE.sendPacket(packet);
+        LOGGER.debug("请求获取被回复消息: {}", messageId);
+    }
+    
+    /**
+     * 处理 get_msg API 响应
+     * Task #014-STEP2 新增
+     * 
+     * 解析原消息内容，提取玩家名，向该玩家发送回复通知
+     * 
+     * @param json OneBot 响应 JSON
+     * @param echo 请求时的 echo 字符串
+     */
+    private static void handleGetMsgResponse(JsonObject json, String echo) {
+        // 解析 echo: get_reply_msg_{replierNickname}_{messageId}
+        String[] parts = echo.split("_", 4);
+        if (parts.length < 4) {
+            LOGGER.warn("无效的 get_msg echo 格式: {}", echo);
+            return;
+        }
+        String replierNickname = parts[2];
+        
+        // 获取响应数据
+        JsonObject data = json.getAsJsonObject("data");
+        if (data == null) {
+            LOGGER.debug("get_msg 响应无 data 字段");
+            return;
+        }
+        
+        // 获取原消息发送者 ID
+        long senderId = 0L;
+        JsonElement senderElem = data.get("sender");
+        if (senderElem != null && senderElem.isJsonObject()) {
+            JsonObject sender = senderElem.getAsJsonObject();
+            JsonElement userIdElem = sender.get("user_id");
+            if (userIdElem != null) {
+                senderId = userIdElem.getAsLong();
+            }
+        }
+        
+        // 获取原消息内容
+        String rawMessage = getStringOrNull(data, "raw_message");
+        if (rawMessage == null) {
+            rawMessage = getStringOrNull(data, "message");
+        }
+        
+        LOGGER.debug("get_msg 响应: sender={}, message={}", senderId, rawMessage);
+        
+        // 判断是否是机器人自己发送的消息
+        long botQQ = BotConfig.getBotQQ();
+        if (senderId != botQQ) {
+            // 不是机器人发的消息，尝试从消息中解析 @
+            LOGGER.debug("被回复消息非机器人发送，跳过");
+            return;
+        }
+        
+        // 解析机器人转发的消息格式，提取原玩家名
+        // 格式可能是: "玩家名: 内容" 或其他
+        String originalPlayerName = extractPlayerNameFromBotMessage(rawMessage);
+        if (originalPlayerName == null) {
+            LOGGER.debug("无法从机器人消息中提取玩家名: {}", rawMessage);
+            return;
+        }
+        
+        // 向原玩家发送回复通知
+        notifyPlayerOfReply(originalPlayerName, replierNickname);
+    }
+    
+    /**
+     * 从机器人转发的消息中提取原玩家名
+     * Task #014-STEP2 新增
+     * 
+     * 机器人转发格式: "玩家名: 内容"
+     * 
+     * @param botMessage 机器人发送的消息
+     * @return 玩家名，解析失败返回 null
+     */
+    private static String extractPlayerNameFromBotMessage(String botMessage) {
+        if (botMessage == null || botMessage.isEmpty()) {
+            return null;
+        }
+        
+        // 尝试按 ": " 分割
+        int colonIndex = botMessage.indexOf(": ");
+        if (colonIndex > 0) {
+            return botMessage.substring(0, colonIndex).trim();
+        }
+        
+        return null;
+    }
+    
+    /**
+     * 向指定玩家发送回复通知
+     * Task #014-STEP2 新增
+     * 
+     * @param playerName 目标玩家名
+     * @param replierNickname 回复者昵称
+     */
+    private static void notifyPlayerOfReply(String playerName, String replierNickname) {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return;
+        }
+        
+        server.execute(() -> {
+            // 通过玩家名查找在线玩家
+            ServerPlayer player = server.getPlayerList().getPlayerByName(playerName);
+            if (player == null) {
+                LOGGER.debug("玩家 {} 不在线，无法发送回复通知", playerName);
+                return;
+            }
+            
+            // 发送 Title 通知
+            player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 70, 20));
+            player.connection.send(new ClientboundSetTitleTextPacket(
+                    Component.literal("§b[QQ] §f" + replierNickname + " §6回复了你!")
+            ));
+            
+            LOGGER.info("已向玩家 {} 发送回复通知 (来自 {})", playerName, replierNickname);
+        });
     }
 
     /**
