@@ -154,7 +154,7 @@ public class InboundHandler {
         
         // Java 21 Switch 表达式
         switch (commandName) {
-            case "inv" -> handleInventoryCommand(message);
+            case "inv" -> handleInventoryCommand(message, senderQQ);
             case "list", "在线" -> handleListCommand();
             case "tps", "status", "状态" -> handleStatusCommand();
             case "help", "菜单" -> sendReplyToQQ(ServerStatusManager.getHelp());
@@ -617,8 +617,17 @@ public class InboundHandler {
     /**
      * 处理 #inv <玩家名> 命令
      * Task #007 新增
+     * 
+     * @param message 完整命令字符串
+     * @param senderQQ 发送者 QQ
      */
-    private static void handleInventoryCommand(String message) {
+    private static void handleInventoryCommand(String message, long senderQQ) {
+        // 权限检查: 仅管理员可用
+        if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
+            sendReplyToQQ("❌ 权限不足: 仅管理员可用");
+            return;
+        }
+        
         // 解析玩家名
         String targetPlayerName = message.substring(5).trim();
         
@@ -655,6 +664,11 @@ public class InboundHandler {
      */
     private static void handleMetaEvent(JsonObject json) {
         String metaEventType = getStringOrNull(json, "meta_event_type");
+        
+        // null 检查
+        if (metaEventType == null) {
+            return;
+        }
 
         switch (metaEventType) {
             case "heartbeat" -> LOGGER.debug("收到心跳事件");
