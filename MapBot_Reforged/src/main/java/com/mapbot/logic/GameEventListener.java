@@ -22,6 +22,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +36,35 @@ public class GameEventListener {
     
     /** Minecraft 颜色代码正则: §0-9, §a-f, §k-o, §r */
     private static final String COLOR_CODE_REGEX = "(?i)§[0-9a-fk-or]";
+    
+    /** Tick 开始时间戳 (纳秒) */
+    private static long lastTickStart = 0L;
+
+    // ================== Tick 监控 ==================
+
+    /**
+     * 服务器 Tick 开始事件
+     * 记录开始时间
+     */
+    @SubscribeEvent
+    public static void onServerTickPre(ServerTickEvent.Pre event) {
+        lastTickStart = System.nanoTime();
+    }
+
+    /**
+     * 服务器 Tick 结束事件
+     * 计算本次 Tick 耗时并记录
+     */
+    @SubscribeEvent
+    public static void onServerTickPost(ServerTickEvent.Post event) {
+        if (lastTickStart == 0L) {
+            return;
+        }
+        long duration = System.nanoTime() - lastTickStart;
+        ServerStatusManager.recordTick(duration);
+    }
+
+    // ================== 消息同步 ==================
 
     /**
      * 聊天消息同步

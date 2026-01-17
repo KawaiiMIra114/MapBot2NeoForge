@@ -25,6 +25,40 @@ import java.util.stream.Collectors;
  */
 public class ServerStatusManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/Status");
+    
+    // ================== 自定义 MSPT 监控 ==================
+    
+    /** Tick 时间缓冲区 (纳秒)，存储最近 100 个 tick 的执行时间 */
+    private static final long[] localTickTimes = new long[100];
+    
+    /** 当前写入位置 (循环缓冲区) */
+    private static int tickIndex = 0;
+    
+    /**
+     * 记录一次 tick 的执行时间
+     * 由 GameEventListener 的 ServerTickEvent 调用
+     * 
+     * @param durationNanos tick 执行耗时 (纳秒)
+     */
+    public static void recordTick(long durationNanos) {
+        if (tickIndex >= localTickTimes.length) {
+            tickIndex = 0;
+        }
+        localTickTimes[tickIndex++] = durationNanos;
+    }
+    
+    /**
+     * 获取平均 MSPT (毫秒/tick)
+     * 从本地缓冲区计算
+     * 
+     * @return 平均 MSPT (毫秒)
+     */
+    public static double getAverageMSPT() {
+        double averageNanos = Arrays.stream(localTickTimes).average().orElse(0);
+        return averageNanos / 1_000_000.0; // 纳秒 -> 毫秒
+    }
+
+    // ================== 查询方法 ==================
 
     /**
      * 获取在线玩家列表
@@ -73,9 +107,8 @@ public class ServerStatusManager {
         sb.append("📊 服务器状态\n");
         sb.append("─────────\n");
         
-        // MSPT (Milliseconds Per Tick)
-        // 1.21.1: 从 tickTimes 数组手动计算 (纳秒 -> 毫秒)
-        double mspt = Arrays.stream(server.tickTimes).average().orElse(0) * 1.0E-6D;
+        // MSPT (Milliseconds Per Tick) - 使用自管理缓冲区
+        double mspt = getAverageMSPT();
         double tps = Math.min(20.0, 1000.0 / Math.max(mspt, 1.0));
         
         sb.append(String.format("⏱️ MSPT: %.2f ms\n", mspt));
