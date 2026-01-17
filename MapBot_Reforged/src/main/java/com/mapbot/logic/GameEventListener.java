@@ -32,6 +32,9 @@ import org.slf4j.LoggerFactory;
 @EventBusSubscriber(modid = MapBot.MODID, bus = EventBusSubscriber.Bus.GAME)
 public class GameEventListener {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/Event");
+    
+    /** Minecraft 颜色代码正则: §0-9, §a-f, §k-o, §r */
+    private static final String COLOR_CODE_REGEX = "(?i)§[0-9a-fk-or]";
 
     /**
      * 聊天消息同步
@@ -45,7 +48,8 @@ public class GameEventListener {
         }
         
         String playerName = event.getPlayer().getName().getString();
-        String message = event.getRawText();
+        // 清理颜色代码
+        String message = event.getRawText().replaceAll(COLOR_CODE_REGEX, "");
         
         // 格式: [玩家名] 消息内容
         String formattedMessage = String.format("[%s] %s", playerName, message);

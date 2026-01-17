@@ -157,6 +157,8 @@ public class InboundHandler {
             case "removeadmin" -> handleRemoveAdminCommand(args, senderQQ);
             case "id", "bind", "绑定" -> handleBindCommand(rawArgs, senderQQ);
             case "unbind", "removeid", "解绑" -> handleUnbindCommand(senderQQ);
+            case "adminunbind" -> handleAdminUnbindCommand(args, senderQQ);
+            case "reload" -> handleReloadCommand(senderQQ);
             default -> {
                 LOGGER.debug("未知命令: {}", message);
                 sendReplyToQQ("❓ 未知命令，输入 #help 查看帮助");
@@ -348,6 +350,113 @@ public class InboundHandler {
                 sendReplyToQQ("⚠️ 解绑成功，但移除白名单时出错\n请联系管理员");
             }
         });
+    }
+
+    /**
+     * 处理 #adminunbind <qq> 命令
+     * 管理员强制解绑指定 QQ 的游戏账号
+     * 
+     * @param args 目标 QQ
+     * @param senderQQ 发送者 QQ
+     */
+    private static void handleAdminUnbindCommand(String args, long senderQQ) {
+        // 权限检查
+        if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
+            sendReplyToQQ("❌ 权限不足: 只有管理员可以执行此命令");
+            return;
+        }
+        
+        if (args.isEmpty()) {
+            sendReplyToQQ("❌ 用法: #adminunbind <QQ号>");
+            return;
+        }
+        
+        long targetQQ;
+        try {
+            targetQQ = Long.parseLong(args.trim());
+        } catch (NumberFormatException e) {
+            sendReplyToQQ("❌ 无效的 QQ 号格式");
+            return;
+        }
+        
+        // 检查目标是否已绑定
+        if (!DataManager.INSTANCE.isQQBound(targetQQ)) {
+            sendReplyToQQ(String.format("⚠️ QQ %d 未绑定任何游戏账号", targetQQ));
+            return;
+        }
+        
+        // 获取绑定的 UUID (在解绑前)
+        String uuid = DataManager.INSTANCE.getBinding(targetQQ);
+        
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            sendReplyToQQ("❌ 服务器未就绪");
+            return;
+        }
+        
+        // 在主线程执行
+        server.execute(() -> {
+            // 执行解绑
+            boolean unbindSuccess = DataManager.INSTANCE.unbind(targetQQ);
+            if (!unbindSuccess) {
+                sendReplyToQQ("❌ 解绑失败，请稍后重试");
+                return;
+            }
+            
+            // 从白名单移除
+            try {
+                UUID playerUUID = UUID.fromString(uuid);
+                GameProfile profile = new GameProfile(playerUUID, null);
+                
+                Optional<GameProfile> cached = server.getProfileCache().get(playerUUID);
+                if (cached.isPresent()) {
+                    profile = cached.get();
+                }
+                
+                UserWhiteList whitelist = server.getPlayerList().getWhiteList();
+                if (whitelist.isWhiteListed(profile)) {
+                    whitelist.remove(profile);
+                    whitelist.save();
+                    LOGGER.info("管理员已将玩家 {} 从白名单移除", uuid);
+                }
+                
+                sendReplyToQQ(String.format("✅ 已强制解绑 QQ %d\n已从白名单移除", targetQQ));
+                LOGGER.info("管理员 {} 强制解绑: QQ {} (UUID: {})", senderQQ, targetQQ, uuid);
+                
+            } catch (Exception e) {
+                LOGGER.error("移除白名单失败: {}", e.getMessage());
+                sendReplyToQQ(String.format("⚠️ 已解绑 QQ %d，但移除白名单时出错", targetQQ));
+            }
+        });
+    }
+
+    /**
+     * 处理 #reload 命令
+     * 重载配置文件和数据
+     * 
+     * @param senderQQ 发送者 QQ
+     */
+    private static void handleReloadCommand(long senderQQ) {
+        // 权限检查
+        if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
+            sendReplyToQQ("❌ 权限不足: 只有管理员可以执行此命令");
+            return;
+        }
+        
+        try {
+            // 重载数据管理器 (重新读取 mapbot_data.json)
+            DataManager.INSTANCE.init();
+            
+            // 注: BotConfig 使用 ModConfigSpec，会自动同步配置文件变更
+            // 无需手动重载
+            
+            sendReplyToQQ("🔄 配置和数据已重载\n• mapbot_data.json ✓\n• mapbot-common.toml (自动同步)");
+            LOGGER.info("管理员 {} 执行了配置重载", senderQQ);
+            
+        } catch (Exception e) {
+            LOGGER.error("重载配置失败: {}", e.getMessage());
+            sendReplyToQQ("❌ 重载失败: " + e.getMessage());
+        }
     }
 
     // ================== 其他命令 ==================

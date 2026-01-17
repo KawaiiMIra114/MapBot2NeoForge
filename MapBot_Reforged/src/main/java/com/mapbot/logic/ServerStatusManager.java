@@ -120,6 +120,8 @@ public class ServerStatusManager {
             #stopserver - 关闭服务器
             #addadmin <QQ> - 添加管理员
             #removeadmin <QQ> - 移除管理员
+            #adminunbind <QQ> - 强制解绑
+            #reload - 重载配置
             ─────────────────────
             普通消息将转发到游戏内""";
     }
