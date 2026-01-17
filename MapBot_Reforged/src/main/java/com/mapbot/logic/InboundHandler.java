@@ -62,6 +62,12 @@ public class InboundHandler {
 
             // 检查是否为消息类型
             String postType = getStringOrNull(json, "post_type");
+            
+            // 空值检查: echo 响应或其他非事件数据包没有 post_type
+            if (postType == null) {
+                LOGGER.debug("忽略无 post_type 的数据包 (echo 响应?)");
+                return;
+            }
 
             switch (postType) {
                 case "message" -> handleGroupMessage(json);
@@ -324,23 +330,9 @@ public class InboundHandler {
                 return;
             }
             
-            // 从白名单移除
+            // 从白名单移除 (安全方式: 通过 UUID 遍历查找)
             try {
-                UUID playerUUID = UUID.fromString(uuid);
-                GameProfile profile = new GameProfile(playerUUID, null);
-                
-                // 尝试从缓存获取完整档案
-                Optional<GameProfile> cached = server.getProfileCache().get(playerUUID);
-                if (cached.isPresent()) {
-                    profile = cached.get();
-                }
-                
-                UserWhiteList whitelist = server.getPlayerList().getWhiteList();
-                if (whitelist.isWhiteListed(profile)) {
-                    whitelist.remove(profile);
-                    whitelist.save();
-                    LOGGER.info("已将玩家 {} 从白名单移除", uuid);
-                }
+                removeFromWhitelistByUUID(server, uuid);
                 
                 sendReplyToQQ("✅ 解绑成功！\n已从白名单中移除");
                 LOGGER.info("解绑成功: QQ {} (原UUID: {})", senderQQ, uuid);
@@ -403,22 +395,9 @@ public class InboundHandler {
                 return;
             }
             
-            // 从白名单移除
+            // 从白名单移除 (安全方式: 通过 UUID 遍历查找)
             try {
-                UUID playerUUID = UUID.fromString(uuid);
-                GameProfile profile = new GameProfile(playerUUID, null);
-                
-                Optional<GameProfile> cached = server.getProfileCache().get(playerUUID);
-                if (cached.isPresent()) {
-                    profile = cached.get();
-                }
-                
-                UserWhiteList whitelist = server.getPlayerList().getWhiteList();
-                if (whitelist.isWhiteListed(profile)) {
-                    whitelist.remove(profile);
-                    whitelist.save();
-                    LOGGER.info("管理员已将玩家 {} 从白名单移除", uuid);
-                }
+                removeFromWhitelistByUUID(server, uuid);
                 
                 sendReplyToQQ(String.format("✅ 已强制解绑 QQ %d\n已从白名单移除", targetQQ));
                 LOGGER.info("管理员 {} 强制解绑: QQ {} (UUID: {})", senderQQ, targetQQ, uuid);
@@ -456,6 +435,43 @@ public class InboundHandler {
         } catch (Exception e) {
             LOGGER.error("重载配置失败: {}", e.getMessage());
             sendReplyToQQ("❌ 重载失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 安全地通过 UUID 从白名单移除玩家
+     * 遍历白名单条目查找匹配的 UUID
+     * 
+     * @param server 服务器实例
+     * @param uuidStr UUID 字符串
+     */
+    private static void removeFromWhitelistByUUID(MinecraftServer server, String uuidStr) {
+        try {
+            UUID targetUUID = UUID.fromString(uuidStr);
+            UserWhiteList whitelist = server.getPlayerList().getWhiteList();
+            
+            // 遍历白名单条目查找匹配的 UUID
+            GameProfile profileToRemove = null;
+            for (var entry : whitelist.getEntries()) {
+                GameProfile profile = entry.getUser();
+                if (profile != null && profile.getId() != null && profile.getId().equals(targetUUID)) {
+                    profileToRemove = profile;
+                    break;
+                }
+            }
+            
+            if (profileToRemove != null) {
+                whitelist.remove(profileToRemove);
+                whitelist.save();
+                LOGGER.info("已将玩家 {} ({}) 从白名单移除", 
+                    profileToRemove.getName() != null ? profileToRemove.getName() : "Unknown", 
+                    uuidStr);
+            } else {
+                LOGGER.debug("玩家 {} 不在白名单中", uuidStr);
+            }
+            
+        } catch (IllegalArgumentException e) {
+            LOGGER.error("无效的 UUID 格式: {}", uuidStr);
         }
     }
 
