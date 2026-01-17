@@ -440,38 +440,33 @@ public class InboundHandler {
 
     /**
      * 安全地通过 UUID 从白名单移除玩家
-     * 遍历白名单条目查找匹配的 UUID
+     * 使用 ProfileCache 获取完整档案，或构造安全的 dummy profile
      * 
      * @param server 服务器实例
      * @param uuidStr UUID 字符串
      */
     private static void removeFromWhitelistByUUID(MinecraftServer server, String uuidStr) {
         try {
-            UUID targetUUID = UUID.fromString(uuidStr);
+            UUID uuid = UUID.fromString(uuidStr);
             UserWhiteList whitelist = server.getPlayerList().getWhiteList();
             
-            // 遍历白名单条目查找匹配的 UUID
-            GameProfile profileToRemove = null;
-            for (var entry : whitelist.getEntries()) {
-                GameProfile profile = entry.getUser();
-                if (profile != null && profile.getId() != null && profile.getId().equals(targetUUID)) {
-                    profileToRemove = profile;
-                    break;
-                }
-            }
+            // 尝试从缓存获取真实档案，否则使用带安全名称的 dummy profile
+            // 注意: 必须使用非 null 的名称，否则会抛出异常
+            GameProfile profile = server.getProfileCache().get(uuid)
+                    .orElse(new GameProfile(uuid, "Unknown"));
             
-            if (profileToRemove != null) {
-                whitelist.remove(profileToRemove);
-                whitelist.save();
-                LOGGER.info("已将玩家 {} ({}) 从白名单移除", 
-                    profileToRemove.getName() != null ? profileToRemove.getName() : "Unknown", 
-                    uuidStr);
+            if (whitelist.isWhiteListed(profile)) {
+                whitelist.remove(profile);
+                whitelist.save(); // 持久化到 whitelist.json
+                LOGGER.info("已从白名单移除 UUID: {}", uuidStr);
             } else {
-                LOGGER.debug("玩家 {} 不在白名单中", uuidStr);
+                LOGGER.debug("UUID {} 不在白名单中，跳过移除", uuidStr);
             }
             
         } catch (IllegalArgumentException e) {
-            LOGGER.error("无效的 UUID 格式: {}", uuidStr);
+            LOGGER.error("无效的 UUID 格式，无法解绑: {}", uuidStr);
+        } catch (Exception e) {
+            LOGGER.error("移除白名单时发生未知错误: {}", e.getMessage());
         }
     }
 
