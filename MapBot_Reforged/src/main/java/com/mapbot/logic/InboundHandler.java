@@ -78,7 +78,8 @@ public class InboundHandler {
     /** 仅限管理群使用的命令集合 */
     private static final Set<String> ADMIN_ONLY_COMMANDS = Set.of(
             "inv", "stopserver", "关服", "reload", 
-            "addadmin", "removeadmin", "adminunbind"
+            "addadmin", "removeadmin", "adminunbind",
+            "location", "位置"  // Task #016-STEP3
     );
 
     /**
@@ -258,6 +259,7 @@ public class InboundHandler {
             case "adminunbind" -> handleAdminUnbindCommand(args, senderQQ, sourceGroupId);
             case "reload" -> handleReloadCommand(senderQQ, sourceGroupId);
             case "playtime", "在线时长" -> handlePlaytimeCommand(rawArgs, senderQQ, sourceGroupId);
+            case "location", "位置" -> handleLocationCommand(rawArgs, senderQQ, sourceGroupId);
             default -> {
                 LOGGER.debug("未知命令: {}", message);
                 sendReplyToQQ(sourceGroupId, "❓ 未知命令，输入 #help 查看帮助");
@@ -866,6 +868,120 @@ public class InboundHandler {
             sendReplyToQQ(sourceGroupId, response);
             LOGGER.debug("查询玩家 {} ({}) 的{}在线时长: {} 分钟", displayName, targetUUID, periodName, minutes);
         });
+    }
+
+    // ================== Task #016-STEP3: 位置查询 ==================
+    
+    /**
+     * 处理 #location / #位置 命令
+     * Task #016-STEP3 新增
+     * 仅限管理群使用
+     * 
+     * @param args 命令参数 (玩家名)
+     * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
+     */
+    private static void handleLocationCommand(String args, long senderQQ, long sourceGroupId) {
+        // 解析玩家名
+        String targetPlayerName = args.trim();
+        
+        if (targetPlayerName.isEmpty()) {
+            sendReplyToQQ(sourceGroupId, "❌ 用法: #location <玩家名>");
+            return;
+        }
+        
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            sendReplyToQQ(sourceGroupId, "❌ 服务器未就绪");
+            return;
+        }
+        
+        // 在主线程执行
+        server.execute(() -> {
+            ServerPlayer player = server.getPlayerList().getPlayerByName(targetPlayerName);
+            
+            if (player == null) {
+                sendReplyToQQ(sourceGroupId, "❌ 玩家 " + targetPlayerName + " 不在线");
+                return;
+            }
+            
+            // 获取玩家位置信息
+            String playerName = player.getName().getString();
+            
+            // 获取维度信息
+            String dimension = getDimensionDisplayName(player.level().dimension().location().toString());
+            
+            // 获取坐标 (取整)
+            int x = (int) Math.floor(player.getX());
+            int y = (int) Math.floor(player.getY());
+            int z = (int) Math.floor(player.getZ());
+            
+            // 获取朝向
+            float yaw = player.getYRot();
+            String facing = getYawDirection(yaw);
+            
+            // 构建返回消息
+            StringBuilder sb = new StringBuilder();
+            sb.append("📍 ").append(playerName).append(" 的位置\n");
+            sb.append("─────────\n");
+            sb.append("🌍 维度: ").append(dimension).append("\n");
+            sb.append("📌 坐标: ").append(x).append(", ").append(y).append(", ").append(z).append("\n");
+            sb.append("🧭 朝向: ").append(facing);
+            
+            sendReplyToQQ(sourceGroupId, sb.toString());
+            LOGGER.info("查询玩家 {} 位置: {} [{}, {}, {}]", playerName, dimension, x, y, z);
+        });
+    }
+    
+    /**
+     * 获取维度的显示名称
+     * 
+     * @param dimensionId 维度 ID (如 minecraft:overworld)
+     * @return 友好显示名称
+     */
+    private static String getDimensionDisplayName(String dimensionId) {
+        return switch (dimensionId) {
+            case "minecraft:overworld" -> "主世界";
+            case "minecraft:the_nether" -> "下界";
+            case "minecraft:the_end" -> "末地";
+            default -> {
+                // 处理模组维度: 移除命名空间前缀，使其更可读
+                if (dimensionId.contains(":")) {
+                    yield dimensionId.substring(dimensionId.indexOf(":") + 1);
+                }
+                yield dimensionId;
+            }
+        };
+    }
+    
+    /**
+     * 将 Yaw 角度转换为方向文字
+     * 
+     * @param yaw Yaw 角度 (-180 到 180)
+     * @return 方向文字 (北/东/南/西等)
+     */
+    private static String getYawDirection(float yaw) {
+        // 标准化到 0-360
+        float normalizedYaw = (yaw % 360 + 360) % 360;
+        
+        // 8 方向判断
+        if (normalizedYaw >= 337.5 || normalizedYaw < 22.5) {
+            return "南 (S)";
+        } else if (normalizedYaw >= 22.5 && normalizedYaw < 67.5) {
+            return "西南 (SW)";
+        } else if (normalizedYaw >= 67.5 && normalizedYaw < 112.5) {
+            return "西 (W)";
+        } else if (normalizedYaw >= 112.5 && normalizedYaw < 157.5) {
+            return "西北 (NW)";
+        } else if (normalizedYaw >= 157.5 && normalizedYaw < 202.5) {
+            return "北 (N)";
+        } else if (normalizedYaw >= 202.5 && normalizedYaw < 247.5) {
+            return "东北 (NE)";
+        } else if (normalizedYaw >= 247.5 && normalizedYaw < 292.5) {
+            return "东 (E)";
+        } else {
+            return "东南 (SE)";
+        }
     }
 
     /**

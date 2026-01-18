@@ -291,6 +291,7 @@ public class ServerStatusManager {
             ─────────────────────
             ⚙️ 管理员命令:
             #inv <玩家名> - 查看玩家背包
+            #location <玩家名> - 查看玩家位置
             #stopserver - 关闭服务器
             #addadmin <QQ> - 添加管理员
             #removeadmin <QQ> - 移除管理员
