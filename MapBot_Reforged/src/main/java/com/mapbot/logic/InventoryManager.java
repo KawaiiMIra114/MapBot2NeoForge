@@ -18,6 +18,8 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mapbot.utils.ChineseTranslator;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -147,8 +149,14 @@ public class InventoryManager {
             sb.append("[--] ");
         }
 
-        // 物品名称 (使用 getHoverName 获取本地化名称)
-        String itemName = stack.getHoverName().getString();
+        // 物品名称 (优先使用中文翻译)
+        String translationKey = stack.getDescriptionId();
+        String itemName = ChineseTranslator.INSTANCE.translate(translationKey);
+        
+        // 如果翻译键没有找到中文，回退到 getHoverName
+        if (itemName.equals(translationKey)) {
+            itemName = stack.getHoverName().getString();
+        }
         sb.append(itemName);
 
         // 数量
@@ -174,8 +182,17 @@ public class InventoryManager {
                 Holder<Enchantment> enchantHolder = entry.getKey();
                 int level = entry.getIntValue();
                 
-                // 获取附魔名称
-                String enchantName = enchantHolder.value().description().getString();
+                // 获取附魔名称 (优先使用中文翻译)
+                String enchantKey = enchantHolder.getRegisteredName();
+                // 构建标准翻译键: enchantment.minecraft.xxx
+                String enchantTranslationKey = "enchantment." + enchantKey.replace(":", ".");
+                String enchantName = ChineseTranslator.INSTANCE.translate(enchantTranslationKey);
+                
+                // 如果没找到中文，回退到原版名称
+                if (enchantName.equals(enchantTranslationKey)) {
+                    enchantName = enchantHolder.value().description().getString();
+                }
+                
                 if (level > 1) {
                     enchantNames.add(enchantName + " " + toRoman(level));
                 } else {
