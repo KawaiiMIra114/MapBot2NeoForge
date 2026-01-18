@@ -111,6 +111,7 @@ public class InboundHandler {
 
             switch (postType) {
                 case "message" -> handleGroupMessage(json);
+                case "notice" -> handleNoticeEvent(json);  // Task #016-STEP4
                 case "meta_event" -> handleMetaEvent(json);
                 default -> LOGGER.debug("忽略未知事件类型: {}", postType);
             }
@@ -982,6 +983,94 @@ public class InboundHandler {
         } else {
             return "东南 (SE)";
         }
+    }
+
+    // ================== Task #016-STEP4: 通知事件处理 ==================
+    
+    /**
+     * 处理通知事件 (群成员增减等)
+     * Task #016-STEP4 新增
+     * 
+     * OneBot v11 notice 事件类型:
+     * - group_increase: 群成员增加
+     * - group_decrease: 群成员减少
+     * - group_admin: 群管理员变动
+     * - 等等
+     */
+    private static void handleNoticeEvent(JsonObject json) {
+        String noticeType = getStringOrNull(json, "notice_type");
+        
+        if (noticeType == null) {
+            return;
+        }
+        
+        switch (noticeType) {
+            case "group_increase" -> handleMemberJoin(json);
+            case "group_decrease" -> {
+                LOGGER.debug("群成员减少事件");
+                // 暂不处理退群事件
+            }
+            default -> LOGGER.debug("忽略未知通知类型: {}", noticeType);
+        }
+    }
+    
+    /**
+     * 处理群成员增加事件 (新人入群)
+     * Task #016-STEP4 核心逻辑
+     * 
+     * 事件格式:
+     * {
+     *   "post_type": "notice",
+     *   "notice_type": "group_increase",
+     *   "sub_type": "approve" / "invite",
+     *   "group_id": 123456,
+     *   "user_id": 654321,
+     *   "operator_id": 0
+     * }
+     */
+    private static void handleMemberJoin(JsonObject json) {
+        long groupId = getLongOrZero(json, "group_id");
+        long userId = getLongOrZero(json, "user_id");
+        String subType = getStringOrNull(json, "sub_type"); // approve=管理员同意, invite=被邀请
+        
+        // 获取玩家群 ID
+        long playerGroupId = BotConfig.getPlayerGroupId();
+        
+        // 只处理玩家群的入群事件
+        if (groupId != playerGroupId || playerGroupId == 0L) {
+            LOGGER.debug("忽略非玩家群的入群事件: 群 {}", groupId);
+            return;
+        }
+        
+        LOGGER.info("检测到新成员加入玩家群: QQ {}, 类型: {}", userId, subType);
+        
+        // 发送欢迎消息
+        sendWelcomeMessage(groupId, userId);
+    }
+    
+    /**
+     * 发送新人欢迎消息
+     * 
+     * @param groupId 群号
+     * @param userId 新成员 QQ
+     */
+    private static void sendWelcomeMessage(long groupId, long userId) {
+        // 构建欢迎消息 (使用 CQ 码 @新成员)
+        String welcomeMessage = String.format(
+            "[CQ:at,qq=%d] 欢迎加入 CIR 大家庭！🎉\n" +
+            "─────────────────\n" +
+            "📝 请使用 #id <游戏ID> 绑定账号\n" +
+            "📖 输入 #help 查看更多命令\n" +
+            "💬 有问题随时在群里提问哦~\n" +
+            "─────────────────\n" +
+            "祝你游戏愉快！🎮",
+            userId
+        );
+        
+        // 发送到玩家群
+        BotClient.INSTANCE.sendGroupMessage(groupId, welcomeMessage);
+        
+        LOGGER.info("已发送欢迎消息给新成员: QQ {}", userId);
     }
 
     /**
