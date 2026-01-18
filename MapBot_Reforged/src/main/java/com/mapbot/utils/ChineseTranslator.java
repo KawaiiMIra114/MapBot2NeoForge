@@ -337,6 +337,149 @@ public class ChineseTranslator {
         translations.put("item.minecraft.paper", "纸");
         translations.put("item.minecraft.stick", "木棍");
         
+        // ===== 机械动力 (Create Mod) - 材料 =====
+        translations.put("item.create.andesite_alloy", "安山合金");
+        translations.put("item.create.zinc_ingot", "锌锭");
+        translations.put("item.create.brass_ingot", "黄铜锭");
+        translations.put("item.create.crushed_raw_iron", "粉碎的铁矿石");
+        translations.put("item.create.crushed_raw_gold", "粉碎的金矿石");
+        translations.put("item.create.crushed_raw_copper", "粉碎的铜矿石");
+        translations.put("item.create.crushed_raw_zinc", "粉碎的锌矿石");
+        translations.put("item.create.brass_sheet", "黄铜板");
+        translations.put("item.create.iron_sheet", "铁板");
+        translations.put("item.create.golden_sheet", "金板");
+        translations.put("item.create.copper_sheet", "铜板");
+        translations.put("item.create.brass_nugget", "黄铜粒");
+        translations.put("item.create.zinc_nugget", "锌粒");
+        translations.put("item.create.exp_nugget", "经验粒");
+        translations.put("item.create.polished_rose_quartz", "精制的玫瑰石英");
+        translations.put("item.create.rose_quartz", "玫瑰石英");
+        translations.put("item.create.sturdy_sheet", "坚固板");
+        translations.put("item.create.powdered_obsidian", "黑曜石粉");
+        translations.put("item.create.cinder_flour", "火山灰");
+        translations.put("item.create.wheat_flour", "小麦粉");
+        translations.put("item.create.dough", "面团");
+        translations.put("item.create.chocolate_chip", "巧克力碎屑");
+        
+        // ===== 机械动力 - 工具装备 =====
+        translations.put("item.create.wrench", "扳手");
+        translations.put("item.create.goggles", "工程师护目镜");
+        translations.put("item.create.diving_helmet", "潜水头盔");
+        translations.put("item.create.diving_boots", "潜水靴");
+        translations.put("item.create.copper_diving_helmet", "铜制潜水头盔");
+        translations.put("item.create.copper_diving_boots", "铜制潜水靴");
+        translations.put("item.create.netherite_diving_helmet", "下界合金潜水头盔");
+        translations.put("item.create.netherite_diving_boots", "下界合金潜水靴");
+        translations.put("item.create.copper_backtank", "铜制背罐");
+        translations.put("item.create.netherite_backtank", "下界合金背罐");
+        translations.put("item.create.extendo_grip", "延伸握把");
+        translations.put("item.create.wand_of_symmetry", "对称魔杖");
+        translations.put("item.create.potato_cannon", "马铃薯炮");
+        
+        // ===== 机械动力 - 机械零件 =====
+        translations.put("item.create.cogwheel", "齿轮");
+        translations.put("item.create.large_cogwheel", "大齿轮");
+        translations.put("item.create.shaft", "传动轴");
+        translations.put("item.create.propeller", "螺旋桨");
+        translations.put("item.create.whisk", "搅拌器");
+        translations.put("item.create.electron_tube", "电子管");
+        translations.put("item.create.precision_mechanism", "精密机械构件");
+        
+        // ===== 机械动力 - 方块/机器 =====
+        translations.put("block.create.andesite_casing", "安山岩机壳");
+        translations.put("block.create.brass_casing", "黄铜机壳");
+        translations.put("block.create.copper_casing", "铜制机壳");
+        translations.put("block.create.railway_casing", "铁路机壳");
+        translations.put("block.create.mechanical_press", "动力辊压机");
+        translations.put("block.create.mechanical_mixer", "动力搅拌器");
+        translations.put("block.create.mechanical_saw", "动力锯");
+        translations.put("block.create.mechanical_drill", "动力钻头");
+        translations.put("block.create.mechanical_harvester", "动力收割机");
+        translations.put("block.create.mechanical_plough", "动力犁");
+        translations.put("block.create.mechanical_bearing", "动力轴承");
+        translations.put("block.create.mechanical_piston", "动力活塞");
+        translations.put("block.create.sticky_mechanical_piston", "黏性动力活塞");
+        translations.put("block.create.mechanical_crafter", "动力合成器");
+        translations.put("block.create.mechanical_arm", "动力机械臂");
+        translations.put("block.create.mechanical_pump", "动力泵");
+        translations.put("block.create.millstone", "石磨");
+        translations.put("block.create.crushing_wheel", "粉碎轮");
+        translations.put("block.create.encased_fan", "鼓风机");
+        translations.put("block.create.deployer", "机械手");
+        translations.put("block.create.basin", "工作盆");
+        translations.put("block.create.blaze_burner", "烈焰人燃烧室");
+        translations.put("block.create.item_drain", "分液池");
+        translations.put("block.create.spout", "注液器");
+        translations.put("block.create.chute", "溜槽");
+        translations.put("block.create.smart_chute", "智能溜槽");
+        translations.put("block.create.depot", "置物台");
+        translations.put("block.create.weighted_ejector", "加重弹射器");
+        translations.put("block.create.funnel", "漏斗");
+        translations.put("block.create.andesite_funnel", "安山岩漏斗");
+        translations.put("block.create.brass_funnel", "黄铜漏斗");
+        translations.put("block.create.belt", "传送带");
+        translations.put("block.create.gearbox", "齿轮箱");
+        translations.put("block.create.clutch", "离合器");
+        translations.put("block.create.gearshift", "换挡器");
+        translations.put("block.create.encased_chain_drive", "链式传动箱");
+        translations.put("block.create.adjustable_chain_gearshift", "可调节链式换挡器");
+        translations.put("block.create.sequenced_gearshift", "时序换挡器");
+        translations.put("block.create.rotation_speed_controller", "转速控制器");
+        translations.put("block.create.creative_motor", "创造动力源");
+        translations.put("block.create.water_wheel", "水车");
+        translations.put("block.create.large_water_wheel", "大型水车");
+        translations.put("block.create.windmill_bearing", "风车轴承");
+        translations.put("block.create.hand_crank", "手摇曲柄");
+        translations.put("block.create.steam_engine", "蒸汽引擎");
+        translations.put("block.create.flywheel", "飞轮");
+        translations.put("block.create.fluid_tank", "流体储罐");
+        translations.put("block.create.item_vault", "物品保险库");
+        translations.put("block.create.creative_fluid_tank", "创造流体储罐");
+        translations.put("block.create.fluid_pipe", "液管");
+        translations.put("block.create.copper_valve_handle", "铜制阀门把手");
+        translations.put("block.create.smart_fluid_pipe", "智能液管");
+        translations.put("block.create.portable_storage_interface", "便携式存储接口");
+        translations.put("block.create.portable_fluid_interface", "便携式流体接口");
+        translations.put("block.create.redstone_contact", "红石触点");
+        translations.put("block.create.redstone_link", "红石链接器");
+        translations.put("block.create.nixie_tube", "辉光管");
+        translations.put("block.create.stockpile_switch", "存量检测器");
+        translations.put("block.create.content_observer", "内容观察器");
+        translations.put("block.create.display_board", "显示板");
+        translations.put("block.create.display_link", "显示链接器");
+        translations.put("block.create.track", "列车轨道");
+        translations.put("block.create.track_station", "列车站台");
+        translations.put("block.create.track_signal", "列车信号机");
+        translations.put("block.create.track_observer", "列车观察器");
+        translations.put("block.create.controls", "列车控制器");
+        
+        // ===== 机械动力 - 矿石方块 =====
+        translations.put("block.create.zinc_ore", "锌矿石");
+        translations.put("block.create.deepslate_zinc_ore", "深层锌矿石");
+        translations.put("block.create.raw_zinc_block", "粗锌块");
+        translations.put("block.create.zinc_block", "锌块");
+        translations.put("block.create.brass_block", "黄铜块");
+        translations.put("block.create.industrial_iron_block", "工业铁块");
+        
+        // ===== 机械动力 - 列车相关 =====
+        translations.put("item.create.schedule", "列车时刻表");
+        translations.put("item.create.empty_blaze_burner", "空白的烈焰人燃烧室");
+        translations.put("block.create.train_door", "列车门");
+        translations.put("block.create.train_trapdoor", "列车活板门");
+        
+        // ===== 机械动力 - 其他 =====
+        translations.put("item.create.filter", "过滤器");
+        translations.put("item.create.attribute_filter", "属性过滤器");
+        translations.put("item.create.super_glue", "强力胶");
+        translations.put("item.create.minecart_coupling", "矿车连接器");
+        translations.put("item.create.blaze_cake", "烈焰蛋糕");
+        translations.put("item.create.sweet_roll", "甜面包卷");
+        translations.put("item.create.honeyed_apple", "蜜渍苹果");
+        translations.put("item.create.builders_tea", "建筑工之茶");
+        translations.put("item.create.chromatic_compound", "异彩化合物");
+        translations.put("item.create.shadow_steel", "暗影钢");
+        translations.put("item.create.refined_radiance", "精炼光芒");
+        
         LOGGER.info("加载了 {} 条内置翻译", translations.size());
     }
     
