@@ -168,8 +168,8 @@ public class ServerStatusManager {
             String levelName = ALERT_LEVELS[triggeredLevel];
             int threshold = TPS_THRESHOLDS[triggeredLevel];
             
-            String message = String.format("⚠️ TPS告警 [等级%d-%s]: 当前TPS %.1f, 低于阈值 %d",
-                    level, levelName, tps, threshold);
+            String message = String.format("[警告] TPS低 (%.1f < %d)\n等级: %s",
+                    tps, threshold, levelName);
             
             // 发送到 OP 群
             long opGroupId = BotConfig.getOpGroupId();
@@ -181,7 +181,7 @@ public class ServerStatusManager {
             // 连续 3 次后暂停该等级
             if (alertCounts[triggeredLevel] >= 3) {
                 alertPaused[triggeredLevel] = true;
-                String pauseMsg = String.format("⏸️ TPS已连续3次低于%d，暂停等级%d告警直至TPS回升",
+                String pauseMsg = String.format("[系统] TPS已连续3次低于%d，暂停等级%d告警",
                         threshold, level);
                 if (opGroupId > 0) {
                     InboundHandler.sendReplyToQQ(opGroupId, pauseMsg);
@@ -207,7 +207,7 @@ public class ServerStatusManager {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         
         if (server == null) {
-            return "❌ 服务器未就绪";
+            return "[错误] 服务器未就绪";
         }
         
         List<ServerPlayer> players = server.getPlayerList().getPlayers();
@@ -215,10 +215,10 @@ public class ServerStatusManager {
         int max = server.getMaxPlayers();
         
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("📊 在线玩家: %d/%d\n", online, max));
+        sb.append(String.format("[在线玩家] %d/%d\n", online, max));
         
         if (online == 0) {
-            sb.append("(暂无玩家在线)");
+            sb.append("-");
         } else {
             String names = players.stream()
                 .map(p -> p.getName().getString())
@@ -238,19 +238,17 @@ public class ServerStatusManager {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         
         if (server == null) {
-            return "❌ 服务器未就绪";
+            return "[错误] 服务器未就绪";
         }
         
         StringBuilder sb = new StringBuilder();
-        sb.append("📊 服务器状态\n");
-        sb.append("─────────\n");
+        sb.append("[服务器状态]\n");
         
         // MSPT (Milliseconds Per Tick) - 使用自管理缓冲区
         double mspt = getAverageMSPT();
         double tps = Math.min(20.0, 1000.0 / Math.max(mspt, 1.0));
         
-        sb.append(String.format("⏱️ MSPT: %.2f ms\n", mspt));
-        sb.append(String.format("📈 TPS: %.1f\n", tps));
+        sb.append(String.format("TPS: %.1f  |  MSPT: %.2fms\n", tps, mspt));
         
         // 内存使用
         Runtime runtime = Runtime.getRuntime();
@@ -258,16 +256,16 @@ public class ServerStatusManager {
         long maxMB = runtime.maxMemory() / 1024 / 1024;
         double memPercent = (double) usedMB / maxMB * 100;
         
-        sb.append(String.format("💾 内存: %d/%d MB (%.1f%%)\n", usedMB, maxMB, memPercent));
+        sb.append(String.format("内存: %d/%d MB (%.0f%%)\n", usedMB, maxMB, memPercent));
         
         // 在线人数
         int online = server.getPlayerCount();
         int max = server.getMaxPlayers();
-        sb.append(String.format("👥 玩家: %d/%d\n", online, max));
+        sb.append(String.format("玩家: %d/%d\n", online, max));
         
         // 世界信息
         String levelName = server.getWorldData().getLevelName();
-        sb.append(String.format("🌍 世界: %s", levelName));
+        sb.append(String.format("世界: %s", levelName));
         
         return sb.toString();
     }
@@ -279,26 +277,23 @@ public class ServerStatusManager {
      */
     public static String getHelp() {
         return """
-            📖 MapBot Reforged 命令帮助
-            ─────────────────────
-            #id <游戏ID> - 绑定QQ与游戏账号
-            #unbind - 解绑游戏账号
-            #list / #在线 - 查看在线玩家
-            #tps / #status - 查看服务器状态
-            #playtime <玩家> [时段] - 查看在线时长
-              时段: 0=今天 1=本周 2=本月 3=总计
-            #help / #菜单 - 显示此帮助
-            ─────────────────────
-            ⚙️ 管理员命令:
-            #inv <玩家名> - 查看玩家背包
-            #location <玩家名> - 查看玩家位置
-            #stopserver - 关闭服务器
-            #addadmin <QQ> - 添加管理员
-            #removeadmin <QQ> - 移除管理员
-            #adminunbind <QQ> - 强制解绑
-            #reload - 重载配置
-            ─────────────────────
-            普通消息将转发到游戏内""";
+            [MapBot 命令列表]
+            ------------------
+            #id <ID>     绑定游戏账号
+            #unbind      解绑账号
+            #list        在线玩家列表
+            #status      服务器状态
+            #playtime    查询在线时长
+            #help        显示此列表
+            
+            [管理命令]
+            #inv <ID> [-e]  查背包/末影箱
+            #location <ID>  查坐标
+            #stopserver     关闭服务器
+            #addadmin <QQ>  添加管理员
+            #reload         重载配置
+            ------------------
+            注: 普通消息自动转发至游戏""";
     }
 
     /**

@@ -43,11 +43,11 @@ public class InventoryManager {
      */
     public static String getPlayerInventory(ServerPlayer player) {
         if (player == null) {
-            return "❌ 玩家不存在或已离线";
+            return "[错误] 玩家不存在或已离线";
         }
 
         List<String> lines = new ArrayList<>();
-        lines.add(String.format("📦 %s 的背包:", player.getName().getString()));
+        lines.add(String.format("[背包] %s", player.getName().getString()));
 
         var inventory = player.getInventory();
         int itemCount = 0;
@@ -83,9 +83,9 @@ public class InventoryManager {
         }
 
         if (itemCount == 0) {
-            lines.add("(空)");
+            lines.add("-");
         } else {
-            lines.add(String.format("--- 共 %d 个物品 ---", itemCount));
+            lines.add(String.format("---\n共 %d 项", itemCount));
         }
 
         return String.join("\n", lines);
@@ -100,11 +100,11 @@ public class InventoryManager {
      */
     public static String getPlayerEnderChest(ServerPlayer player) {
         if (player == null) {
-            return "❌ 玩家不存在或已离线";
+            return "[错误] 玩家不存在或已离线";
         }
 
         List<String> lines = new ArrayList<>();
-        lines.add(String.format("🟣 %s 的末影箱:", player.getName().getString()));
+        lines.add(String.format("[末影箱] %s", player.getName().getString()));
 
         var enderChest = player.getEnderChestInventory();
         int itemCount = 0;
@@ -123,9 +123,9 @@ public class InventoryManager {
         }
 
         if (itemCount == 0) {
-            lines.add("(空)");
+            lines.add("-");
         } else {
-            lines.add(String.format("--- 共 %d 个物品 ---", itemCount));
+            lines.add(String.format("---\n共 %d 项", itemCount));
         }
 
         return String.join("\n", lines);
