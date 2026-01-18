@@ -22,6 +22,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +64,28 @@ public class GameEventListener {
         }
         long duration = System.nanoTime() - lastTickStart;
         ServerStatusManager.recordTick(duration);
+    }
+    
+    // ================== Task #016 STEP1: 服务器生命周期事件 ==================
+    
+    /**
+     * 服务器启动完成事件
+     * 启动 TPS 监控器
+     */
+    @SubscribeEvent
+    public static void onServerStarted(ServerStartedEvent event) {
+        LOGGER.info("服务器启动完成，启动 TPS 监控器");
+        ServerStatusManager.startTPSMonitor();
+    }
+    
+    /**
+     * 服务器停止事件
+     * 停止 TPS 监控器
+     */
+    @SubscribeEvent
+    public static void onServerStopping(ServerStoppingEvent event) {
+        LOGGER.info("服务器正在停止，关闭 TPS 监控器");
+        ServerStatusManager.stopTPSMonitor();
     }
 
     // ================== 消息同步 ==================

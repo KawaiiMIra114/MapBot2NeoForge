@@ -110,6 +110,14 @@ public class BotConfig {
     }
     
     /**
+     * 获取 OP 群号 (getAdminGroupId 的别名)
+     * Task #016 STEP1 新增
+     */
+    public static long getOpGroupId() {
+        return getAdminGroupId();
+    }
+    
+    /**
      * 获取目标群号 (兼容旧代码，即将废弃)
      * @deprecated 请使用 getPlayerGroupId() 或 getAdminGroupId()
      */

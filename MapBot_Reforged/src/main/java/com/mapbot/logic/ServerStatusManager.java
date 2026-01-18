@@ -15,8 +15,13 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mapbot.config.BotConfig;
+
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -56,6 +61,139 @@ public class ServerStatusManager {
     public static double getAverageMSPT() {
         double averageNanos = Arrays.stream(localTickTimes).average().orElse(0);
         return averageNanos / 1_000_000.0; // 纳秒 -> 毫秒
+    }
+    
+    /**
+     * 获取当前 TPS (基于 MSPT 换算)
+     * @return TPS 值 (最大 20.0)
+     */
+    public static double getCurrentTPS() {
+        double mspt = getAverageMSPT();
+        if (mspt <= 0) return 20.0;
+        return Math.min(20.0, 1000.0 / mspt);
+    }
+
+    // ================== Task #016 STEP1: TPS 分级监控告警 ==================
+    
+    /** TPS 告警阈值 (从高到低) */
+    private static final int[] TPS_THRESHOLDS = {18, 16, 14, 12, 10};
+    
+    /** 告警等级名称 */
+    private static final String[] ALERT_LEVELS = {"轻微", "注意", "警告", "严重", "危急"};
+    
+    /** 每级别连续告警计数 */
+    private static final int[] alertCounts = new int[5];
+    
+    /** 是否已暂停该级别告警 (连续3次后暂停) */
+    private static final boolean[] alertPaused = new boolean[5];
+    
+    /** 上一次触发的告警等级 (-1 表示无告警) */
+    private static int lastAlertLevel = -1;
+    
+    /** 定时任务执行器 */
+    private static ScheduledExecutorService scheduler;
+    
+    /**
+     * 启动 TPS 监控
+     * 应在服务器启动后调用
+     */
+    public static void startTPSMonitor() {
+        if (scheduler != null && !scheduler.isShutdown()) {
+            LOGGER.warn("TPS 监控器已在运行");
+            return;
+        }
+        
+        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "MapBot-TPSMonitor");
+            t.setDaemon(true);
+            return t;
+        });
+        
+        // 每 30 秒检测一次
+        scheduler.scheduleAtFixedRate(ServerStatusManager::checkTPS, 60, 30, TimeUnit.SECONDS);
+        LOGGER.info("TPS 监控器已启动 (间隔 30 秒)");
+    }
+    
+    /**
+     * 停止 TPS 监控
+     * 应在服务器关闭时调用
+     */
+    public static void stopTPSMonitor() {
+        if (scheduler != null) {
+            scheduler.shutdown();
+            scheduler = null;
+            LOGGER.info("TPS 监控器已停止");
+        }
+    }
+    
+    /**
+     * 检测 TPS 并发送告警
+     * Task #016 STEP1 核心逻辑
+     */
+    private static void checkTPS() {
+        try {
+            double tps = getCurrentTPS();
+            
+            // 找到触发的最高告警等级 (从等级5到等级1)
+            int triggeredLevel = -1;
+            for (int i = TPS_THRESHOLDS.length - 1; i >= 0; i--) {
+                if (tps < TPS_THRESHOLDS[i]) {
+                    triggeredLevel = i;
+                    break;
+                }
+            }
+            
+            // TPS 正常，重置所有计数和暂停状态
+            if (triggeredLevel == -1) {
+                if (lastAlertLevel >= 0) {
+                    // TPS 回升，重置状态
+                    Arrays.fill(alertCounts, 0);
+                    Arrays.fill(alertPaused, false);
+                    lastAlertLevel = -1;
+                    LOGGER.debug("TPS 回升至正常，重置告警状态");
+                }
+                return;
+            }
+            
+            // 如果该级别已暂停，不发送
+            if (alertPaused[triggeredLevel]) {
+                return;
+            }
+            
+            // 增加计数
+            alertCounts[triggeredLevel]++;
+            
+            // 发送告警
+            int level = triggeredLevel + 1; // 显示等级 1-5
+            String levelName = ALERT_LEVELS[triggeredLevel];
+            int threshold = TPS_THRESHOLDS[triggeredLevel];
+            
+            String message = String.format("⚠️ TPS告警 [等级%d-%s]: 当前TPS %.1f, 低于阈值 %d",
+                    level, levelName, tps, threshold);
+            
+            // 发送到 OP 群
+            long opGroupId = BotConfig.getOpGroupId();
+            if (opGroupId > 0) {
+                InboundHandler.sendReplyToQQ(opGroupId, message);
+                LOGGER.warn("TPS 告警: {} (等级{})", message, level);
+            }
+            
+            // 连续 3 次后暂停该等级
+            if (alertCounts[triggeredLevel] >= 3) {
+                alertPaused[triggeredLevel] = true;
+                String pauseMsg = String.format("⏸️ TPS已连续3次低于%d，暂停等级%d告警直至TPS回升",
+                        threshold, level);
+                if (opGroupId > 0) {
+                    InboundHandler.sendReplyToQQ(opGroupId, pauseMsg);
+                }
+                LOGGER.info("暂停等级 {} 告警", level);
+            }
+            
+            lastAlertLevel = triggeredLevel;
+            
+        } catch (Exception e) {
+            LOGGER.error("TPS 检测异常", e);
+        }
     }
 
     // ================== 查询方法 ==================

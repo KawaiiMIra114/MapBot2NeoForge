@@ -1146,11 +1146,12 @@ public class InboundHandler {
     /**
      * 发送回复消息到指定 QQ 群
      * Task #012-STEP3: 新增指定群号版本
+     * Task #016 STEP1: 改为 public 以供 ServerStatusManager 调用
      * 
      * @param groupId 目标群号
      * @param message 消息内容
      */
-    private static void sendReplyToQQ(long groupId, String message) {
+    public static void sendReplyToQQ(long groupId, String message) {
         if (groupId == 0L) {
             LOGGER.warn("无法发送回复: 目标群号未配置");
             return;
