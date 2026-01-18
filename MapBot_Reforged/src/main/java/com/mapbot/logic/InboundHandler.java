@@ -909,11 +909,12 @@ public class InboundHandler {
     
     /**
      * 从机器人转发的消息中提取原玩家名
-     * Task #014-STEP2 新增
+     * Task #014-Fix v2: 修复 HTML 转义和格式解析
      * 
-     * 机器人转发格式: "玩家名: 内容"
+     * 机器人转发格式: "[玩家名] 内容"
+     * OneBot 返回时会 HTML 转义: "&#91;玩家名&#93; 内容"
      * 
-     * @param botMessage 机器人发送的消息
+     * @param botMessage 机器人发送的消息 (可能是 HTML 转义的)
      * @return 玩家名，解析失败返回 null
      */
     private static String extractPlayerNameFromBotMessage(String botMessage) {
@@ -921,12 +922,31 @@ public class InboundHandler {
             return null;
         }
         
-        // 尝试按 ": " 分割
-        int colonIndex = botMessage.indexOf(": ");
-        if (colonIndex > 0) {
-            return botMessage.substring(0, colonIndex).trim();
+        // 1. 反转义 HTML 实体
+        String decoded = botMessage
+                .replace("&#91;", "[")
+                .replace("&#93;", "]")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+        
+        LOGGER.debug("[DEBUG] extractPlayerNameFromBotMessage: decoded={}", decoded);
+        
+        // 2. 解析 [玩家名] 格式
+        if (decoded.startsWith("[") && decoded.contains("]")) {
+            int endBracket = decoded.indexOf("]");
+            String playerName = decoded.substring(1, endBracket).trim();
+            LOGGER.info("[DEBUG] 提取玩家名成功: {}", playerName);
+            return playerName;
         }
         
+        // 3. 兼容旧格式 "玩家名: 内容"
+        int colonIndex = decoded.indexOf(": ");
+        if (colonIndex > 0) {
+            return decoded.substring(0, colonIndex).trim();
+        }
+        
+        LOGGER.debug("[DEBUG] 无法从消息中提取玩家名: {}", decoded);
         return null;
     }
     
