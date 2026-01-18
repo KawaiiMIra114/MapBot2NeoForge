@@ -251,6 +251,293 @@ public class ChineseTranslator {
         translations.put("block.minecraft.sea_lantern", "海晶灯");
         translations.put("block.minecraft.end_rod", "末地烛");
         
+        // ===== 木板 =====
+        translations.put("block.minecraft.oak_planks", "橡木木板");
+        translations.put("block.minecraft.spruce_planks", "云杉木板");
+        translations.put("block.minecraft.birch_planks", "白桦木板");
+        translations.put("block.minecraft.jungle_planks", "丛林木板");
+        translations.put("block.minecraft.acacia_planks", "金合欢木板");
+        translations.put("block.minecraft.dark_oak_planks", "深色橡木木板");
+        translations.put("block.minecraft.mangrove_planks", "红树木板");
+        translations.put("block.minecraft.cherry_planks", "樱花木板");
+        translations.put("block.minecraft.bamboo_planks", "竹木板");
+        translations.put("block.minecraft.crimson_planks", "绯红木板");
+        translations.put("block.minecraft.warped_planks", "诡异木板");
+        
+        // ===== 木材 (去皮原木/木头) =====
+        translations.put("block.minecraft.stripped_oak_log", "去皮橡木原木");
+        translations.put("block.minecraft.stripped_spruce_log", "去皮云杉原木");
+        translations.put("block.minecraft.stripped_birch_log", "去皮白桦原木");
+        translations.put("block.minecraft.stripped_jungle_log", "去皮丛林原木");
+        translations.put("block.minecraft.stripped_acacia_log", "去皮金合欢原木");
+        translations.put("block.minecraft.stripped_dark_oak_log", "去皮深色橡木原木");
+        translations.put("block.minecraft.stripped_mangrove_log", "去皮红树原木");
+        translations.put("block.minecraft.stripped_cherry_log", "去皮樱花原木");
+        translations.put("block.minecraft.oak_wood", "橡木");
+        translations.put("block.minecraft.spruce_wood", "云杉木");
+        translations.put("block.minecraft.birch_wood", "白桦木");
+        translations.put("block.minecraft.jungle_wood", "丛林木");
+        translations.put("block.minecraft.acacia_wood", "金合欢木");
+        translations.put("block.minecraft.dark_oak_wood", "深色橡木");
+        translations.put("block.minecraft.mangrove_wood", "红树木");
+        translations.put("block.minecraft.cherry_wood", "樱花木");
+        
+        // ===== 楼梯 =====
+        translations.put("block.minecraft.oak_stairs", "橡木楼梯");
+        translations.put("block.minecraft.spruce_stairs", "云杉楼梯");
+        translations.put("block.minecraft.birch_stairs", "白桦楼梯");
+        translations.put("block.minecraft.jungle_stairs", "丛林楼梯");
+        translations.put("block.minecraft.acacia_stairs", "金合欢楼梯");
+        translations.put("block.minecraft.dark_oak_stairs", "深色橡木楼梯");
+        translations.put("block.minecraft.mangrove_stairs", "红树楼梯");
+        translations.put("block.minecraft.cherry_stairs", "樱花楼梯");
+        translations.put("block.minecraft.bamboo_stairs", "竹楼梯");
+        translations.put("block.minecraft.stone_stairs", "石头楼梯");
+        translations.put("block.minecraft.cobblestone_stairs", "圆石楼梯");
+        translations.put("block.minecraft.stone_brick_stairs", "石砖楼梯");
+        translations.put("block.minecraft.brick_stairs", "砖块楼梯");
+        translations.put("block.minecraft.nether_brick_stairs", "下界砖楼梯");
+        translations.put("block.minecraft.quartz_stairs", "石英楼梯");
+        translations.put("block.minecraft.purpur_stairs", "紫珀楼梯");
+        translations.put("block.minecraft.prismarine_stairs", "海晶石楼梯");
+        translations.put("block.minecraft.deepslate_brick_stairs", "深板岩砖楼梯");
+        translations.put("block.minecraft.deepslate_tile_stairs", "深板岩瓦楼梯");
+        
+        // ===== 台阶 =====
+        translations.put("block.minecraft.oak_slab", "橡木台阶");
+        translations.put("block.minecraft.spruce_slab", "云杉台阶");
+        translations.put("block.minecraft.birch_slab", "白桦台阶");
+        translations.put("block.minecraft.jungle_slab", "丛林台阶");
+        translations.put("block.minecraft.acacia_slab", "金合欢台阶");
+        translations.put("block.minecraft.dark_oak_slab", "深色橡木台阶");
+        translations.put("block.minecraft.stone_slab", "石头台阶");
+        translations.put("block.minecraft.cobblestone_slab", "圆石台阶");
+        
+        // ===== 有色潜影盒 =====
+        translations.put("block.minecraft.white_shulker_box", "白色潜影盒");
+        translations.put("block.minecraft.orange_shulker_box", "橙色潜影盒");
+        translations.put("block.minecraft.magenta_shulker_box", "品红色潜影盒");
+        translations.put("block.minecraft.light_blue_shulker_box", "淡蓝色潜影盒");
+        translations.put("block.minecraft.yellow_shulker_box", "黄色潜影盒");
+        translations.put("block.minecraft.lime_shulker_box", "黄绿色潜影盒");
+        translations.put("block.minecraft.pink_shulker_box", "粉红色潜影盒");
+        translations.put("block.minecraft.gray_shulker_box", "灰色潜影盒");
+        translations.put("block.minecraft.light_gray_shulker_box", "淡灰色潜影盒");
+        translations.put("block.minecraft.cyan_shulker_box", "青色潜影盒");
+        translations.put("block.minecraft.purple_shulker_box", "紫色潜影盒");
+        translations.put("block.minecraft.blue_shulker_box", "蓝色潜影盒");
+        translations.put("block.minecraft.brown_shulker_box", "棕色潜影盒");
+        translations.put("block.minecraft.green_shulker_box", "绿色潜影盒");
+        translations.put("block.minecraft.red_shulker_box", "红色潜影盒");
+        translations.put("block.minecraft.black_shulker_box", "黑色潜影盒");
+        
+        // ===== 玻璃 =====
+        translations.put("block.minecraft.glass", "玻璃");
+        translations.put("block.minecraft.glass_pane", "玻璃板");
+        translations.put("block.minecraft.tinted_glass", "遮光玻璃");
+        translations.put("block.minecraft.white_stained_glass", "白色染色玻璃");
+        translations.put("block.minecraft.orange_stained_glass", "橙色染色玻璃");
+        translations.put("block.minecraft.magenta_stained_glass", "品红色染色玻璃");
+        translations.put("block.minecraft.light_blue_stained_glass", "淡蓝色染色玻璃");
+        translations.put("block.minecraft.yellow_stained_glass", "黄色染色玻璃");
+        translations.put("block.minecraft.lime_stained_glass", "黄绿色染色玻璃");
+        translations.put("block.minecraft.pink_stained_glass", "粉红色染色玻璃");
+        translations.put("block.minecraft.gray_stained_glass", "灰色染色玻璃");
+        translations.put("block.minecraft.light_gray_stained_glass", "淡灰色染色玻璃");
+        translations.put("block.minecraft.cyan_stained_glass", "青色染色玻璃");
+        translations.put("block.minecraft.purple_stained_glass", "紫色染色玻璃");
+        translations.put("block.minecraft.blue_stained_glass", "蓝色染色玻璃");
+        translations.put("block.minecraft.brown_stained_glass", "棕色染色玻璃");
+        translations.put("block.minecraft.green_stained_glass", "绿色染色玻璃");
+        translations.put("block.minecraft.red_stained_glass", "红色染色玻璃");
+        translations.put("block.minecraft.black_stained_glass", "黑色染色玻璃");
+        
+        // ===== 羊毛 =====
+        translations.put("block.minecraft.white_wool", "白色羊毛");
+        translations.put("block.minecraft.orange_wool", "橙色羊毛");
+        translations.put("block.minecraft.magenta_wool", "品红色羊毛");
+        translations.put("block.minecraft.light_blue_wool", "淡蓝色羊毛");
+        translations.put("block.minecraft.yellow_wool", "黄色羊毛");
+        translations.put("block.minecraft.lime_wool", "黄绿色羊毛");
+        translations.put("block.minecraft.pink_wool", "粉红色羊毛");
+        translations.put("block.minecraft.gray_wool", "灰色羊毛");
+        translations.put("block.minecraft.light_gray_wool", "淡灰色羊毛");
+        translations.put("block.minecraft.cyan_wool", "青色羊毛");
+        translations.put("block.minecraft.purple_wool", "紫色羊毛");
+        translations.put("block.minecraft.blue_wool", "蓝色羊毛");
+        translations.put("block.minecraft.brown_wool", "棕色羊毛");
+        translations.put("block.minecraft.green_wool", "绿色羊毛");
+        translations.put("block.minecraft.red_wool", "红色羊毛");
+        translations.put("block.minecraft.black_wool", "黑色羊毛");
+        
+        // ===== 混凝土 =====
+        translations.put("block.minecraft.white_concrete", "白色混凝土");
+        translations.put("block.minecraft.orange_concrete", "橙色混凝土");
+        translations.put("block.minecraft.magenta_concrete", "品红色混凝土");
+        translations.put("block.minecraft.light_blue_concrete", "淡蓝色混凝土");
+        translations.put("block.minecraft.yellow_concrete", "黄色混凝土");
+        translations.put("block.minecraft.lime_concrete", "黄绿色混凝土");
+        translations.put("block.minecraft.pink_concrete", "粉红色混凝土");
+        translations.put("block.minecraft.gray_concrete", "灰色混凝土");
+        translations.put("block.minecraft.light_gray_concrete", "淡灰色混凝土");
+        translations.put("block.minecraft.cyan_concrete", "青色混凝土");
+        translations.put("block.minecraft.purple_concrete", "紫色混凝土");
+        translations.put("block.minecraft.blue_concrete", "蓝色混凝土");
+        translations.put("block.minecraft.brown_concrete", "棕色混凝土");
+        translations.put("block.minecraft.green_concrete", "绿色混凝土");
+        translations.put("block.minecraft.red_concrete", "红色混凝土");
+        translations.put("block.minecraft.black_concrete", "黑色混凝土");
+        
+        // ===== 陶瓦 =====
+        translations.put("block.minecraft.terracotta", "陶瓦");
+        translations.put("block.minecraft.white_terracotta", "白色陶瓦");
+        translations.put("block.minecraft.orange_terracotta", "橙色陶瓦");
+        translations.put("block.minecraft.magenta_terracotta", "品红色陶瓦");
+        translations.put("block.minecraft.light_blue_terracotta", "淡蓝色陶瓦");
+        translations.put("block.minecraft.yellow_terracotta", "黄色陶瓦");
+        translations.put("block.minecraft.lime_terracotta", "黄绿色陶瓦");
+        translations.put("block.minecraft.pink_terracotta", "粉红色陶瓦");
+        translations.put("block.minecraft.gray_terracotta", "灰色陶瓦");
+        translations.put("block.minecraft.light_gray_terracotta", "淡灰色陶瓦");
+        translations.put("block.minecraft.cyan_terracotta", "青色陶瓦");
+        translations.put("block.minecraft.purple_terracotta", "紫色陶瓦");
+        translations.put("block.minecraft.blue_terracotta", "蓝色陶瓦");
+        translations.put("block.minecraft.brown_terracotta", "棕色陶瓦");
+        translations.put("block.minecraft.green_terracotta", "绿色陶瓦");
+        translations.put("block.minecraft.red_terracotta", "红色陶瓦");
+        translations.put("block.minecraft.black_terracotta", "黑色陶瓦");
+        
+        // ===== 其他常用方块 =====
+        translations.put("block.minecraft.bricks", "砖块");
+        translations.put("block.minecraft.stone_bricks", "石砖");
+        translations.put("block.minecraft.nether_bricks", "下界砖块");
+        translations.put("block.minecraft.red_nether_bricks", "红色下界砖块");
+        translations.put("block.minecraft.quartz_block", "石英块");
+        translations.put("block.minecraft.smooth_quartz", "平滑石英块");
+        translations.put("block.minecraft.smooth_stone", "平滑石头");
+        translations.put("block.minecraft.mossy_cobblestone", "苔石");
+        translations.put("block.minecraft.mossy_stone_bricks", "苔石砖");
+        translations.put("block.minecraft.cracked_stone_bricks", "裂石砖");
+        translations.put("block.minecraft.chiseled_stone_bricks", "雕纹石砖");
+        translations.put("block.minecraft.bookshelf", "书架");
+        translations.put("block.minecraft.soul_sand", "灵魂沙");
+        translations.put("block.minecraft.soul_soil", "灵魂土");
+        translations.put("block.minecraft.netherrack", "下界岩");
+        translations.put("block.minecraft.end_stone", "末地石");
+        translations.put("block.minecraft.end_stone_bricks", "末地石砖");
+        translations.put("block.minecraft.purpur_block", "紫珀块");
+        translations.put("block.minecraft.prismarine", "海晶石");
+        translations.put("block.minecraft.dark_prismarine", "暗海晶石");
+        translations.put("block.minecraft.prismarine_bricks", "海晶石砖");
+        translations.put("block.minecraft.clay", "黏土块");
+        translations.put("block.minecraft.honeycomb_block", "蜜脾块");
+        translations.put("block.minecraft.honey_block", "蜂蜜块");
+        translations.put("block.minecraft.slime_block", "黏液块");
+        translations.put("block.minecraft.hay_block", "干草块");
+        translations.put("block.minecraft.melon", "西瓜");
+        translations.put("block.minecraft.pumpkin", "南瓜");
+        translations.put("block.minecraft.carved_pumpkin", "雕刻过的南瓜");
+        translations.put("block.minecraft.jack_o_lantern", "南瓜灯");
+        translations.put("block.minecraft.sponge", "海绵");
+        translations.put("block.minecraft.wet_sponge", "湿海绵");
+        translations.put("block.minecraft.dried_kelp_block", "干海带块");
+        translations.put("block.minecraft.copper_block", "铜块");
+        translations.put("block.minecraft.exposed_copper", "斑驳的铜块");
+        translations.put("block.minecraft.weathered_copper", "锈蚀的铜块");
+        translations.put("block.minecraft.oxidized_copper", "氧化的铜块");
+        translations.put("block.minecraft.coal_block", "煤炭块");
+        translations.put("block.minecraft.redstone_block", "红石块");
+        translations.put("block.minecraft.lapis_block", "青金石块");
+        translations.put("block.minecraft.amethyst_block", "紫水晶块");
+        translations.put("block.minecraft.budding_amethyst", "紫水晶母岩");
+        translations.put("block.minecraft.tuff", "凝灰岩");
+        translations.put("block.minecraft.calcite", "方解石");
+        translations.put("block.minecraft.dripstone_block", "滴水石块");
+        translations.put("block.minecraft.mud", "泥巴");
+        translations.put("block.minecraft.packed_mud", "泥坯");
+        translations.put("block.minecraft.mud_bricks", "泥砖");
+        
+        // ===== 门和活板门 =====
+        translations.put("block.minecraft.oak_door", "橡木门");
+        translations.put("block.minecraft.spruce_door", "云杉门");
+        translations.put("block.minecraft.birch_door", "白桦门");
+        translations.put("block.minecraft.jungle_door", "丛林门");
+        translations.put("block.minecraft.acacia_door", "金合欢门");
+        translations.put("block.minecraft.dark_oak_door", "深色橡木门");
+        translations.put("block.minecraft.iron_door", "铁门");
+        translations.put("block.minecraft.oak_trapdoor", "橡木活板门");
+        translations.put("block.minecraft.spruce_trapdoor", "云杉活板门");
+        translations.put("block.minecraft.birch_trapdoor", "白桦活板门");
+        translations.put("block.minecraft.jungle_trapdoor", "丛林活板门");
+        translations.put("block.minecraft.acacia_trapdoor", "金合欢活板门");
+        translations.put("block.minecraft.dark_oak_trapdoor", "深色橡木活板门");
+        translations.put("block.minecraft.iron_trapdoor", "铁活板门");
+        
+        // ===== 栅栏 =====
+        translations.put("block.minecraft.oak_fence", "橡木栅栏");
+        translations.put("block.minecraft.spruce_fence", "云杉栅栏");
+        translations.put("block.minecraft.birch_fence", "白桦栅栏");
+        translations.put("block.minecraft.jungle_fence", "丛林栅栏");
+        translations.put("block.minecraft.acacia_fence", "金合欢栅栏");
+        translations.put("block.minecraft.dark_oak_fence", "深色橡木栅栏");
+        translations.put("block.minecraft.nether_brick_fence", "下界砖栅栏");
+        translations.put("block.minecraft.oak_fence_gate", "橡木栅栏门");
+        translations.put("block.minecraft.spruce_fence_gate", "云杉栅栏门");
+        translations.put("block.minecraft.birch_fence_gate", "白桦栅栏门");
+        translations.put("block.minecraft.jungle_fence_gate", "丛林栅栏门");
+        translations.put("block.minecraft.acacia_fence_gate", "金合欢栅栏门");
+        translations.put("block.minecraft.dark_oak_fence_gate", "深色橡木栅栏门");
+        
+        // ===== 红石相关 =====
+        translations.put("block.minecraft.redstone_torch", "红石火把");
+        translations.put("block.minecraft.redstone_lamp", "红石灯");
+        translations.put("block.minecraft.lever", "拉杆");
+        translations.put("block.minecraft.stone_button", "石头按钮");
+        translations.put("block.minecraft.oak_button", "橡木按钮");
+        translations.put("block.minecraft.stone_pressure_plate", "石头压力板");
+        translations.put("block.minecraft.oak_pressure_plate", "橡木压力板");
+        translations.put("block.minecraft.light_weighted_pressure_plate", "轻质测重压力板");
+        translations.put("block.minecraft.heavy_weighted_pressure_plate", "重质测重压力板");
+        translations.put("block.minecraft.tripwire_hook", "绊线钩");
+        translations.put("block.minecraft.trapped_chest", "陷阱箱");
+        translations.put("block.minecraft.daylight_detector", "阳光探测器");
+        translations.put("block.minecraft.redstone_wire", "红石线");
+        translations.put("block.minecraft.repeater", "红石中继器");
+        translations.put("block.minecraft.comparator", "红石比较器");
+        translations.put("block.minecraft.piston", "活塞");
+        translations.put("block.minecraft.sticky_piston", "黏性活塞");
+        translations.put("block.minecraft.observer", "侦测器");
+        translations.put("block.minecraft.hopper", "漏斗");
+        translations.put("block.minecraft.dropper", "投掷器");
+        translations.put("block.minecraft.dispenser", "发射器");
+        translations.put("block.minecraft.tnt", "TNT");
+        translations.put("block.minecraft.note_block", "音符盒");
+        translations.put("block.minecraft.jukebox", "唱片机");
+        translations.put("block.minecraft.target", "标靶");
+        translations.put("block.minecraft.sculk_sensor", "幽匿感测体");
+        translations.put("block.minecraft.calibrated_sculk_sensor", "校频幽匿感测体");
+        translations.put("block.minecraft.sculk_shrieker", "幽匿尖啸体");
+        translations.put("block.minecraft.sculk_catalyst", "幽匿催发体");
+        
+        // ===== 床 =====
+        translations.put("block.minecraft.white_bed", "白色床");
+        translations.put("block.minecraft.orange_bed", "橙色床");
+        translations.put("block.minecraft.magenta_bed", "品红色床");
+        translations.put("block.minecraft.light_blue_bed", "淡蓝色床");
+        translations.put("block.minecraft.yellow_bed", "黄色床");
+        translations.put("block.minecraft.lime_bed", "黄绿色床");
+        translations.put("block.minecraft.pink_bed", "粉红色床");
+        translations.put("block.minecraft.gray_bed", "灰色床");
+        translations.put("block.minecraft.light_gray_bed", "淡灰色床");
+        translations.put("block.minecraft.cyan_bed", "青色床");
+        translations.put("block.minecraft.purple_bed", "紫色床");
+        translations.put("block.minecraft.blue_bed", "蓝色床");
+        translations.put("block.minecraft.brown_bed", "棕色床");
+        translations.put("block.minecraft.green_bed", "绿色床");
+        translations.put("block.minecraft.red_bed", "红色床");
+        translations.put("block.minecraft.black_bed", "黑色床");
+
+        
         // ===== 附魔 =====
         translations.put("enchantment.minecraft.sharpness", "锋利");
         translations.put("enchantment.minecraft.smite", "亡灵杀手");
