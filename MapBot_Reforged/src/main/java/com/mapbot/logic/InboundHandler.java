@@ -44,6 +44,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
@@ -55,6 +56,23 @@ public class InboundHandler {
     
     /** 玩家名正则验证: 3-16 位字母数字下划线 */
     private static final Pattern PLAYER_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]{3,16}$");
+    
+    // ========== Task #015 STEP1: 回复上下文缓存 ==========
+    /**
+     * 回复消息上下文 - 用于存储待处理的回复消息信息
+     * Task #015-STEP1 新增
+     */
+    private record ReplyContext(
+            String replierNickname,   // 回复者昵称
+            String rawMessage,        // 原始 CQ 码消息
+            List<Long> atQQList,      // 被 @ 的 QQ 列表
+            long sourceGroupId,       // 来源群号
+            long timestamp            // 创建时间戳
+    ) {}
+    
+    /** 待处理的回复消息上下文 Map (UUID -> Context) */
+    private static final ConcurrentHashMap<String, ReplyContext> PENDING_REPLY_CONTEXTS = new ConcurrentHashMap<>();
+    // ========== End Task #015 STEP1 ==========
     
     /** 仅限管理群使用的命令集合 */
     private static final Set<String> ADMIN_ONLY_COMMANDS = Set.of(
@@ -80,8 +98,8 @@ public class InboundHandler {
                 String echo = getStringOrNull(json, "echo");
                 if (echo != null && echo.startsWith("load_members_")) {
                     handleGroupMemberListResponse(json);
-                } else if (echo != null && echo.startsWith("get_reply_msg_")) {
-                    // Task #014-STEP2: 处理 get_msg API 响应
+                } else if (echo != null && echo.startsWith("reply_")) {
+                    // Task #015-STEP1: 处理 get_msg API 响应 (回复上下文)
                     handleGetMsgResponse(json, echo);
                 } else {
                     LOGGER.debug("忽略无 post_type 的数据包 (echo 响应?)");
@@ -169,15 +187,17 @@ public class InboundHandler {
                 return;
             }
             
-            // Task #014-STEP2: 检测回复消息，向原发送者发送通知
+            // Task #015-STEP1: 检测回复消息，向原发送者发送通知
             String replyMsgId = CQCodeParser.extractReplyId(rawMessage);
-            if (replyMsgId != null) {
-                // 发送 get_msg API 获取被回复的消息内容
-                requestOriginalMessage(replyMsgId, nickname);
-            }
             
             // 提取被@的 QQ 号列表
             List<Long> atQQList = CQCodeParser.extractAtTargets(rawMessage);
+            
+            if (replyMsgId != null) {
+                // 发送 get_msg API 获取被回复的消息内容
+                // Task #015-STEP1: 传递完整上下文
+                requestOriginalMessage(replyMsgId, nickname, rawMessage, atQQList, sourceGroupId);
+            }
             
             String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, parsedMessage);
             
@@ -821,45 +841,65 @@ public class InboundHandler {
 
     /**
      * 请求获取原消息内容
-     * Task #014-STEP2 新增
+     * Task #015-STEP1 重构: 使用 UUID + Map 替代字符串编码
      * 
      * 用于回复消息通知：当群成员回复机器人转发的消息时，
      * 需要获取原消息内容以解析原发送者玩家名
      * 
      * @param messageId 被回复消息的 ID
-     * @param replierNickname 回复者昵称 (用于日志)
+     * @param replierNickname 回复者昵称
+     * @param rawMessage 原始消息内容 (含 CQ 码)
+     * @param atQQList 被 @ 的 QQ 列表
+     * @param sourceGroupId 来源群号
      */
-    private static void requestOriginalMessage(String messageId, String replierNickname) {
+    private static void requestOriginalMessage(String messageId, String replierNickname, 
+                                               String rawMessage, List<Long> atQQList, long sourceGroupId) {
+        // 生成唯一 UUID 作为 echo
+        String echoUUID = "reply_" + UUID.randomUUID().toString();
+        
+        // 存储上下文到 Map
+        ReplyContext context = new ReplyContext(
+                replierNickname, 
+                rawMessage, 
+                atQQList, 
+                sourceGroupId,
+                System.currentTimeMillis()
+        );
+        PENDING_REPLY_CONTEXTS.put(echoUUID, context);
+        
+        // 发送 get_msg 请求
         JsonObject params = new JsonObject();
         params.addProperty("message_id", messageId);
         
         JsonObject packet = new JsonObject();
         packet.addProperty("action", "get_msg");
         packet.add("params", params);
-        // echo 中编码回复者昵称，用于后续通知
-        packet.addProperty("echo", "get_reply_msg_" + replierNickname + "_" + messageId);
+        packet.addProperty("echo", echoUUID);
         
         BotClient.INSTANCE.sendPacket(packet);
-        LOGGER.debug("请求获取被回复消息: {}", messageId);
+        LOGGER.debug("请求获取被回复消息: {} (echo={})", messageId, echoUUID);
     }
     
     /**
      * 处理 get_msg API 响应
-     * Task #014-STEP2 新增
+     * Task #015-STEP1 重构: 从 Map 获取上下文，修复 "msg" 解析 bug
      * 
      * 解析原消息内容，提取玩家名，向该玩家发送回复通知
      * 
      * @param json OneBot 响应 JSON
-     * @param echo 请求时的 echo 字符串
+     * @param echo 请求时的 echo 字符串 (UUID)
      */
     private static void handleGetMsgResponse(JsonObject json, String echo) {
-        // 解析 echo: get_reply_msg_{replierNickname}_{messageId}
-        String[] parts = echo.split("_", 4);
-        if (parts.length < 4) {
-            LOGGER.warn("无效的 get_msg echo 格式: {}", echo);
+        // Task #015-STEP1: 从 Map 获取上下文
+        ReplyContext context = PENDING_REPLY_CONTEXTS.remove(echo);
+        if (context == null) {
+            LOGGER.warn("未找到回复上下文 (可能已过期): echo={}", echo);
             return;
         }
-        String replierNickname = parts[2];
+        
+        // 从上下文获取回复者昵称 (修复 "msg" bug)
+        String replierNickname = context.replierNickname();
+        LOGGER.debug("收到 get_msg 响应, 回复者: {}", replierNickname);
         
         // 获取响应数据
         JsonObject data = json.getAsJsonObject("data");
@@ -880,26 +920,25 @@ public class InboundHandler {
         }
         
         // 获取原消息内容
-        String rawMessage = getStringOrNull(data, "raw_message");
-        if (rawMessage == null) {
-            rawMessage = getStringOrNull(data, "message");
+        String originalRawMessage = getStringOrNull(data, "raw_message");
+        if (originalRawMessage == null) {
+            originalRawMessage = getStringOrNull(data, "message");
         }
         
-        LOGGER.debug("get_msg 响应: sender={}, message={}", senderId, rawMessage);
+        LOGGER.debug("get_msg 响应: sender={}, message={}", senderId, originalRawMessage);
         
         // 判断是否是机器人自己发送的消息
         long botQQ = BotConfig.getBotQQ();
         if (senderId != botQQ) {
-            // 不是机器人发的消息，尝试从消息中解析 @
+            // 不是机器人发的消息，跳过
             LOGGER.debug("被回复消息非机器人发送，跳过");
             return;
         }
         
         // 解析机器人转发的消息格式，提取原玩家名
-        // 格式可能是: "玩家名: 内容" 或其他
-        String originalPlayerName = extractPlayerNameFromBotMessage(rawMessage);
+        String originalPlayerName = extractPlayerNameFromBotMessage(originalRawMessage);
         if (originalPlayerName == null) {
-            LOGGER.debug("无法从机器人消息中提取玩家名: {}", rawMessage);
+            LOGGER.debug("无法从机器人消息中提取玩家名: {}", originalRawMessage);
             return;
         }
         
