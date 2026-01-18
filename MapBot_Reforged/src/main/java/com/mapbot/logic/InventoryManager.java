@@ -94,6 +94,7 @@ public class InventoryManager {
     /**
      * 获取玩家末影箱的可读字符串
      * Task #012-STEP5 新增
+     * 支持潜影盒内容全量显示
      * 
      * @param player 目标玩家
      * @return 格式化的末影箱信息
@@ -120,6 +121,12 @@ public class InventoryManager {
             itemCount++;
             String itemInfo = formatItemStack(slot, stack);
             lines.add(itemInfo);
+            
+            // 检查是否为潜影盒，如果是则展开显示内容
+            if (isShulkerBox(stack)) {
+                List<String> shulkerContents = getShulkerBoxContents(stack);
+                lines.addAll(shulkerContents);
+            }
         }
 
         if (itemCount == 0) {
@@ -129,6 +136,114 @@ public class InventoryManager {
         }
 
         return String.join("\n", lines);
+    }
+    
+    /**
+     * 检查物品是否为潜影盒
+     * 
+     * @param stack 物品堆
+     * @return 是否为潜影盒
+     */
+    private static boolean isShulkerBox(ItemStack stack) {
+        String itemId = stack.getItem().toString();
+        // 潜影盒的 ID 包含 "shulker_box"
+        return itemId.contains("shulker_box");
+    }
+    
+    /**
+     * 获取潜影盒内容列表
+     * 使用 DataComponents.CONTAINER 获取容器内物品
+     * 
+     * @param shulkerStack 潜影盒物品堆
+     * @return 格式化的内容列表（带 "--" 前缀）
+     */
+    private static List<String> getShulkerBoxContents(ItemStack shulkerStack) {
+        List<String> contents = new ArrayList<>();
+        
+        // 使用 DataComponents.CONTAINER 获取容器内容
+        var containerContents = shulkerStack.get(DataComponents.CONTAINER);
+        
+        if (containerContents == null || containerContents.getSlots() == 0) {
+            contents.add("  -- (空)");
+            return contents;
+        }
+        
+        // 遍历潜影盒的所有槽位 (27 格)
+        int contentCount = 0;
+        for (int i = 0; i < containerContents.getSlots(); i++) {
+            ItemStack innerStack = containerContents.getStackInSlot(i);
+            
+            if (innerStack.isEmpty()) {
+                continue;
+            }
+            
+            contentCount++;
+            // 格式化内部物品（使用 "--" 前缀标识从属关系）
+            String innerItemInfo = formatShulkerItem(innerStack);
+            contents.add("  -- " + innerItemInfo);
+        }
+        
+        if (contentCount == 0) {
+            contents.add("  -- (空)");
+        }
+        
+        return contents;
+    }
+    
+    /**
+     * 格式化潜影盒内的物品（简化格式）
+     * 
+     * @param stack 物品堆
+     * @return 格式化字符串
+     */
+    private static String formatShulkerItem(ItemStack stack) {
+        StringBuilder sb = new StringBuilder();
+        
+        // 物品名称 (优先使用中文翻译)
+        String translationKey = stack.getDescriptionId();
+        String itemName = ChineseTranslator.INSTANCE.translate(translationKey);
+        
+        // 如果翻译键没有找到中文，回退到 getHoverName
+        if (itemName.equals(translationKey)) {
+            itemName = stack.getHoverName().getString();
+        }
+        sb.append(itemName);
+
+        // 数量
+        if (stack.getCount() > 1) {
+            sb.append(" x").append(stack.getCount());
+        }
+
+        // 附魔信息（简化显示）
+        ItemEnchantments enchantments = stack.get(DataComponents.ENCHANTMENTS);
+        if (enchantments != null && !enchantments.isEmpty()) {
+            List<String> enchantNames = new ArrayList<>();
+            
+            enchantments.entrySet().forEach(entry -> {
+                Holder<Enchantment> enchantHolder = entry.getKey();
+                int level = entry.getIntValue();
+                
+                String enchantKey = enchantHolder.getRegisteredName();
+                String enchantTranslationKey = "enchantment." + enchantKey.replace(":", ".");
+                String enchantName = ChineseTranslator.INSTANCE.translate(enchantTranslationKey);
+                
+                if (enchantName.equals(enchantTranslationKey)) {
+                    enchantName = enchantHolder.value().description().getString();
+                }
+                
+                if (level > 1) {
+                    enchantNames.add(enchantName + " " + toRoman(level));
+                } else {
+                    enchantNames.add(enchantName);
+                }
+            });
+            
+            if (!enchantNames.isEmpty()) {
+                sb.append(" (").append(String.join(", ", enchantNames)).append(")");
+            }
+        }
+
+        return sb.toString();
     }
 
     /**
