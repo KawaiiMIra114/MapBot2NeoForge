@@ -187,18 +187,23 @@ public class InboundHandler {
                 return;
             }
             
-            // Task #015-STEP1: 检测回复消息，向原发送者发送通知
+            // Task #015-STEP2: 检测回复消息
             String replyMsgId = CQCodeParser.extractReplyId(rawMessage);
             
             // 提取被@的 QQ 号列表
             List<Long> atQQList = CQCodeParser.extractAtTargets(rawMessage);
             
             if (replyMsgId != null) {
-                // 发送 get_msg API 获取被回复的消息内容
-                // Task #015-STEP1: 传递完整上下文
+                // Task #015-STEP2: 回复消息 - 延迟转发
+                // 将上下文存入 Map，等 get_msg 响应后统一处理
+                // 同时传递 parsedMessage 用于后续替换
                 requestOriginalMessage(replyMsgId, nickname, rawMessage, atQQList, sourceGroupId);
+                // 延迟发送：不在这里调用 sendPersonalizedMessage
+                LOGGER.debug("[TIMING] 回复消息延迟转发: {}ms (since t0)", System.currentTimeMillis() - t0);
+                return; // 等待 handleGetMsgResponse 处理
             }
             
+            // 非回复消息：立即转发
             String formattedMessage = String.format("§b[QQ]§r <%s> %s", nickname, parsedMessage);
             
             // Task #013-STEP4: 记录调度前时间
@@ -882,9 +887,12 @@ public class InboundHandler {
     
     /**
      * 处理 get_msg API 响应
-     * Task #015-STEP1 重构: 从 Map 获取上下文，修复 "msg" 解析 bug
+     * Task #015-STEP2 重构: 延迟转发 + @替换
      * 
-     * 解析原消息内容，提取玩家名，向该玩家发送回复通知
+     * 1. 从 Map 获取上下文
+     * 2. 解析原消息玩家名
+     * 3. 替换 @BotQQ 为 @玩家名
+     * 4. 发送通知并转发消息
      * 
      * @param json OneBot 响应 JSON
      * @param echo 请求时的 echo 字符串 (UUID)
@@ -897,14 +905,18 @@ public class InboundHandler {
             return;
         }
         
-        // 从上下文获取回复者昵称 (修复 "msg" bug)
+        // 从上下文获取信息 (修复 "msg" bug)
         String replierNickname = context.replierNickname();
+        String rawMessage = context.rawMessage();
+        List<Long> atQQList = context.atQQList();
         LOGGER.debug("收到 get_msg 响应, 回复者: {}", replierNickname);
         
         // 获取响应数据
         JsonObject data = json.getAsJsonObject("data");
         if (data == null) {
             LOGGER.debug("get_msg 响应无 data 字段");
+            // 即使失败也要尝试转发原始消息
+            fallbackForwardMessage(context);
             return;
         }
         
@@ -929,21 +941,57 @@ public class InboundHandler {
         
         // 判断是否是机器人自己发送的消息
         long botQQ = BotConfig.getBotQQ();
-        if (senderId != botQQ) {
-            // 不是机器人发的消息，跳过
-            LOGGER.debug("被回复消息非机器人发送，跳过");
-            return;
+        String originalPlayerName = null;
+        
+        if (senderId == botQQ) {
+            // 解析机器人转发的消息格式，提取原玩家名
+            originalPlayerName = extractPlayerNameFromBotMessage(originalRawMessage);
+            if (originalPlayerName != null) {
+                LOGGER.info("[DEBUG] 成功提取被回复的玩家名: {}", originalPlayerName);
+            }
         }
         
-        // 解析机器人转发的消息格式，提取原玩家名
-        String originalPlayerName = extractPlayerNameFromBotMessage(originalRawMessage);
-        if (originalPlayerName == null) {
-            LOGGER.debug("无法从机器人消息中提取玩家名: {}", originalRawMessage);
-            return;
+        // ========== Task #015-STEP2: @替换 + 消息转发 ==========
+        // 解析 CQ 码得到可读消息
+        String parsedMessage = CQCodeParser.parse(rawMessage);
+        
+        // 如果成功解析出原玩家名，替换 @机器人 为 @玩家名
+        if (originalPlayerName != null) {
+            // 替换消息中的 @机器人 引用
+            // parsedMessage 中 @机器人 已被 CQCodeParser 解析为 "@Bot昵称" 或 "@QQ号"
+            // 直接在 parsedMessage 中替换
+            String botAtText = "@" + botQQ;
+            String botNickAtText = "@CIR-Bot"; // 机器人常用昵称
+            String replacement = "@" + originalPlayerName;
+            
+            parsedMessage = parsedMessage.replace(botAtText, replacement);
+            parsedMessage = parsedMessage.replace(botNickAtText, replacement);
+            
+            LOGGER.debug("[STEP2] @替换: {} -> {}", botAtText, replacement);
         }
         
-        // 向原玩家发送回复通知
-        notifyPlayerOfReply(originalPlayerName, replierNickname);
+        // 构建最终消息
+        String formattedMessage = String.format("§b[QQ]§r <%s> %s", replierNickname, parsedMessage);
+        
+        // 发送个性化消息到游戏
+        sendPersonalizedMessage(formattedMessage, atQQList, replierNickname);
+        
+        // 向原玩家发送回复通知 (Title)
+        if (originalPlayerName != null) {
+            notifyPlayerOfReply(originalPlayerName, replierNickname);
+        }
+    }
+    
+    /**
+     * 备用消息转发（当 get_msg 失败时）
+     * Task #015-STEP2 新增
+     */
+    private static void fallbackForwardMessage(ReplyContext context) {
+        String parsedMessage = CQCodeParser.parse(context.rawMessage());
+        String formattedMessage = String.format("§b[QQ]§r <%s> %s", 
+                context.replierNickname(), parsedMessage);
+        sendPersonalizedMessage(formattedMessage, context.atQQList(), context.replierNickname());
+        LOGGER.debug("使用备用路径转发消息");
     }
     
     /**
