@@ -21,6 +21,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mapbot.config.BotConfig;
 import com.mapbot.data.DataManager;
+import com.mapbot.data.PlaytimeManager;
 import com.mapbot.network.BotClient;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.UUIDUtil;
@@ -256,6 +257,7 @@ public class InboundHandler {
             case "unbind", "removeid", "解绑" -> handleUnbindCommand(senderQQ, sourceGroupId);
             case "adminunbind" -> handleAdminUnbindCommand(args, senderQQ, sourceGroupId);
             case "reload" -> handleReloadCommand(senderQQ, sourceGroupId);
+            case "playtime", "在线时长" -> handlePlaytimeCommand(rawArgs, senderQQ, sourceGroupId);
             default -> {
                 LOGGER.debug("未知命令: {}", message);
                 sendReplyToQQ(sourceGroupId, "❓ 未知命令，输入 #help 查看帮助");
@@ -780,6 +782,91 @@ public class InboundHandler {
         });
     }
 
+    // ================== Task #016-STEP2: 在线时长查询 ==================
+    
+    /**
+     * 处理 #playtime / #在线时长 命令
+     * Task #016-STEP2 新增
+     * 
+     * @param args 命令参数 (玩家名 [时段])
+     * @param senderQQ 发送者 QQ
+     * @param sourceGroupId 消息来源群号
+     */
+    private static void handlePlaytimeCommand(String args, long senderQQ, long sourceGroupId) {
+        // 解析参数
+        String[] parts = args.trim().split("\\s+");
+        
+        if (parts.length == 0 || parts[0].isEmpty()) {
+            sendReplyToQQ(sourceGroupId, "❌ 用法: #playtime <玩家名> [时段]\n时段: 0=今天, 1=本周, 2=本月, 3=总计");
+            return;
+        }
+        
+        String targetPlayerName = parts[0];
+        int mode = 0; // 默认: 今天
+        
+        // 解析时段参数
+        if (parts.length > 1) {
+            try {
+                mode = Integer.parseInt(parts[1]);
+                if (mode < 0 || mode > 3) {
+                    sendReplyToQQ(sourceGroupId, "❌ 时段参数无效\n0=今天, 1=本周, 2=本月, 3=总计");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                sendReplyToQQ(sourceGroupId, "❌ 时段必须为数字 (0-3)");
+                return;
+            }
+        }
+        
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            sendReplyToQQ(sourceGroupId, "❌ 服务器未就绪");
+            return;
+        }
+        
+        // 时段名称映射
+        final String[] periodNames = {"今天", "本周", "本月", "总计"};
+        final int finalMode = mode;
+        final String periodName = periodNames[mode];
+        
+        // 在主线程执行
+        server.execute(() -> {
+            // 尝试查找在线玩家
+            ServerPlayer player = server.getPlayerList().getPlayerByName(targetPlayerName);
+            
+            UUID targetUUID = null;
+            String displayName = targetPlayerName;
+            
+            if (player != null) {
+                // 玩家在线
+                targetUUID = player.getUUID();
+                displayName = player.getName().getString();
+            } else {
+                // 玩家不在线，尝试从缓存查找
+                Optional<GameProfile> cached = server.getProfileCache().get(targetPlayerName);
+                if (cached.isPresent()) {
+                    targetUUID = cached.get().getId();
+                    displayName = cached.get().getName();
+                }
+            }
+            
+            if (targetUUID == null) {
+                sendReplyToQQ(sourceGroupId, "❌ 找不到玩家: " + targetPlayerName);
+                return;
+            }
+            
+            // 查询在线时长
+            long minutes = PlaytimeManager.INSTANCE.getPlaytimeMinutes(targetUUID, finalMode);
+            String formattedTime = PlaytimeManager.formatDuration(minutes);
+            
+            // 构建返回消息
+            String response = String.format("📊 %s %s的在线时长\n⏱️ %s", 
+                    displayName, periodName, formattedTime);
+            
+            sendReplyToQQ(sourceGroupId, response);
+            LOGGER.debug("查询玩家 {} ({}) 的{}在线时长: {} 分钟", displayName, targetUUID, periodName, minutes);
+        });
+    }
 
     /**
      * 处理元事件 (心跳等)

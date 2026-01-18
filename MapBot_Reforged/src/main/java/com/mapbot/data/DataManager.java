@@ -326,6 +326,39 @@ public class DataManager {
         }
     }
     
+    // ================== 在线时长管理 ==================
+    
+    /**
+     * 获取玩家的在线时长记录
+     * 
+     * @param uuidStr 玩家 UUID 字符串
+     * @return PlaytimeRecord，未找到返回 null
+     */
+    public PlaytimeRecord getPlaytimeRecord(String uuidStr) {
+        lock.readLock().lock();
+        try {
+            return data.playerPlaytime.get(uuidStr);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    /**
+     * 保存玩家的在线时长记录
+     * 
+     * @param uuidStr 玩家 UUID 字符串
+     * @param record 时长记录
+     */
+    public void savePlaytimeRecord(String uuidStr, PlaytimeRecord record) {
+        lock.writeLock().lock();
+        try {
+            data.playerPlaytime.put(uuidStr, record);
+            save();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+    
     // ================== 内部数据模型 ==================
     
     /**
@@ -338,5 +371,29 @@ public class DataManager {
         
         /** 玩家绑定映射 (QQ → UUID) */
         Map<Long, String> playerBindings = new HashMap<>();
+        
+        /** 玩家在线时长记录 (UUID → PlaytimeRecord) */
+        Map<String, PlaytimeRecord> playerPlaytime = new HashMap<>();
+    }
+    
+    /**
+     * 在线时长记录
+     * Task #016-STEP2 新增
+     */
+    public static class PlaytimeRecord {
+        /** 今日在线毫秒 */
+        public long dailyMs = 0;
+        
+        /** 本周在线毫秒 */
+        public long weeklyMs = 0;
+        
+        /** 本月在线毫秒 */
+        public long monthlyMs = 0;
+        
+        /** 总计在线毫秒 */
+        public long totalMs = 0;
+        
+        /** 上次重置日期 (YYYY-MM-DD 格式) */
+        public String lastReset = null;
     }
 }

@@ -14,6 +14,7 @@ package com.mapbot.logic;
 
 import com.mapbot.MapBot;
 import com.mapbot.config.BotConfig;
+import com.mapbot.data.PlaytimeManager;
 import com.mapbot.network.BotClient;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -86,6 +87,9 @@ public class GameEventListener {
     public static void onServerStopping(ServerStoppingEvent event) {
         LOGGER.info("服务器正在停止，关闭 TPS 监控器");
         ServerStatusManager.stopTPSMonitor();
+        
+        // Task #016-STEP2: 保存所有在线玩家的时长数据
+        PlaytimeManager.INSTANCE.onServerStopping();
     }
 
     // ================== 消息同步 ==================
@@ -134,6 +138,9 @@ public class GameEventListener {
         
         LOGGER.info("玩家加入: {}", playerName);
         BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
+        
+        // Task #016-STEP2: 记录登录时间
+        PlaytimeManager.INSTANCE.onPlayerLogin(player.getUUID());
     }
 
     /**
@@ -158,6 +165,9 @@ public class GameEventListener {
         
         LOGGER.info("玩家离开: {}", playerName);
         BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
+        
+        // Task #016-STEP2: 计算并保存在线时长
+        PlaytimeManager.INSTANCE.onPlayerLogout(player.getUUID());
     }
 
     /**

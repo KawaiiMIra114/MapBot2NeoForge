@@ -285,10 +285,12 @@ public class ServerStatusManager {
             #unbind - 解绑游戏账号
             #list / #在线 - 查看在线玩家
             #tps / #status - 查看服务器状态
-            #inv <玩家名> - 查看玩家背包
+            #playtime <玩家> [时段] - 查看在线时长
+              时段: 0=今天 1=本周 2=本月 3=总计
             #help / #菜单 - 显示此帮助
             ─────────────────────
             ⚙️ 管理员命令:
+            #inv <玩家名> - 查看玩家背包
             #stopserver - 关闭服务器
             #addadmin <QQ> - 添加管理员
             #removeadmin <QQ> - 移除管理员
