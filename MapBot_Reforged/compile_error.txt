@@ -1,0 +1,449 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.8/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :createMinecraftArtifacts UP-TO-DATE
+
+> Task :compileJava
+.\gradlew.bat : D:\ri
+server\Napcat2NeoForg
+e\MapBot_Reforged\src
+\main\java\com\mapbot
+\logic\ServerStatusMa
+nager.java:175: 错误: 找
+不到符号
+所在位置 行:1 字符: 1
++ .\gradlew.bat compi
+leJava --no-daemon --
+stacktrace 2>&1 | Out
+-File -F ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (D:\rise   
+ rver\Nap...:175:    
+ 错误: 找不到符号:Strin    g
+) [], RemoteExc    ep
+tion
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+            long opGr
+oupId = BotConfig.get
+OpGroupId();
+                     
+                 ^
+  符号:   方法 getOpGroup
+Id()
+  位置: 类 BotConfig
+D:\riserver\Napcat2Ne
+oForge\MapBot_Reforge
+d\src\main\java\com\m
+apbot\logic\ServerSta
+tusManager.java:177: 
+错误: 无法将类 InboundHandl
+er中的方法 sendReplyToQQ应
+用到给定类型;
+                Inbou
+ndHandler.sendReplyTo
+QQ(opGroupId, message
+);
+                     
+         ^
+  需要: long,String
+  找到:    long,String
+  原因: sendReplyToQQ(l
+ong,String) 在 Inbound
+Handler 中是 private 访问
+控制
+D:\riserver\Napcat2Ne
+oForge\MapBot_Reforge
+d\src\main\java\com\m
+apbot\logic\ServerSta
+tusManager.java:187: 
+错误: 无法将类 InboundHandl
+er中的方法 sendReplyToQQ应
+用到给定类型;
+                    I
+nboundHandler.sendRep
+lyToQQ(opGroupId, pau
+seMsg);
+                     
+             ^
+  需要: long,String
+  找到:    long,String
+  原因: sendReplyToQQ(l
+ong,String) 在 Inbound
+Handler 中是 private 访问
+控制
+注: D:\riserver\Napcat
+2NeoForge\MapBot_Refo
+rged\src\main\java\co
+m\mapbot\logic\GameEv
+entListener.java使用或覆盖
+了已过时的 API。
+注: 有关详细信息, 请使用 -Xlint
+:deprecation 重新编译。
+注: 某些消息已经过简化; 请使用 -Xd
+iags:verbose 重新编译以获得完
+整输出
+3 个错误
+
+> Task :compileJava FAILED
+
+FAILURE: Build failed
+ with an exception.
+
+* What went wrong:
+Execution failed for 
+task ':compileJava'.
+> Compilation failed;
+ see the compiler err
+or output for details
+.
+
+* Try:
+> Run with --info opt
+ion to get more log o
+utput.
+> Run with --scan to 
+get full insights.
+
+* Exception is:
+org.gradle.api.tasks.
+TaskExecutionExceptio
+n: Execution failed f
+or task ':compileJava
+'.
+	at org.gradle.api.in
+ternal.tasks.executio
+n.ExecuteActionsTaskE
+xecuter.lambda$execut
+eIfValid$1(ExecuteAct
+ionsTaskExecuter.java
+:130)
+	at org.gradle.intern
+al.Try$Failure.ifSucc
+essfulOrElse(Try.java
+:282)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.ExecuteActionsTaskE
+xecuter.executeIfVali
+d(ExecuteActionsTaskE
+xecuter.java:128)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.ExecuteActionsTaskE
+xecuter.execute(Execu
+teActionsTaskExecuter
+.java:116)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.FinalizePropertiesT
+askExecuter.execute(F
+inalizePropertiesTask
+Executer.java:46)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.ResolveTaskExecutio
+nModeExecuter.execute
+(ResolveTaskExecution
+ModeExecuter.java:51)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.SkipTaskWithNoActio
+nsExecuter.execute(Sk
+ipTaskWithNoActionsEx
+ecuter.java:57)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.SkipOnlyIfTaskExecu
+ter.execute(SkipOnlyI
+fTaskExecuter.java:74
+)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.CatchExceptionTaskE
+xecuter.execute(Catch
+ExceptionTaskExecuter
+.java:36)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.EventFiringTaskExec
+uter$1.executeTask(Ev
+entFiringTaskExecuter
+.java:77)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.EventFiringTaskExec
+uter$1.call(EventFiri
+ngTaskExecuter.java:5
+5)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.EventFiringTaskExec
+uter$1.call(EventFiri
+ngTaskExecuter.java:5
+2)
+	at org.gradle.intern
+al.operations.Default
+BuildOperationRunner$
+CallableBuildOperatio
+nWorker.execute(Defau
+ltBuildOperationRunne
+r.java:209)
+	at org.gradle.intern
+al.operations.Default
+BuildOperationRunner$
+CallableBuildOperatio
+nWorker.execute(Defau
+ltBuildOperationRunne
+r.java:204)
+	at org.gradle.intern
+al.operations.Default
+BuildOperationRunner$
+2.execute(DefaultBuil
+dOperationRunner.java
+:66)
+	at org.gradle.intern
+al.operations.Default
+BuildOperationRunner$
+2.execute(DefaultBuil
+dOperationRunner.java
+:59)
+	at org.gradle.intern
+al.operations.Default
+BuildOperationRunner.
+execute(DefaultBuildO
+perationRunner.java:1
+66)
+	at org.gradle.intern
+al.operations.Default
+BuildOperationRunner.
+execute(DefaultBuildO
+perationRunner.java:5
+9)
+	at org.gradle.intern
+al.operations.Default
+BuildOperationRunner.
+call(DefaultBuildOper
+ationRunner.java:53)
+	at org.gradle.api.in
+ternal.tasks.executio
+n.EventFiringTaskExec
+uter.execute(EventFir
+ingTaskExecuter.java:
+52)
+	at org.gradle.execut
+ion.plan.LocalTaskNod
+eExecutor.execute(Loc
+alTaskNodeExecutor.ja
+va:42)
+	at org.gradle.execut
+ion.taskgraph.Default
+TaskExecutionGraph$In
+vokeNodeExecutorsActi
+on.execute(DefaultTas
+kExecutionGraph.java:
+331)
+	at org.gradle.execut
+ion.taskgraph.Default
+TaskExecutionGraph$In
+vokeNodeExecutorsActi
+on.execute(DefaultTas
+kExecutionGraph.java:
+318)
+	at org.gradle.execut
+ion.taskgraph.Default
+TaskExecutionGraph$Bu
+ildOperationAwareExec
+utionAction.lambda$ex
+ecute$0(DefaultTaskEx
+ecutionGraph.java:314
+)
+	at org.gradle.intern
+al.operations.Current
+BuildOperationRef.wit
+h(CurrentBuildOperati
+onRef.java:80)
+	at org.gradle.execut
+ion.taskgraph.Default
+TaskExecutionGraph$Bu
+ildOperationAwareExec
+utionAction.execute(D
+efaultTaskExecutionGr
+aph.java:314)
+	at org.gradle.execut
+ion.taskgraph.Default
+TaskExecutionGraph$Bu
+ildOperationAwareExec
+utionAction.execute(D
+efaultTaskExecutionGr
+aph.java:303)
+	at org.gradle.execut
+ion.plan.DefaultPlanE
+xecutor$ExecutorWorke
+r.execute(DefaultPlan
+Executor.java:463)
+	at org.gradle.execut
+ion.plan.DefaultPlanE
+xecutor$ExecutorWorke
+r.run(DefaultPlanExec
+utor.java:380)
+	at org.gradle.intern
+al.concurrent.Executo
+rPolicy$CatchAndRecor
+dFailures.onExecute(E
+xecutorPolicy.java:64
+)
+	at org.gradle.intern
+al.concurrent.Abstrac
+tManagedExecutor$1.ru
+n(AbstractManagedExec
+utor.java:47)
+Caused by: org.gradle
+.api.internal.tasks.c
+ompile.CompilationFai
+ledException: Compila
+tion failed; see the 
+compiler error output
+ for details.
+	at org.gradle.api.in
+ternal.tasks.compile.
+JdkJavaCompiler.execu
+te(JdkJavaCompiler.ja
+va:61)
+	at org.gradle.api.in
+ternal.tasks.compile.
+JdkJavaCompiler.execu
+te(JdkJavaCompiler.ja
+va:41)
+	at org.gradle.api.in
+ternal.tasks.compile.
+daemon.AbstractIsolat
+edCompilerWorkerExecu
+tor$CompilerWorkActio
+n.execute(AbstractIso
+latedCompilerWorkerEx
+ecutor.java:78)
+	at org.gradle.worker
+s.internal.DefaultWor
+kerServer.execute(Def
+aultWorkerServer.java
+:63)
+	at org.gradle.worker
+s.internal.AbstractCl
+assLoaderWorker$1.cre
+ate(AbstractClassLoad
+erWorker.java:54)
+	at org.gradle.worker
+s.internal.AbstractCl
+assLoaderWorker$1.cre
+ate(AbstractClassLoad
+erWorker.java:48)
+	at org.gradle.intern
+al.classloader.ClassL
+oaderUtils.executeInC
+lassloader(ClassLoade
+rUtils.java:100)
+	at org.gradle.worker
+s.internal.AbstractCl
+assLoaderWorker.execu
+teInClassLoader(Abstr
+actClassLoaderWorker.
+java:48)
+	at org.gradle.worker
+s.internal.FlatClassL
+oaderWorker.run(FlatC
+lassLoaderWorker.java
+:32)
+	at org.gradle.worker
+s.internal.FlatClassL
+oaderWorker.run(FlatC
+lassLoaderWorker.java
+:22)
+	at org.gradle.worker
+s.internal.WorkerDaem
+onServer.run(WorkerDa
+emonServer.java:102)
+	at org.gradle.worker
+s.internal.WorkerDaem
+onServer.run(WorkerDa
+emonServer.java:71)
+	at org.gradle.proces
+s.internal.worker.req
+uest.WorkerAction$1.c
+all(WorkerAction.java
+:146)
+	at org.gradle.proces
+s.internal.worker.chi
+ld.WorkerLogEventList
+ener.withWorkerLoggin
+gProtocol(WorkerLogEv
+entListener.java:41)
+	at org.gradle.proces
+s.internal.worker.req
+uest.WorkerAction.lam
+bda$run$0(WorkerActio
+n.java:143)
+	at org.gradle.intern
+al.operations.Current
+BuildOperationRef.wit
+h(CurrentBuildOperati
+onRef.java:80)
+	at org.gradle.proces
+s.internal.worker.req
+uest.WorkerAction.run
+(WorkerAction.java:13
+5)
+	at java.base/jdk.int
+ernal.reflect.DirectM
+ethodHandleAccessor.i
+nvoke(DirectMethodHan
+dleAccessor.java:103)
+	at org.gradle.intern
+al.dispatch.Reflectio
+nDispatch.dispatch(Re
+flectionDispatch.java
+:36)
+	at org.gradle.intern
+al.dispatch.Reflectio
+nDispatch.dispatch(Re
+flectionDispatch.java
+:24)
+	at org.gradle.intern
+al.remote.internal.hu
+b.MessageHubBackedObj
+ectConnection$Dispatc
+hWrapper.dispatch(Mes
+sageHubBackedObjectCo
+nnection.java:182)
+	at org.gradle.intern
+al.remote.internal.hu
+b.MessageHubBackedObj
+ectConnection$Dispatc
+hWrapper.dispatch(Mes
+sageHubBackedObjectCo
+nnection.java:164)
+	at org.gradle.intern
+al.remote.internal.hu
+b.MessageHub$Handler.
+run(MessageHub.java:4
+14)
+	at org.gradle.intern
+al.concurrent.Executo
+rPolicy$CatchAndRecor
+dFailures.onExecute(E
+xecutorPolicy.java:64
+)
+	at org.gradle.intern
+al.concurrent.Abstrac
+tManagedExecutor$1.ru
+n(AbstractManagedExec
+utor.java:47)
+
+
+BUILD FAILED in 9s
+2 actionable tasks: 1 executed, 1 up-to-date

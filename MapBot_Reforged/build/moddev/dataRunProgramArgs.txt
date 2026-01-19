@@ -24,6 +24,6 @@ C:\\Users\\KawaiiMira\\.gradle\\caches\\neoformruntime\\assets
 mapbot
 --all
 --output
-D:\\riserver\\Napcat2NeoForge\\MapBot_Reforged\\src\\generated\\resources
+D:\\riserver\\Mapbot2NeoForge\\MapBot_Reforged\\src\\generated\\resources
 --existing
-D:\\riserver\\Napcat2NeoForge\\MapBot_Reforged\\src\\main\\resources
+D:\\riserver\\Mapbot2NeoForge\\MapBot_Reforged\\src\\main\\resources

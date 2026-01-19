@@ -3,20 +3,29 @@
 [connection]
 	#NapCat WebSocket 服务器地址
 	#默认为本地地址，如 NapCat 在远程服务器请修改
-	wsUrl = "ws://127.0.0.1:7000" 
+	wsUrl = "ws://127.0.0.1:7000"
 	#断线重连间隔 (秒)
 	#连接失败后等待多少秒再次尝试
 	#Range: 1 ~ 60
 	reconnectInterval = 5
 
 [messaging]
-	#目标 QQ 群号
-	#设置为 0 将禁用消息同步功能
-	#只有来自此群的消息会被转发到游戏
+	#玩家群号
+	#普通消息将从此群转发到游戏
+	#设置为 0 将禁用消息转发功能
 	#Range: 0 ~ 9223372036854775807
-	targetGroupId = 875585697
+	playerGroupId = 249493862
+	#管理群号
+	#敏感命令 (#inv, #stopserver 等) 仅限此群使用
+	#设置为 0 将禁用管理群功能 (不推荐)
+	#Range: 0 ~ 9223372036854775807
+	adminGroupId = 1030987220
+	#机器人 QQ 号
+	#用于识别机器人转发的消息，实现回复通知功能
+	#Range: 0 ~ 9223372036854775807
+	botQQ = 2133782376
 
 [debug]
 	#调试模式
 	#启用后将记录所有原始 WebSocket 数据包
-	debugMode = false
+	debugMode = true

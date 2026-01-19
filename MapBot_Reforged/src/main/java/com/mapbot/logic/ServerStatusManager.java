@@ -284,17 +284,20 @@ public class ServerStatusManager {
             #list        在线玩家列表
             #status      服务器状态
             #playtime    查询在线时长
+            #report      服务器性能报告
             #help        显示此列表
             
             [管理命令]
             #inv <ID> [-e]  查背包/末影箱
             #location <ID>  查坐标
             #stopserver     关闭服务器
+            #cancelstop     取消关服
             #addadmin <QQ>  添加管理员
             #reload         重载配置
             ------------------
             注: 普通消息自动转发至游戏""";
     }
+
 
     /**
      * 停止服务器

@@ -1,0 +1,63 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.8/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :createMinecraftArtifacts UP-TO-DATE
+
+> Task :compileJava
+./gradlew : D:\riserv
+er\Napcat2NeoForge\Ma
+pBot_Reforged\src\mai
+n\java\com\mapbot\log
+ic\InventoryManager.j
+ava:188: 错误: 已在方法 for
+matItemStack(int,Item
+Stack)中定义了变量 translat
+ionKey
+所在位置 行:1 字符: 1
++ ./gradlew compileJa
+va 2>&1 | Out-File -F
+ilePath compile_outpu
+t.txt -E ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (D:\rise   
+ rver\Nap... tran    
+slationKey:Strin    g
+) [], RemoteExc    ep
+tion
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+                Strin
+g translationKey = "e
+nchantment." + enchan
+tKey.replace(":", "."
+);
+                     
+  ^
+1 个错误
+
+> Task :compileJava FAILED
+
+FAILURE: Build failed
+ with an exception.
+
+* What went wrong:
+Execution failed for 
+task ':compileJava'.
+> Compilation failed;
+ see the compiler err
+or output for details
+.
+
+* Try:
+> Run with --info opt
+ion to get more log o
+utput.
+> Run with --scan to 
+get full insights.
+
+BUILD FAILED in 8s
+2 actionable tasks: 1 executed, 1 up-to-date

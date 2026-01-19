@@ -58,28 +58,32 @@ public class InboundHandler {
     /** 玩家名正则验证: 3-16 位字母数字下划线 */
     private static final Pattern PLAYER_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]{3,16}$");
     
+    /** 命令冷却 Map (QQ -> 上次执行时间) */
+    private static final ConcurrentHashMap<Long, Long> COMMAND_COOLDOWNS = new ConcurrentHashMap<>();
+    
+    /** 命令冷却时间 (毫秒) */
+    private static final long COOLDOWN_MS = 5000;
+    
+    /** 关服倒计时取消标记 */
+    private static volatile boolean stopCancelled = false;
+    
     // ========== Task #015 STEP1: 回复上下文缓存 ==========
-    /**
-     * 回复消息上下文 - 用于存储待处理的回复消息信息
-     * Task #015-STEP1 新增
-     */
     private record ReplyContext(
-            String replierNickname,   // 回复者昵称
-            String rawMessage,        // 原始 CQ 码消息
-            List<Long> atQQList,      // 被 @ 的 QQ 列表
-            long sourceGroupId,       // 来源群号
-            long timestamp            // 创建时间戳
+            String replierNickname,
+            String rawMessage,
+            List<Long> atQQList,
+            long sourceGroupId,
+            long timestamp
     ) {}
     
-    /** 待处理的回复消息上下文 Map (UUID -> Context) */
     private static final ConcurrentHashMap<String, ReplyContext> PENDING_REPLY_CONTEXTS = new ConcurrentHashMap<>();
     // ========== End Task #015 STEP1 ==========
     
     /** 仅限管理群使用的命令集合 */
     private static final Set<String> ADMIN_ONLY_COMMANDS = Set.of(
-            "inv", "stopserver", "关服", "reload", 
+            "inv", "reload", 
             "addadmin", "removeadmin", "adminunbind",
-            "location", "位置"  // Task #016-STEP3
+            "location", "位置"
     );
 
     /**
@@ -231,28 +235,39 @@ public class InboundHandler {
         String rawCmd = message.substring(1).trim();
         String cmd = rawCmd.toLowerCase();
         
-        // 提取命令和参数
         String[] parts = cmd.split("\\s+", 2);
         String commandName = parts[0];
         String args = parts.length > 1 ? parts[1] : "";
-        // 保留原始大小写的参数 (用于玩家名)
         String[] rawParts = rawCmd.split("\\s+", 2);
         String rawArgs = rawParts.length > 1 ? rawParts[1] : "";
         
-        // === 权限检查: 敏感命令仅限管理群 ===
+        // 命令冷却检查 (排除管理员)
+        if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
+            Long lastTime = COMMAND_COOLDOWNS.get(senderQQ);
+            long now = System.currentTimeMillis();
+            if (lastTime != null && now - lastTime < COOLDOWN_MS) {
+                long remaining = (COOLDOWN_MS - (now - lastTime)) / 1000;
+                sendReplyToQQ(sourceGroupId, "[提示] 请等待 " + remaining + " 秒后再试");
+                return;
+            }
+            COMMAND_COOLDOWNS.put(senderQQ, now);
+        }
+        
+        // 权限检查
         if (ADMIN_ONLY_COMMANDS.contains(commandName) && !isFromAdminGroup) {
-            sendReplyToQQ(sourceGroupId, "❌ 此命令仅限管理群使用");
+            sendReplyToQQ(sourceGroupId, "[错误] 此命令仅限管理群使用");
             LOGGER.info("用户 {} 在玩家群尝试执行管理命令: {}", senderQQ, commandName);
             return;
         }
         
-        // Java 21 Switch 表达式
         switch (commandName) {
             case "inv" -> handleInventoryCommand(message, senderQQ, sourceGroupId);
             case "list", "在线" -> handleListCommand(sourceGroupId);
             case "tps", "status", "状态" -> handleStatusCommand(sourceGroupId);
             case "help", "菜单" -> sendReplyToQQ(sourceGroupId, ServerStatusManager.getHelp());
-            case "stopserver", "关服" -> handleStopServerCommand(senderQQ, sourceGroupId);
+            case "stopserver", "关服" -> handleStopServerCommand(args, senderQQ, sourceGroupId);
+            case "cancelstop", "取消关服" -> handleCancelStopCommand(senderQQ, sourceGroupId);
+            case "report", "报告" -> handleReportCommand(sourceGroupId);
             case "addadmin" -> handleAddAdminCommand(args, senderQQ, sourceGroupId);
             case "removeadmin" -> handleRemoveAdminCommand(args, senderQQ, sourceGroupId);
             case "id", "bind", "绑定" -> handleBindCommand(rawArgs, senderQQ, sourceGroupId);
@@ -263,7 +278,7 @@ public class InboundHandler {
             case "location", "位置" -> handleLocationCommand(rawArgs, senderQQ, sourceGroupId);
             default -> {
                 LOGGER.debug("未知命令: {}", message);
-                sendReplyToQQ(sourceGroupId, "❓ 未知命令，输入 #help 查看帮助");
+                sendReplyToQQ(sourceGroupId, "[提示] 未知命令，输入 #help 查看帮助");
             }
         }
     }
@@ -611,13 +626,14 @@ public class InboundHandler {
     }
 
     /**
-     * 处理 #stopserver 命令
-     * 需要管理员权限
+     * 处理 #stopserver [秒数] 命令
+     * 支持倒计时关服
      * 
+     * @param args 命令参数 (秒数)
      * @param senderQQ 发送者 QQ
      * @param sourceGroupId 消息来源群号
      */
-    private static void handleStopServerCommand(long senderQQ, long sourceGroupId) {
+    private static void handleStopServerCommand(String args, long senderQQ, long sourceGroupId) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         
         if (server == null) {
@@ -632,14 +648,147 @@ public class InboundHandler {
             return;
         }
         
-        sendReplyToQQ(sourceGroupId, "[系统] 正在执行关服序列...");
+        // 解析倒计时参数
+        int countdown = 0;
+        if (!args.isEmpty()) {
+            try {
+                countdown = Integer.parseInt(args.trim());
+                if (countdown < 0 || countdown > 3600) {
+                    sendReplyToQQ(sourceGroupId, "[错误] 倒计时范围: 0-3600 秒");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                sendReplyToQQ(sourceGroupId, "[错误] 用法: #stopserver [秒数]\n例如: #stopserver 60");
+                return;
+            }
+        }
         
-        // 线程安全: 调度到主线程
-        server.execute(() -> {
+        if (countdown == 0) {
+            // 立即关服
+            sendReplyToQQ(sourceGroupId, "[系统] 正在执行关服序列...");
             LOGGER.warn("收到远程停服命令 (操作者: {})，服务器即将关闭...", senderQQ);
-            server.halt(false);
-        });
+            server.execute(() -> server.halt(false));
+        } else {
+            // 倒计时关服
+            final int seconds = countdown;
+            sendReplyToQQ(sourceGroupId, String.format("[系统] 服务器将在 %d 秒后关闭", seconds));
+            LOGGER.warn("收到远程停服命令 (操作者: {})，服务器将在 {} 秒后关闭", senderQQ, seconds);
+            
+            // 启动倒计时线程
+            new Thread(() -> {
+                try {
+                    // 发送倒计时提醒
+                    int remaining = seconds;
+                    while (remaining > 0) {
+                        if (remaining <= 10 || remaining == 30 || remaining == 60) {
+                            // 在游戏和群内广播
+                            final int r = remaining;
+                            server.execute(() -> {
+                                for (var player : server.getPlayerList().getPlayers()) {
+                                    player.sendSystemMessage(
+                                        net.minecraft.network.chat.Component.literal(
+                                            "[警告] 服务器将在 " + r + " 秒后关闭"
+                                        )
+                                    );
+                                }
+                            });
+                            sendReplyToQQ(sourceGroupId, "[倒计时] " + r + " 秒");
+                        }
+                        
+                        // 检查是否被取消
+                        if (stopCancelled) {
+                            sendReplyToQQ(sourceGroupId, "[系统] 关服已取消");
+                            LOGGER.info("关服倒计时被取消");
+                            stopCancelled = false;
+                            return;
+                        }
+                        
+                        Thread.sleep(1000);
+                        remaining--;
+                    }
+                    
+                    // 检查最后一次是否取消
+                    if (stopCancelled) {
+                        sendReplyToQQ(sourceGroupId, "[系统] 关服已取消");
+                        stopCancelled = false;
+                        return;
+                    }
+                    
+                    // 执行关服
+                    sendReplyToQQ(sourceGroupId, "[系统] 正在关闭服务器...");
+                    server.execute(() -> server.halt(false));
+                    
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    LOGGER.info("关服倒计时被中断");
+                }
+            }, "MapBot-StopCountdown").start();
+        }
     }
+    
+    /**
+     * 取消关服倒计时
+     */
+    private static void handleCancelStopCommand(long senderQQ, long sourceGroupId) {
+        // 权限检查
+        if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
+            sendReplyToQQ(sourceGroupId, "[错误] 权限不足");
+            return;
+        }
+        
+        stopCancelled = true;
+        sendReplyToQQ(sourceGroupId, "[系统] 已请求取消关服");
+        LOGGER.info("用户 {} 请求取消关服", senderQQ);
+    }
+    
+    /**
+     * 发送性能报告
+     */
+    private static void handleReportCommand(long sourceGroupId) {
+        try {
+            java.nio.file.Path reportPath = java.nio.file.Paths.get("./duolingo_super_report.json");
+            if (!java.nio.file.Files.exists(reportPath)) {
+                sendReplyToQQ(sourceGroupId, "[提示] 暂无性能报告\n在游戏中执行 /duo report 生成");
+                return;
+            }
+            
+            String content = java.nio.file.Files.readString(reportPath);
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(content).getAsJsonObject();
+            
+            StringBuilder sb = new StringBuilder("[性能报告]\n");
+            sb.append("时间: ").append(json.get("timestamp").getAsString()).append("\n\n");
+            
+            // 压缩统计
+            if (json.has("compression")) {
+                com.google.gson.JsonObject comp = json.getAsJsonObject("compression");
+                sb.append("[压缩统计]\n");
+                sb.append("处理包数: ").append(comp.get("packetsCompressed").getAsLong()).append("\n");
+                sb.append("节省流量: ").append(formatBytes(comp.get("bytesSaved").getAsLong())).append("\n");
+                sb.append("压缩比: ").append(String.format("%.2f", comp.get("compressionRatio").getAsDouble())).append("x\n\n");
+            }
+            
+            // 过滤统计
+            if (json.has("filter")) {
+                com.google.gson.JsonObject filter = json.getAsJsonObject("filter");
+                sb.append("[过滤统计]\n");
+                sb.append("过滤包数: ").append(filter.get("packetsFiltered").getAsLong()).append("\n");
+                sb.append("过滤率: ").append(String.format("%.1f%%", filter.get("filterRate").getAsDouble() * 100)).append("\n");
+            }
+            
+            sendReplyToQQ(sourceGroupId, sb.toString());
+            
+        } catch (Exception e) {
+            LOGGER.error("读取性能报告失败", e);
+            sendReplyToQQ(sourceGroupId, "[错误] 读取报告失败");
+        }
+    }
+    
+    private static String formatBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
+    }
+
 
     /**
      * 处理 #addadmin <qq> 命令

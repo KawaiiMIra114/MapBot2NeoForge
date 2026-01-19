@@ -12,6 +12,7 @@ package com.mapbot;
 
 import com.mapbot.config.BotConfig;
 import com.mapbot.data.DataManager;
+import com.mapbot.logic.ServerStatusManager;
 import com.mapbot.network.BotClient;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
@@ -20,6 +21,7 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import org.slf4j.Logger;
@@ -52,8 +54,8 @@ public class MapBot {
     }
 
     /**
-     * 服务器启动事件
-     * 在此时机连接 WebSocket
+     * 服务器启动中事件
+     * 初始化数据和连接
      */
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
@@ -74,14 +76,56 @@ public class MapBot {
         // 启动 WebSocket 连接
         BotClient.INSTANCE.connect();
     }
+    
+    /**
+     * 服务器启动完成事件
+     * 发送早安消息
+     */
+    @SubscribeEvent
+    public void onServerStarted(ServerStartedEvent event) {
+        // 启动 TPS 监控
+        ServerStatusManager.startTPSMonitor();
+        
+        // 延迟 5 秒发送早安，确保 WebSocket 已连接
+        new Thread(() -> {
+            try {
+                Thread.sleep(5000);
+                long playerGroupId = BotConfig.getPlayerGroupId();
+                if (playerGroupId > 0 && BotClient.INSTANCE.isConnected()) {
+                    BotClient.INSTANCE.sendGroupMessage(playerGroupId, "早安");
+                    LOGGER.info("已发送早安消息");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
+    }
 
     /**
      * 服务器停止事件
-     * 在此时机断开 WebSocket
+     * 发送晚安消息并断开 WebSocket
      */
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
-        LOGGER.info("服务器正在停止，断开 WebSocket 连接...");
+        LOGGER.info("服务器正在停止...");
+        
+        // 停止 TPS 监控
+        ServerStatusManager.stopTPSMonitor();
+        
+        // 发送晚安消息
+        long playerGroupId = BotConfig.getPlayerGroupId();
+        if (playerGroupId > 0 && BotClient.INSTANCE.isConnected()) {
+            BotClient.INSTANCE.sendGroupMessage(playerGroupId, "晚安");
+            LOGGER.info("已发送晚安消息");
+            
+            // 等待消息发送完成
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        
         BotClient.INSTANCE.disconnect();
     }
 }
