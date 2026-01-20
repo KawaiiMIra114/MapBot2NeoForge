@@ -29,6 +29,8 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mapbot.data.DataManager;
+
 /**
  * 游戏事件监听器
  * 将服务器事件转发到 QQ 群
@@ -39,6 +41,9 @@ public class GameEventListener {
     
     /** Minecraft 颜色代码正则: §0-9, §a-f, §k-o, §r */
     private static final String COLOR_CODE_REGEX = "(?i)§[0-9a-fk-or]";
+    
+    /** 玩家名提及正则: @名字 (空格) 消息 */
+    private static final java.util.regex.Pattern AT_PATTERN = java.util.regex.Pattern.compile("^@([a-zA-Z0-9_]{3,16})(\\s.*)?$");
     
     /** Tick 开始时间戳 (纳秒) */
     private static long lastTickStart = 0L;
@@ -108,6 +113,32 @@ public class GameEventListener {
         String playerName = event.getPlayer().getName().getString();
         // 清理颜色代码
         String message = event.getRawText().replaceAll(COLOR_CODE_REGEX, "");
+        
+        // Task #017-STEP2: 处理 @提及
+        // 检查消息是否以 @开头
+        java.util.regex.Matcher matcher = AT_PATTERN.matcher(message);
+        if (matcher.matches()) {
+            String targetName = matcher.group(1);
+            String content = matcher.group(2) != null ? matcher.group(2) : "";
+            
+            // 查找该名字对应的 UUID (需要 Server 实例)
+            net.minecraft.server.MinecraftServer server = event.getPlayer().getServer();
+            if (server != null) {
+                // 尝试从缓存查找玩家 UUID
+                java.util.Optional<com.mojang.authlib.GameProfile> profile = server.getProfileCache().get(targetName);
+                
+                if (profile.isPresent()) {
+                    String uuid = profile.get().getId().toString();
+                    long targetQQ = DataManager.INSTANCE.getQQByUUID(uuid);
+                    
+                    if (targetQQ != -1L && targetQQ != 0L) {
+                        // 构建 CQ 码消息
+                        message = String.format("[CQ:at,qq=%d]%s", targetQQ, content);
+                        LOGGER.debug("解析到 @提及: {} -> QQ {}", targetName, targetQQ);
+                    }
+                }
+            }
+        }
         
         // 格式: [玩家名] 消息内容
         String formattedMessage = String.format("[%s] %s", playerName, message);

@@ -48,6 +48,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+
 /**
  * 入站消息处理器
  * 解析来自 QQ 的 JSON 消息，并在游戏主线程中广播
@@ -1555,6 +1558,9 @@ public class InboundHandler {
                     player.connection.send(new ClientboundSetTitleTextPacket(
                             Component.literal("§b[QQ] §f" + senderNickname + " §6@了你!")
                     ));
+                    
+                    // 播放提示音 (高音调经验球声)
+                    player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 1.0f, 2.0f);
                 } else {
                     // 其他人: 普通格式
                     personalMessage = baseMessage;
