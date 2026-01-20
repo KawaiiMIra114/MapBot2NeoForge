@@ -154,8 +154,8 @@ public class GameEventListener {
                 java.util.Optional<com.mojang.authlib.GameProfile> profile = server.getProfileCache().get(targetName);
                 
                 if (profile.isPresent()) {
-                    String uuid = profile.get().getId().toString();
-                    long targetQQ = DataManager.INSTANCE.getQQByUUID(uuid);
+                    String targetUuid = profile.get().getId().toString();
+                    long targetQQ = DataManager.INSTANCE.getQQByUUID(targetUuid);
                     
                     if (targetQQ != -1L && targetQQ != 0L) {
                         // 构建 CQ 码消息

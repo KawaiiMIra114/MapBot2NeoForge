@@ -270,6 +270,17 @@ public class ServerStatusManager {
         return sb.toString();
     }
 
+    /** 关服倒计时取消标记 */
+    private static volatile boolean stopCancelled = false;
+
+    public static boolean isStopCancelled() {
+        return stopCancelled;
+    }
+
+    public static void setStopCancelled(boolean cancelled) {
+        stopCancelled = cancelled;
+    }
+
     /**
      * 获取帮助信息
      * 
@@ -285,6 +296,7 @@ public class ServerStatusManager {
             #status      服务器状态
             #playtime    查询在线时长
             #report      服务器性能报告
+            #myperm      查看我的权限
             #help        显示此列表
             
             [管理命令]
@@ -292,37 +304,9 @@ public class ServerStatusManager {
             #location <ID>  查坐标
             #stopserver     关闭服务器
             #cancelstop     取消关服
-            #addadmin <QQ>  添加管理员
+            #setperm <QQ>   设置权限等级
             #reload         重载配置
             ------------------
             注: 普通消息自动转发至游戏""";
-    }
-
-
-    /**
-     * 停止服务器
-     * TODO: 实现权限检查 (BotConfig.adminQQ)
-     * 
-     * @return 操作结果消息
-     */
-    public static String stopServer() {
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        
-        if (server == null) {
-            return "❌ 服务器未就绪";
-        }
-        
-        // TODO: 权限检查
-        // if (!BotConfig.getAdminList().contains(senderQQ)) {
-        //     return "❌ 权限不足";
-        // }
-        
-        LOGGER.warn("收到远程停服命令，服务器即将关闭...");
-        
-        // 使用 server.halt(false) 优雅关闭
-        // halt(true) = 强制关闭, halt(false) = 正常关闭
-        server.halt(false);
-        
-        return "⏹️ 服务器正在关闭...";
     }
 }
