@@ -45,6 +45,11 @@ public class DataManager {
     /** Gson 实例 (美化输出) */
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
+    /** 权限等级常量 */
+    public static final int PERMISSION_LEVEL_USER = 0;
+    public static final int PERMISSION_LEVEL_MOD = 1;
+    public static final int PERMISSION_LEVEL_ADMIN = 2;
+    
     /** 读写锁，保证线程安全 */
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     
@@ -85,6 +90,7 @@ public class DataManager {
     
     /**
      * 从文件加载数据
+     * 包含数据迁移逻辑 (旧版 admins -> 新版 permissions)
      */
     private void load() {
         lock.writeLock().lock();
@@ -94,8 +100,20 @@ public class DataManager {
             
             if (loaded != null) {
                 this.data = loaded;
-                LOGGER.info("数据加载成功: {} 管理员, {} 绑定", 
-                    data.admins.size(), data.playerBindings.size());
+                
+                // 数据迁移: 将旧版 admins 列表迁移到权限系统
+                if (!data.admins.isEmpty() && data.userPermissions.isEmpty()) {
+                    LOGGER.info("正在迁移旧版管理员数据 ({} 个)...", data.admins.size());
+                    for (Long adminQQ : data.admins) {
+                        data.userPermissions.put(adminQQ, PERMISSION_LEVEL_ADMIN);
+                    }
+                    data.admins.clear(); // 清空旧列表
+                    save(); // 保存迁移结果
+                    LOGGER.info("数据迁移完成");
+                }
+                
+                LOGGER.info("数据加载成功: {} 权限记录, {} 绑定, {} 禁言", 
+                    data.userPermissions.size(), data.playerBindings.size(), data.mutedPlayers.size());
             }
         } catch (IOException e) {
             LOGGER.error("读取数据文件失败: {}", e.getMessage());
@@ -120,73 +138,179 @@ public class DataManager {
         }
     }
     
-    // ================== 管理员管理 ==================
+    // ================== 权限管理 ==================
     
     /**
-     * 检查指定 QQ 是否为管理员
+     * 获取用户权限等级
      * 
      * @param qq QQ 号
-     * @return 是否为管理员
+     * @return 权限等级 (0=User, 1=Mod, 2=Admin)
      */
-    public boolean isAdmin(long qq) {
+    public int getPermissionLevel(long qq) {
         lock.readLock().lock();
         try {
-            return data.admins.contains(qq);
+            return data.userPermissions.getOrDefault(qq, PERMISSION_LEVEL_USER);
         } finally {
             lock.readLock().unlock();
         }
     }
     
     /**
-     * 添加管理员
+     * 设置用户权限等级
      * 
      * @param qq QQ 号
-     * @return 是否添加成功 (false 表示已存在)
+     * @param level 权限等级
+     */
+    public void setPermissionLevel(long qq, int level) {
+        lock.writeLock().lock();
+        try {
+            if (level == PERMISSION_LEVEL_USER) {
+                data.userPermissions.remove(qq); // User 等级无需存储
+            } else {
+                data.userPermissions.put(qq, level);
+            }
+            save();
+            LOGGER.info("设置权限: QQ {} -> Level {}", qq, level);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * 检查是否为管理员 (Level >= 2)
+     * 兼容旧版接口
+     */
+    public boolean isAdmin(long qq) {
+        return getPermissionLevel(qq) >= PERMISSION_LEVEL_ADMIN;
+    }
+    
+    /**
+     * 检查是否为协管员 (Level >= 1)
+     */
+    public boolean isModerator(long qq) {
+        return getPermissionLevel(qq) >= PERMISSION_LEVEL_MOD;
+    }
+    
+    /**
+     * 添加管理员 (兼容旧版接口)
      */
     public boolean addAdmin(long qq) {
-        lock.writeLock().lock();
-        try {
-            if (data.admins.contains(qq)) {
-                return false;
-            }
-            data.admins.add(qq);
-            save();
-            LOGGER.info("已添加管理员: {}", qq);
-            return true;
-        } finally {
-            lock.writeLock().unlock();
-        }
+        if (isAdmin(qq)) return false;
+        setPermissionLevel(qq, PERMISSION_LEVEL_ADMIN);
+        return true;
     }
     
     /**
-     * 移除管理员
-     * 
-     * @param qq QQ 号
-     * @return 是否移除成功 (false 表示不存在)
+     * 移除管理员 (降级为普通用户)
      */
     public boolean removeAdmin(long qq) {
-        lock.writeLock().lock();
-        try {
-            boolean removed = data.admins.remove(qq);
-            if (removed) {
-                save();
-                LOGGER.info("已移除管理员: {}", qq);
-            }
-            return removed;
-        } finally {
-            lock.writeLock().unlock();
-        }
+        if (getPermissionLevel(qq) == PERMISSION_LEVEL_USER) return false;
+        setPermissionLevel(qq, PERMISSION_LEVEL_USER);
+        return true;
     }
     
     /**
-     * 获取管理员列表 (只读副本)
-     * 
-     * @return 管理员 QQ 列表
+     * 获取管理员列表 (兼容旧版接口)
+     * 返回所有 Level >= 2 的用户
      */
     public List<Long> getAdmins() {
         lock.readLock().lock();
         try {
-            return new ArrayList<>(data.admins);
+            List<Long> admins = new ArrayList<>();
+            for (Map.Entry<Long, Integer> entry : data.userPermissions.entrySet()) {
+                if (entry.getValue() >= PERMISSION_LEVEL_ADMIN) {
+                    admins.add(entry.getKey());
+                }
+            }
+            return admins;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    // ================== 禁言管理 ==================
+    
+    /**
+     * 禁言玩家
+     * 
+     * @param uuid 玩家 UUID
+     * @param durationMillis 禁言时长 (毫秒)，-1 表示永久
+     */
+    public void mute(String uuid, long durationMillis) {
+        lock.writeLock().lock();
+        try {
+            long expiry = (durationMillis == -1) ? -1 : System.currentTimeMillis() + durationMillis;
+            data.mutedPlayers.put(uuid, expiry);
+            save();
+            LOGGER.info("玩家被禁言: {} (到期: {})", uuid, expiry);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+    
+    /**
+     * 解除禁言
+     * 
+     * @param uuid 玩家 UUID
+     * @return 是否成功解除 (false 表示未被禁言)
+     */
+    public boolean unmute(String uuid) {
+        lock.writeLock().lock();
+        try {
+            if (data.mutedPlayers.remove(uuid) != null) {
+                save();
+                LOGGER.info("玩家解除禁言: {}", uuid);
+                return true;
+            }
+            return false;
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+    
+    /**
+     * 检查是否被禁言
+     * 
+     * @param uuid 玩家 UUID
+     * @return 是否处于禁言状态
+     */
+    public boolean isMuted(String uuid) {
+        lock.readLock().lock();
+        try {
+            if (!data.mutedPlayers.containsKey(uuid)) {
+                return false;
+            }
+            
+            long expiry = data.mutedPlayers.get(uuid);
+            // -1 为永久禁言
+            if (expiry == -1) {
+                return true;
+            }
+            
+            // 检查是否过期
+            if (System.currentTimeMillis() > expiry) {
+                // 已过期，但在读取锁中不能修改数据
+                // 应该在写操作中清理，或者返回 false 稍后清理
+                // 这里简单返回 false，依赖外部逻辑或定时任务清理
+                return false;
+            }
+            
+            return true;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    /**
+     * 获取禁言到期时间
+     * 
+     * @param uuid 玩家 UUID
+     * @return 到期时间戳，-1 为永久，0 为未禁言
+     */
+    public long getMuteExpiry(String uuid) {
+        lock.readLock().lock();
+        try {
+            return data.mutedPlayers.getOrDefault(uuid, 0L);
         } finally {
             lock.readLock().unlock();
         }
@@ -366,8 +490,14 @@ public class DataManager {
      * 直接序列化为 JSON
      */
     private static class DataModel {
-        /** 管理员 QQ 列表 */
+        /** 旧版管理员列表 (仅用于迁移) */
         List<Long> admins = new ArrayList<>();
+        
+        /** 用户权限映射 (QQ -> Level) */
+        Map<Long, Integer> userPermissions = new HashMap<>();
+        
+        /** 禁言玩家列表 (UUID -> 到期时间戳) */
+        Map<String, Long> mutedPlayers = new HashMap<>();
         
         /** 玩家绑定映射 (QQ → UUID) */
         Map<Long, String> playerBindings = new HashMap<>();

@@ -105,12 +105,38 @@ public class GameEventListener {
      */
     @SubscribeEvent
     public static void onServerChat(ServerChatEvent event) {
+        ServerPlayer player = event.getPlayer();
+        String uuid = player.getUUID().toString();
+        
+        // Task #018-STEP4: 禁言拦截
+        if (DataManager.INSTANCE.isMuted(uuid)) {
+            // 检查是否过期 (双重检查，尽管 isMuted 内部可能已处理，但为了获取 expiry 显示)
+            long expiry = DataManager.INSTANCE.getMuteExpiry(uuid);
+            
+            if (expiry != -1 && System.currentTimeMillis() > expiry) {
+                // 已过期: 自动解禁
+                DataManager.INSTANCE.unmute(uuid);
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a你的禁言已自动解除。"));
+            } else {
+                // 未过期: 拦截
+                event.setCanceled(true);
+                
+                String timeStr = (expiry == -1) ? "永久" : 
+                    new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(expiry));
+                
+                player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+                    "§c你已被禁言！解除时间: " + timeStr
+                ));
+                return;
+            }
+        }
+
         long groupId = BotConfig.getTargetGroupId();
         if (groupId == 0L) {
             return;
         }
         
-        String playerName = event.getPlayer().getName().getString();
+        String playerName = player.getName().getString();
         // 清理颜色代码
         String message = event.getRawText().replaceAll(COLOR_CODE_REGEX, "");
         

@@ -225,9 +225,22 @@ public class InboundHandler {
         // 管理群的普通消息不做任何处理
     }
 
+    static {
+        // 注册新架构命令
+        com.mapbot.command.CommandRegistry.register("mute", new com.mapbot.command.MuteCommand());
+        com.mapbot.command.CommandRegistry.register("unmute", new com.mapbot.command.UnmuteCommand());
+        com.mapbot.command.CommandRegistry.register("setperm", new com.mapbot.command.SetPermCommand());
+        com.mapbot.command.CommandRegistry.register("myperm", new com.mapbot.command.MyPermCommand());
+        
+        // 注册别名
+        com.mapbot.command.CommandRegistry.registerAlias("禁言", "mute");
+        com.mapbot.command.CommandRegistry.registerAlias("解禁", "unmute");
+    }
+
     /**
      * 处理命令 (Java 21 Switch 表达式)
      * Task #012-STEP3: 新增群来源参数，支持命令权限分离
+     * Task #018: 引入 CommandRegistry 进行分发
      * 
      * @param message 完整命令字符串
      * @param senderQQ 发送者 QQ
@@ -245,6 +258,7 @@ public class InboundHandler {
         String rawArgs = rawParts.length > 1 ? rawParts[1] : "";
         
         // 命令冷却检查 (排除管理员)
+        // 注意: 这里的 isAdmin 使用的是新版 getPermissionLevel >= 2
         if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
             Long lastTime = COMMAND_COOLDOWNS.get(senderQQ);
             long now = System.currentTimeMillis();
@@ -256,7 +270,14 @@ public class InboundHandler {
             COMMAND_COOLDOWNS.put(senderQQ, now);
         }
         
-        // 权限检查
+        // 1. 尝试通过 CommandRegistry 分发 (Task #018 新架构)
+        if (com.mapbot.command.CommandRegistry.dispatch(commandName, rawArgs, senderQQ, sourceGroupId)) {
+            return; // 已成功分发
+        }
+        
+        // 2. 旧版 Switch 分发 (兼容旧代码，将逐步迁移)
+        
+        // 权限检查 (旧逻辑)
         if (ADMIN_ONLY_COMMANDS.contains(commandName) && !isFromAdminGroup) {
             sendReplyToQQ(sourceGroupId, "[错误] 此命令仅限管理群使用");
             LOGGER.info("用户 {} 在玩家群尝试执行管理命令: {}", senderQQ, commandName);
