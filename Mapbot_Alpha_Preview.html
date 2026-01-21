@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MapBot Alpha | Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <style>
+        :root {
+            --md-sys-color-surface: #1a1c1e;
+            --md-sys-color-surface-container: #212427;
+            --md-sys-color-on-surface: #e2e2e6;
+            --md-sys-color-primary: #d0e4ff;
+            --md-sys-color-on-primary: #00315e;
+            --md-sys-color-secondary-container: #3e4759;
+            --md-sys-color-on-secondary-container: #d7e3f7;
+            --md-sys-color-outline: #8d9199;
+            --md-sys-color-error: #ffb4ab;
+        }
+
+        body {
+            background-color: #101317;
+            color: var(--md-sys-color-on-surface);
+            font-family: 'Google Sans', sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 侧边导航栏 (Navigation Rail) */
+        nav {
+            width: 88px;
+            background-color: var(--md-sys-color-surface);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 0;
+            gap: 20px;
+            border-right: 1px solid #333;
+        }
+
+        .nav-item {
+            width: 56px;
+            height: 56px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            cursor: pointer;
+            color: var(--md-sys-color-outline);
+            transition: all 0.2s;
+        }
+
+        .nav-item.active {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+
+        .nav-item span { font-size: 24px; }
+        .nav-label { font-size: 11px; margin-top: 4px; font-weight: 500; }
+
+        /* 主内容区 */
+        main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部状态条 */
+        header {
+            height: 64px;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--md-sys-color-surface);
+            border-bottom: 1px solid #333;
+        }
+
+        .bot-status, .mc-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #444;
+            border: 2px solid #4ade80; /* 在线状态 */
+        }
+
+        .stat-chip {
+            background-color: #2e3133;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--md-sys-color-outline);
+        }
+
+        /* 终端显示区域 */
+        .content-area {
+            flex-grow: 1;
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 左右分栏 */
+            gap: 24px;
+            overflow: hidden;
+        }
+
+        .terminal-container {
+            background-color: #000;
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #333;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            padding: 12px 20px;
+            background-color: #1a1c1e;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 500;
+            border-bottom: 1px solid #333;
+        }
+
+        .terminal-body {
+            flex-grow: 1;
+            padding: 16px;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            overflow-y: auto;
+            color: #d1d5db;
+        }
+
+        .terminal-input {
+            padding: 12px 16px;
+            background-color: #000;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 10px;
+        }
+
+        .terminal-input input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            color: #fff;
+            outline: none;
+            font-family: inherit;
+        }
+
+        /* 语义化日志颜色 */
+        .bot-log { color: #d0e4ff; }
+        .mc-log { color: #aaa; }
+        .success { color: #4ade80; }
+        .warning { color: #fbbf24; }
+        .tag { opacity: 0.7; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <nav>
+        <div class="nav-item active">
+            <span class="material-icons-outlined">dashboard</span>
+            <div class="nav-label">控制台</div>
+        </div>
+        <div class="nav-item">
+            <span class="material-icons-outlined">extension</span>
+            <div class="nav-label">功能</div>
+        </div>
+        <div class="nav-item">
+            <span class="material-icons-outlined">settings</span>
+            <div class="nav-label">设置</div>
+        </div>
+    </nav>
+
+    <main>
+        <!-- 状态栏 -->
+        <header>
+            <div class="bot-status">
+                <div class="avatar"></div>
+                <div>
+                    <div style="font-size: 14px; font-weight: 500;">MapBot-Alpha</div>
+                    <div style="font-size: 12px; color: #4ade80;">OneBot v11 Connected</div>
+                </div>
+            </div>
+            <div class="mc-status">
+                <div class="stat-chip">TPS: 20.0</div>
+                <div class="stat-chip">MEM: 4.2GB / 8G</div>
+                <div class="stat-chip">Players: 12/50</div>
+            </div>
+        </header>
+
+        <!-- 双控制台区域 -->
+        <div class="content-area">
+            <!-- 机器人终端 -->
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span>BOT CONSOLE</span>
+                    <span class="material-icons-outlined" style="font-size: 16px; cursor: pointer;">more_vert</span>
+                </div>
+                <div class="terminal-body">
+                    <div><span class="tag">[14:30:01]</span> <span class="success">OneBot WebSocket connected to :8080</span></div>
+                    <div><span class="tag">[14:30:05]</span> <span class="bot-log">Received group message from 123456: #help</span></div>
+                    <div><span class="tag">[14:30:05]</span> <span class="bot-log">Dispatching command: HelpCommand</span></div>
+                    <div><span class="tag">[14:30:10]</span> <span class="warning">Network jitter detected, latency: 150ms</span></div>
+                </div>
+                <div class="terminal-input">
+                    <span style="color: var(--md-sys-color-primary)">bot></span>
+                    <input type="text" placeholder="向机器人发送指令...">
+                </div>
+            </div>
+
+            <!-- MC服务器终端 -->
+            <div class="terminal-container">
+                <div class="terminal-header">
+                    <span>MC SERVER CONSOLE</span>
+                    <span class="material-icons-outlined" style="font-size: 16px; cursor: pointer;">terminal</span>
+                </div>
+                <div class="terminal-body">
+                    <div><span class="tag">[14:30:00]</span> [Server thread/INFO]: Starting minecraft server version 1.21.1</div>
+                    <div><span class="tag">[14:30:02]</span> [Server thread/INFO]: Loading properties</div>
+                    <div><span class="tag">[14:30:05]</span> [Server thread/INFO]: Preparing level "world"</div>
+                    <div><span class="tag">[14:30:12]</span> [Server thread/INFO]: Done (12.5s)! For help, type "help"</div>
+                    <div class="success">> Server is ready.</div>
+                </div>
+                <div class="terminal-input">
+                    <span style="color: #ffb4ab">mc></span>
+                    <input type="text" placeholder="执行控制台命令...">
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

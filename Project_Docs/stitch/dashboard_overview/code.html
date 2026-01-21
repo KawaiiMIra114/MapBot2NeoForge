@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MC 管理面板</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a7f042",
+                        "primary-dark": "#8bc936",
+                        "background-light": "#f7f8f6",
+                        "background-dark": "#1a2210",
+                        "surface-light": "#eef3e7",
+                        "surface-dark": "#2a3320",
+                        "text-main": "#161b0d",
+                        "text-sub": "#4f5e3e",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer utilities {
+            .floating-nav-item {
+                @apply flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-300 hover:bg-black/5 dark:hover:bg-white/10 text-text-sub dark:text-gray-400 hover:text-text-main dark:hover:text-white;
+            }
+            .floating-nav-item.active {
+                @apply text-text-main bg-primary font-bold shadow-md hover:text-text-main hover:bg-primary;
+            }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-main antialiased overflow-hidden">
+<div class="flex h-screen w-full overflow-hidden relative">
+<main class="flex-1 flex flex-col h-full overflow-hidden bg-white dark:bg-[#12160d] relative w-full">
+<header class="flex items-center justify-between border-b border-surface-light dark:border-surface-dark px-6 py-4 bg-background-light dark:bg-background-dark z-10 shadow-sm">
+<div class="flex items-center gap-4">
+<div class="bg-center bg-no-repeat bg-cover rounded-xl size-10 shadow-sm border border-surface-dark/10" data-alt="Green cubic minecraft grass block logo" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDbLmh5a8Vl4eG9uF3sYwOhW2tQRSEB45lvp7ew5qVcHCsaNqPoburaPbVGMsi-V3sof8LkiLvdDxPgaKXWoE9x6ltkl0kPRyl-lBzEgAbLn7VOXU_lkdZ8dTE356rVWYm463QJ8eRIKex7-SgmQrmyCetAeQpGPNrt6GxH94hki7zXvi4zdTXyPEMSxpocM6GVJ9WB8yaipJDNKG4_1vvQpPMXEtRWCkKmKiMjkPJB2Bf59GDyBxWMayZeoqlqCnkTRdlTy2tT9mY");'></div>
+<div class="flex flex-col">
+<h1 class="text-text-main dark:text-white text-lg font-bold leading-tight">MC 仪表盘</h1>
+</div>
+<div class="h-6 w-px bg-gray-300 dark:bg-gray-700 mx-2 hidden sm:block"></div>
+<div class="hidden sm:flex items-center gap-3 bg-surface-light dark:bg-surface-dark px-3 py-1.5 rounded-lg">
+<span class="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+<span class="text-sm font-bold text-text-main dark:text-white">生存服_第五季</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center justify-center rounded-xl size-10 text-text-sub dark:text-gray-300 hover:bg-surface-light dark:hover:bg-surface-dark transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="flex items-center justify-center rounded-xl size-10 text-text-sub dark:text-gray-300 hover:bg-surface-light dark:hover:bg-surface-dark transition-colors">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+<div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+<div class="flex items-center gap-2 pl-1 cursor-pointer hover:opacity-80 transition-opacity">
+<div class="bg-center bg-no-repeat bg-cover rounded-full size-8 ring-2 ring-primary ring-offset-2 ring-offset-background-light dark:ring-offset-background-dark" data-alt="Pixelated character avatar face" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDKkxUW3Iw9EDMhYoe7mRpb1d5u-sq8i2Z9QY5Di9_1WuoME1ICnJ6cx6VZeNIfpFnG9saU91D5VfRBUMrliaiOHDhbV9dF57SZJSqgSH2j4NcapXWPLnuGB6KClP1bXE_pbVMB6yoIK3kup6AGZZz4XgIvp0hpg4RA5nyQvYyFJBBWT4WSAa0B007LgD93hYb5dDQqMOc3E3YxBzXCSwByUE2x0vg-yR2NlPopa9GGsCtnuge4sZfsQhkwZAC7OUNmrKAZpkHfPB0");'></div>
+<span class="text-sm font-bold hidden md:block">管理员</span>
+</div>
+</div>
+</header>
+<div class="flex-1 overflow-y-auto p-4 md:p-8 pb-32">
+<div class="max-w-7xl mx-auto flex flex-col gap-8">
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="flex flex-col gap-3 rounded-2xl p-5 bg-surface-light dark:bg-surface-dark relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl text-text-main dark:text-white">public</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="flex size-2 rounded-full bg-green-600"></span>
+<p class="text-text-sub dark:text-gray-400 text-sm font-medium">服务器状态</p>
+</div>
+<div>
+<p class="text-text-main dark:text-white text-2xl font-bold tracking-tight">运行中</p>
+<p class="text-green-700 dark:text-green-400 text-xs font-semibold mt-1">已运行 4天 12小时</p>
+</div>
+</div>
+<div class="flex flex-col gap-3 rounded-2xl p-5 bg-surface-light dark:bg-surface-dark relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl text-text-main dark:text-white">person</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-text-sub dark:text-gray-400">group</span>
+<p class="text-text-sub dark:text-gray-400 text-sm font-medium">在线人数</p>
+</div>
+<div>
+<p class="text-text-main dark:text-white text-2xl font-bold tracking-tight">5 / 20</p>
+<div class="w-full bg-white dark:bg-black/20 h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 25%"></div>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-3 rounded-2xl p-5 bg-surface-light dark:bg-surface-dark relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl text-text-main dark:text-white">network_check</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-text-sub dark:text-gray-400">speed</span>
+<p class="text-text-sub dark:text-gray-400 text-sm font-medium">机器人延迟</p>
+</div>
+<div>
+<p class="text-text-main dark:text-white text-2xl font-bold tracking-tight">24ms</p>
+<p class="text-green-700 dark:text-green-400 text-xs font-semibold mt-1">连接状态极佳</p>
+</div>
+</div>
+<div class="flex flex-col gap-3 rounded-2xl p-5 bg-surface-light dark:bg-surface-dark relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl text-text-main dark:text-white">memory</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-text-sub dark:text-gray-400">memory</span>
+<p class="text-text-sub dark:text-gray-400 text-sm font-medium">内存使用</p>
+</div>
+<div>
+<p class="text-text-main dark:text-white text-2xl font-bold tracking-tight">4.2GB <span class="text-base text-text-sub font-normal">/ 8GB</span></p>
+<div class="w-full bg-white dark:bg-black/20 h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-yellow-500 h-full rounded-full" style="width: 52%"></div>
+</div>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+<div class="xl:col-span-2 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h2 class="text-text-main dark:text-white text-xl font-bold tracking-tight">实时控制台</h2>
+<button class="text-sm font-bold text-primary-dark hover:text-primary transition-colors flex items-center gap-1">
+                                查看完整历史 <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<div class="flex flex-col rounded-2xl shadow-sm bg-background-dark overflow-hidden border border-surface-light dark:border-surface-dark">
+<div class="flex items-center justify-between px-4 py-3 bg-surface-dark border-b border-gray-800">
+<div class="flex gap-2">
+<div class="size-3 rounded-full bg-red-500"></div>
+<div class="size-3 rounded-full bg-yellow-500"></div>
+<div class="size-3 rounded-full bg-green-500"></div>
+</div>
+<p class="text-xs text-gray-500 font-mono">server_latest.log</p>
+<div class="size-3"></div>
+</div>
+<div class="p-6 font-mono text-sm h-[320px] overflow-y-auto bg-[#1a2210]">
+<div class="flex flex-col gap-1 text-gray-300">
+<p><span class="text-gray-500">[14:19:55]</span> <span class="text-blue-400">[Server thread/INFO]</span>: Starting Minecraft server on *:25565</p>
+<p><span class="text-gray-500">[14:19:58]</span> <span class="text-blue-400">[Server thread/INFO]</span>: Preparing level "world"</p>
+<p><span class="text-gray-500">[14:20:01]</span> <span class="text-yellow-400">[User Authenticator #1/INFO]</span>: UUID of player Steve is 9d74-...</p>
+<p><span class="text-gray-500">[14:20:01]</span> <span class="text-blue-400">[Server thread/INFO]</span>: Player Steve joined the game</p>
+<p><span class="text-gray-500">[14:20:05]</span> <span class="text-blue-400">[Server thread/INFO]</span>: Saving chunks for level 'ServerLevel'...</p>
+<p><span class="text-gray-500">[14:20:12]</span> <span class="text-purple-400">[Bot/INFO]</span>: Integration bot connected successfully.</p>
+<p><span class="text-gray-500">[14:21:45]</span> <span class="text-blue-400">[Server thread/WARN]</span>: Can't keep up! Is the server overloaded? Running 2005ms or 40 ticks behind</p>
+<p class="animate-pulse">_</p>
+</div>
+</div>
+<div class="px-4 py-3 bg-surface-dark border-t border-gray-800 flex gap-2">
+<span class="text-primary font-mono">&gt;</span>
+<input class="bg-transparent border-none text-white font-mono text-sm w-full focus:ring-0 p-0 placeholder-gray-600" placeholder="输入指令..." type="text"/>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<h2 class="text-text-main dark:text-white text-xl font-bold tracking-tight">快捷操作</h2>
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl p-5 flex flex-col gap-4 shadow-sm h-full">
+<button class="w-full py-4 px-4 bg-primary hover:bg-primary-dark text-text-main rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.02] shadow-sm">
+<span class="material-symbols-outlined">play_arrow</span>
+                                启动服务器
+                            </button>
+<div class="grid grid-cols-2 gap-3">
+<button class="py-3 px-4 bg-white dark:bg-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-text-main dark:text-white rounded-xl font-bold text-sm flex flex-col items-center gap-1 transition-colors border border-gray-200 dark:border-transparent">
+<span class="material-symbols-outlined text-orange-500">restart_alt</span>
+                                    重启机器人
+                                </button>
+<button class="py-3 px-4 bg-white dark:bg-white/10 hover:bg-gray-50 dark:hover:bg-white/20 text-text-main dark:text-white rounded-xl font-bold text-sm flex flex-col items-center gap-1 transition-colors border border-gray-200 dark:border-transparent">
+<span class="material-symbols-outlined text-blue-500">campaign</span>
+                                    全服广播
+                                </button>
+</div>
+<div class="h-px bg-gray-200 dark:bg-gray-700 my-1"></div>
+<button class="w-full py-3 px-4 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined">power_settings_new</span>
+                                强制终止进程
+                            </button>
+</div>
+<div class="bg-surface-light dark:bg-surface-dark rounded-2xl p-5 flex flex-col gap-3 shadow-sm mt-auto">
+<h3 class="text-sm font-bold text-text-sub dark:text-gray-400 uppercase tracking-wider">近期事件</h3>
+<div class="flex flex-col gap-3">
+<div class="flex gap-3 items-start">
+<div class="size-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-blue-600 text-sm">login</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-text-main dark:text-white">玩家加入</span>
+<span class="text-xs text-text-sub dark:text-gray-400">Steve 加入了大厅</span>
+</div>
+<span class="text-xs text-text-sub ml-auto">2分钟前</span>
+</div>
+<div class="flex gap-3 items-start">
+<div class="size-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-yellow-600 text-sm">warning</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-bold text-text-main dark:text-white">高内存警告</span>
+<span class="text-xs text-text-sub dark:text-gray-400">内存使用 &gt; 80%</span>
+</div>
+<span class="text-xs text-text-sub ml-auto">15分钟前</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<nav class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 bg-surface-light/90 dark:bg-surface-dark/90 backdrop-blur-md text-text-main rounded-full px-2 py-2 shadow-xl flex items-center gap-1 border border-white/40 dark:border-white/5 ring-1 ring-black/5">
+<a class="floating-nav-item active w-20" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-[10px] leading-none">仪表盘</span>
+</a>
+<a class="floating-nav-item w-20" href="#">
+<span class="material-symbols-outlined">terminal</span>
+<span class="text-[10px] leading-none">控制台</span>
+</a>
+<a class="floating-nav-item w-20" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] leading-none">在线玩家</span>
+</a>
+<a class="floating-nav-item w-20" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="text-[10px] leading-none">机器人</span>
+</a>
+<a class="floating-nav-item w-20" href="#">
+<span class="material-symbols-outlined">extension</span>
+<span class="text-[10px] leading-none">插件</span>
+</a>
+</nav>
+</div>
+
+</body></html>

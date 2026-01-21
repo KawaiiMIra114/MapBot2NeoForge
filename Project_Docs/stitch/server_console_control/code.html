@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>服务器控制台</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a7f042",
+                        "primary-dark": "#8bc936",
+                        "background-light": "#f7f8f6",
+                        "background-dark": "#1a2210",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#2d3626",
+                        "text-main": "#161b0d",
+                        "text-secondary": "#444a3b",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "mono": ["Roboto Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }.custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+            border: 3px solid transparent;
+            background-clip: content-box;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background-color: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-text-main font-display h-screen overflow-hidden flex selection:bg-primary selection:text-text-main relative">
+<div class="fixed bottom-6 inset-x-0 flex justify-center z-50 pointer-events-none">
+<nav class="pointer-events-auto bg-surface-light/90 dark:bg-surface-dark/90 backdrop-blur-xl border border-gray-200 dark:border-gray-700 shadow-xl rounded-2xl p-2 flex items-center gap-1">
+<a class="flex flex-col items-center justify-center px-4 py-2 rounded-xl bg-primary/20 text-text-main group transition-colors min-w-[70px]" href="#">
+<span class="material-symbols-outlined filled text-text-main">terminal</span>
+<span class="text-[10px] font-bold mt-0.5">控制台</span>
+</a>
+<a class="flex flex-col items-center justify-center px-4 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-text-secondary dark:text-gray-400 group transition-colors min-w-[70px]" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-[10px] font-bold mt-0.5">设置</span>
+</a>
+<a class="flex flex-col items-center justify-center px-4 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-text-secondary dark:text-gray-400 group transition-colors min-w-[70px]" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-[10px] font-bold mt-0.5">玩家</span>
+</a>
+<a class="flex flex-col items-center justify-center px-4 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-text-secondary dark:text-gray-400 group transition-colors min-w-[70px]" href="#">
+<span class="material-symbols-outlined">folder</span>
+<span class="text-[10px] font-bold mt-0.5">文件</span>
+</a>
+<a class="flex flex-col items-center justify-center px-4 py-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-text-secondary dark:text-gray-400 group transition-colors min-w-[70px]" href="#">
+<span class="material-symbols-outlined">backup</span>
+<span class="text-[10px] font-bold mt-0.5">备份</span>
+</a>
+<div class="w-px h-8 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+<a class="flex items-center justify-center size-10 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 overflow-hidden ml-1" href="#">
+<img alt="Admin User" class="size-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDn6mkq6ptbsJ3uBiCFjgWT8CtxLhHHJqIr_J0LuOyn2gsPkvjbkFYYoRToD9vV6eTJcWTP1R3VNCmXwqfP2gm3_t_bbIopfUjlysThPm2IBP9JB0yWJUX1_9XmGyuQboIDSsMuyJeUyXN6IEzMoG5wjxzhecm0ktelblfTsa_fmV6zU4GtzXTN78uFqfQ4eEIHT3AyuOtpGz42frrVXt4bDHLv7buNvSfPe0LUkpD5B1KW6yWgAPFYymUWD4htI6ZDoYm6WrKmCIk"/>
+</a>
+</nav>
+</div>
+<main class="flex-1 flex flex-col h-full overflow-hidden relative">
+<header class="h-20 shrink-0 px-8 flex items-center justify-between border-b border-gray-100 dark:border-gray-800 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md z-10">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3 border-r border-gray-200 dark:border-gray-700 pr-6">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-xl size-10 shadow-sm" data-alt="MineBot Logo" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuABrhzAMHf1TsCgXL1PLWW5Pas_blpG5fTP6K8KExFPy4Vxh3w3o0wKULoY99RNMPsfdEJLxP2Dq6wtZJ4BwonlY4LZ368mdgUapUcNq2WOsFG0WYmkshzC9Jlmo0XobbT0Fr_aOXaYpY0SOnDbXmN6O_flPIEQoyyyykAM4TP-GSWHNqE1T57AqF86u7plRk8TK_45nTMqAy0RJ_zLyVOQfy2cqirS9vmv0orRIAybaO0TiV5gZAiYlHTfvpGUcy9Ducy-jArAGcc");'></div>
+<div class="flex flex-col">
+<h1 class="text-text-main text-lg font-bold leading-tight">MineBot</h1>
+<p class="text-primary-dark dark:text-primary text-[10px] font-medium tracking-wide">生产服务器</p>
+</div>
+</div>
+<div class="flex flex-col justify-center">
+<div class="flex items-center gap-3">
+<h2 class="text-2xl font-bold text-text-main">服务器控制台</h2>
+<span class="px-2.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold border border-green-200 dark:border-green-800 flex items-center gap-1.5">
+<span class="size-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            在线
+                        </span>
+</div>
+<p class="text-xs text-text-secondary font-mono mt-1 opacity-70">运行时间: 4天 12小时 32分 • 19.34 TPS</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="hidden lg:flex gap-2 mr-4">
+<button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-full text-xs font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm text-text-main">
+<span class="material-symbols-outlined text-sm">restart_alt</span>
+                        重启
+                    </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 rounded-full text-xs font-bold hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 hover:border-red-100 dark:hover:border-red-900 transition-colors shadow-sm text-text-main">
+<span class="material-symbols-outlined text-sm">stop_circle</span>
+                        停止
+                    </button>
+</div>
+<button class="size-10 flex items-center justify-center rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-text-main hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shadow-sm lg:hidden">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</header>
+<div class="flex-1 flex overflow-hidden p-4 md:p-6 lg:p-8 gap-6 pb-28">
+<div class="flex-1 flex flex-col gap-4 min-w-0 h-full">
+<div class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide shrink-0">
+<button class="flex shrink-0 items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-text-main rounded-lg text-xs font-semibold transition-colors border border-primary/20">
+<span class="material-symbols-outlined text-sm">filter_alt</span> 过滤日志
+                    </button>
+<button class="flex shrink-0 items-center gap-2 px-3 py-1.5 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-text-secondary rounded-lg text-xs font-medium transition-colors shadow-sm">
+<span class="material-symbols-outlined text-sm">download</span> 下载日志
+                    </button>
+<button class="flex shrink-0 items-center gap-2 px-3 py-1.5 bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-text-secondary rounded-lg text-xs font-medium transition-colors shadow-sm ml-auto">
+<span class="material-symbols-outlined text-sm">delete</span> 清空控制台
+                    </button>
+</div>
+<div class="flex-1 bg-[#1e1e1e] dark:bg-[#0f0f0f] rounded-xl shadow-inner border border-gray-300 dark:border-gray-700 overflow-hidden flex flex-col relative group">
+<div class="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="bg-white/10 backdrop-blur-md p-1.5 rounded-md hover:bg-white/20 text-white transition-colors" title="Scroll to bottom">
+<span class="material-symbols-outlined text-lg">arrow_downward</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-4 custom-scrollbar font-mono text-sm leading-relaxed space-y-1">
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:04:28]</span>
+<span class="text-blue-400 font-bold w-14 text-center">[信息]</span>
+<span class="text-gray-300">正在加载运行库，请稍候...</span>
+</div>
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:04:32]</span>
+<span class="text-blue-400 font-bold w-14 text-center">[信息]</span>
+<span class="text-green-400">运行环境: 生产模式</span>
+</div>
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:04:32]</span>
+<span class="text-blue-400 font-bold w-14 text-center">[信息]</span>
+<span class="text-gray-300">已加载 7 个合成配方</span>
+</div>
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:04:35]</span>
+<span class="text-yellow-400 font-bold w-14 text-center">[警告]</span>
+<span class="text-yellow-100">无法跟上！服务器是否过载？运行落后 2045ms (40 tick)</span>
+</div>
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:04:36]</span>
+<span class="text-blue-400 font-bold w-14 text-center">[信息]</span>
+<span class="text-gray-300">玩家 Steve 的 UUID 为 8e4533...</span>
+</div>
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:04:36]</span>
+<span class="text-blue-400 font-bold w-14 text-center">[信息]</span>
+<span class="text-gray-300">Steve 加入了游戏</span>
+</div>
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:04:40]</span>
+<span class="text-purple-400 font-bold w-14 text-center">[聊天]</span>
+<span class="text-white"><span class="text-gray-400">&lt;Steve&gt;</span> 大家好！</span>
+</div>
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:04:45]</span>
+<span class="text-red-400 font-bold w-14 text-center">[错误]</span>
+<span class="text-red-200">java.io.IOException: 管道断裂</span>
+</div>
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:04:45]</span>
+<span class="text-blue-400 font-bold w-14 text-center">[信息]</span>
+<span class="text-gray-300">正在保存世界 'ServerLevel' 的区块...</span>
+</div>
+<div class="flex gap-3 text-gray-400 hover:bg-white/5 p-0.5 rounded px-2">
+<span class="opacity-50 select-none">[12:05:12]</span>
+<span class="text-blue-400 font-bold w-14 text-center">[信息]</span>
+<span class="text-gray-300">Alex 加入了游戏</span>
+</div>
+<div class="flex gap-3 text-gray-400 p-0.5 px-2 mt-2 border-l-2 border-primary/50 bg-primary/5">
+<span class="w-2 h-4 bg-primary animate-pulse"></span>
+</div>
+</div>
+</div>
+<div class="shrink-0 bg-white dark:bg-surface-dark rounded-full shadow-lg border border-gray-200 dark:border-gray-700 flex items-center p-1 pr-2 transition-all focus-within:ring-2 focus-within:ring-primary/50 focus-within:border-primary">
+<span class="pl-4 pr-2 text-gray-400 select-none font-mono text-lg">&gt;</span>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-text-main placeholder-gray-400 text-sm font-mono h-10 w-full" placeholder="输入指令..." type="text"/>
+<button class="bg-primary hover:bg-primary-dark text-text-main font-bold text-sm px-5 py-2 rounded-full transition-all flex items-center gap-2">
+                        发送 <span class="material-symbols-outlined text-lg">send</span>
+</button>
+</div>
+</div>
+<div class="w-80 hidden xl:flex flex-col gap-6 shrink-0 h-full overflow-y-auto custom-scrollbar pr-1 pb-10">
+<div class="bg-white dark:bg-surface-dark rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h3 class="font-bold text-text-main">系统资源</h3>
+<span class="material-symbols-outlined text-gray-400">monitoring</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col items-center gap-2 p-3 bg-background-light dark:bg-background-dark rounded-xl">
+<div class="relative size-16">
+<svg class="size-full rotate-[-90deg]" viewBox="0 0 36 36">
+<path class="text-gray-200 dark:text-gray-700" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="4"></path>
+<path class="text-primary transition-all duration-1000 ease-out" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="45, 100" stroke-linecap="round" stroke-width="4"></path>
+</svg>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-bold font-mono">45%</div>
+</div>
+<span class="text-xs font-medium text-text-secondary">CPU 负载</span>
+</div>
+<div class="flex flex-col items-center gap-2 p-3 bg-background-light dark:bg-background-dark rounded-xl">
+<div class="relative size-16">
+<svg class="size-full rotate-[-90deg]" viewBox="0 0 36 36">
+<path class="text-gray-200 dark:text-gray-700" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-width="4"></path>
+<path class="text-primary transition-all duration-1000 ease-out" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="75, 100" stroke-linecap="round" stroke-width="4"></path>
+</svg>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-bold font-mono">6G</div>
+</div>
+<span class="text-xs font-medium text-text-secondary">内存 (8G)</span>
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-surface-dark rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col gap-4 flex-1">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<h3 class="font-bold text-text-main">在线玩家</h3>
+<span class="bg-primary/20 text-text-main text-xs px-2 py-0.5 rounded-full font-bold">2/20</span>
+</div>
+<button class="text-primary hover:bg-primary/10 rounded-full p-1 transition-colors">
+<span class="material-symbols-outlined text-lg">search</span>
+</button>
+</div>
+<div class="flex flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar max-h-[400px]">
+<div class="flex items-center gap-3 p-3 rounded-xl bg-background-light dark:bg-background-dark/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group">
+<div class="relative">
+<img alt="Steve avatar" class="size-10 rounded-lg shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgjD8nJQj2sGeUqY6fcTC-nfD5hRG1kE9zGrLzYVjf2DDslbu__7_zjRY4Xtnks-ppZisSzMBYIaoqsvldezCuoJAFZUFz6JSq9oRULIncJxnZLV-Sv60UtMkcBiWy5hIiSKWz6qyqN9C2YUBGN4IfCTkRIePgjsBIoqDuO9MFC0mprg9Syme5a-xFXAkJrV04IXrc90zEAdFdQoT9hMeFKi8oKplGj7smm_p4ScEKaaQ70RQhI_oHXa-Y4p-bJEgV-xRAhbLEC5k"/>
+<div class="absolute -bottom-1 -right-1 size-3 bg-green-500 border-2 border-white dark:border-background-dark rounded-full"></div>
+</div>
+<div class="flex flex-col flex-1 min-w-0">
+<p class="text-sm font-bold text-text-main truncate">Steve</p>
+<p class="text-xs text-text-secondary truncate">延迟: 23ms</p>
+</div>
+<div class="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+<button class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-text-secondary" title="踢出">
+<span class="material-symbols-outlined text-lg">block</span>
+</button>
+<button class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-text-secondary" title="私信">
+<span class="material-symbols-outlined text-lg">chat</span>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-3 p-3 rounded-xl bg-background-light dark:bg-background-dark/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors group">
+<div class="relative">
+<img alt="Alex avatar" class="size-10 rounded-lg shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8_q9KnbmRG-g0t_5RKwixjs1lFYTaqn8nuTEcI0T7IJZufXPJUjPy3USld99ieRl2mBnHc_n3huZSsE_6kU5giZVhPqqYORum5_IBUOpt2dOPWc6X5P3w55o5s50r179pLqFnu6ElXfAMLozvv_verXjKC20J5E2O6X2AgvQvoKvTJsdVq2xuqxnTr3zhXt4VR6Xa0pdgqXgPHTSWEekVv4WiXJr29_fw-Cj_MUMR1-c01BFRBkIejkKR8yoKVE_2Yc_HxjR7OtI"/>
+<div class="absolute -bottom-1 -right-1 size-3 bg-green-500 border-2 border-white dark:border-background-dark rounded-full"></div>
+</div>
+<div class="flex flex-col flex-1 min-w-0">
+<p class="text-sm font-bold text-text-main truncate">Alex</p>
+<p class="text-xs text-text-secondary truncate">延迟: 45ms</p>
+</div>
+<div class="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
+<button class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-text-secondary" title="踢出">
+<span class="material-symbols-outlined text-lg">block</span>
+</button>
+<button class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg text-text-secondary" title="私信">
+<span class="material-symbols-outlined text-lg">chat</span>
+</button>
+</div>
+</div>
+</div>
+<div class="mt-auto pt-4 border-t border-dashed border-gray-200 dark:border-gray-700">
+<p class="text-xs text-center text-gray-400">剩余 18 个空位</p>
+</div>
+</div>
+<div class="bg-primary rounded-2xl p-5 shadow-sm text-text-main flex flex-col gap-3 relative overflow-hidden group">
+<div class="absolute -right-4 -top-4 size-24 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+<div class="flex items-center justify-between relative z-10">
+<h3 class="font-bold text-sm">白名单</h3>
+<div class="relative inline-flex h-6 w-11 items-center rounded-full bg-black/10">
+<span class="inline-block h-4 w-4 transform rounded-full bg-white transition translate-x-6"></span>
+</div>
+</div>
+<div class="flex items-center justify-between relative z-10">
+<h3 class="font-bold text-sm">维护模式</h3>
+<div class="relative inline-flex h-6 w-11 items-center rounded-full bg-black/10">
+<span class="inline-block h-4 w-4 transform rounded-full bg-white transition translate-x-1"></span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+</body></html>

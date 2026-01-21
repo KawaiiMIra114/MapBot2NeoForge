@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-CN">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>MapBot Alpha | 控制中心</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a7f042",
+                        "primary-dark": "#8bc936",
+                        "background-dark": "#1a2210",
+                        "surface-dark": "#2a3320",
+                        "text-main": "#eef3e7",
+                        "text-sub": "#4f5e3e",
+                    },
+                    fontFamily: { "display": ["Space Grotesk", "sans-serif"] },
+                    borderRadius: {"extra-large": "1.75rem", "large": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .nav-item {
+                @apply flex flex-col items-center justify-center transition-all duration-500 cursor-pointer w-24 relative text-text-sub dark:text-gray-400 z-10;
+                height: 48px;
+            }
+            .nav-item.active { @apply text-primary font-bold; }
+            .material-symbols-outlined {
+                font-variation-settings: 'FILL' 0, 'wght' 400;
+                transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            }
+            .active .material-symbols-outlined {
+                font-variation-settings: 'FILL' 1, 'wght' 500;
+                @apply scale-110;
+            }
+            #nav-indicator {
+                @apply absolute bottom-1 h-0.5 bg-primary rounded-full transition-all duration-500 ease-[cubic-bezier(0.34, 1.56, 0.64, 1)];
+                width: 16px;
+                box-shadow: 0 0 12px rgba(167, 240, 66, 0.6);
+            }
+            .glass-nav { @apply bg-black/20 backdrop-blur-[40px] border border-white/5 rounded-full shadow-2xl; }
+            .glass-card { @apply bg-surface-dark border border-white/5 shadow-sm rounded-extra-large p-5; }
+            .terminal-window { @apply bg-black/40 rounded-extra-large border border-white/5 overflow-hidden font-mono text-sm shadow-inner; }
+            .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+            .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-primary/20 rounded-full; }
+        }
+    </style>
+</head>
+<body class="bg-background-dark font-display text-text-main antialiased h-screen overflow-hidden flex flex-col">
+
+    <!-- Header (Stitch Concept) -->
+    <header class="flex items-center justify-between border-b border-surface-dark px-8 py-4 bg-background-dark/80 backdrop-blur-md z-10 shrink-0">
+        <div class="flex items-center gap-4">
+            <div class="bg-primary rounded-xl size-10 flex items-center justify-center text-background-dark shadow-lg shadow-primary/20">
+                <span class="material-symbols-outlined font-bold">smart_toy</span>
+            </div>
+            <div class="flex flex-col">
+                <h1 class="text-lg font-bold leading-tight">MapBot Alpha</h1>
+                <p class="text-primary text-[10px] font-bold tracking-widest uppercase">Center Hub</p>
+            </div>
+            <div class="h-6 w-px bg-white/10 mx-2 hidden sm:block"></div>
+            <div class="hidden sm:flex items-center gap-3 bg-surface-dark px-3 py-1.5 rounded-lg border border-white/5">
+                <span class="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                <span class="text-xs font-bold">生存服_第五季</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="hidden md:flex items-center gap-3 text-[11px] font-mono text-text-sub">
+                <div>TPS <span class="text-primary font-bold">20.0</span></div>
+                <div>MEM <span class="text-primary font-bold">4.2G</span></div>
+            </div>
+            <div class="size-8 rounded-full overflow-hidden border-2 border-primary/20">
+                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKkxUW3Iw9EDMhYoe7mRpb1d5u-sq8i2Z9QY5Di9_1WuoME1ICnJ6cx6VZeNIfpFnG9saU91D5VfRBUMrliaiOHDhbV9dF57SZJSqgSH2j4NcapXWPLnuGB6KClP1bXE_pbVMB6yoIK3kup6AGZZz4XgIvp0hpg4RA5nyQvYyFJBBWT4WSAa0B007LgD93hYb5dDQqMOc3E3YxBzXCSwByUE2x0vg-yR2NlPopa9GGsCtnuge4sZfsQhkwZAC7OUNmrKAZpkHfPB0" class="w-full h-full object-cover">
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden relative p-6">
+        <div id="view-dashboard" class="flex h-full flex-col gap-6 overflow-y-auto custom-scrollbar pb-32">
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
+                <div class="glass-card flex flex-col gap-2">
+                    <span class="text-text-sub text-[10px] font-bold uppercase tracking-wider">Server Status</span>
+                    <p class="text-2xl font-bold">运行中</p>
+                </div>
+                <div class="glass-card flex flex-col gap-2">
+                    <span class="text-text-sub text-[10px] font-bold uppercase tracking-wider">Online Players</span>
+                    <p class="text-2xl font-bold">5 / 20</p>
+                </div>
+            </section>
+
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 flex-1 min-h-0">
+                <div class="xl:col-span-2 flex flex-col gap-4 min-h-0">
+                    <h2 class="text-lg font-bold px-2 tracking-tight">实时控制台</h2>
+                    <div class="flex-1 terminal-window flex flex-col">
+                        <div class="flex-1 p-6 overflow-y-auto custom-scrollbar text-white/70 space-y-1" id="dash-logs">
+                            <p><span class="opacity-30">[14:30:01]</span> <span class="text-primary font-bold">[SYSTEM]</span> Alpha Core Ready.</p>
+                            <p><span class="opacity-30">[14:30:05]</span> <span class="text-blue-400 font-bold">[INFO]</span> Sub-process MC linked.</p>
+                            <p class="mt-4 text-primary animate-pulse">_</p>
+                        </div>
+                        <div class="px-4 py-3 bg-surface-dark/50 border-t border-white/5 flex items-center gap-3 shrink-0">
+                            <span class="text-primary font-bold ml-2">></span>
+                            <input type="text" class="bg-transparent border-none text-white font-mono text-sm w-full focus:ring-0 p-0 placeholder-white/10" placeholder="键入指令..." autofocus />
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-6 shrink-0">
+                    <h2 class="text-lg font-bold px-2 tracking-tight">快捷管理</h2>
+                    <div class="glass-card flex flex-col gap-4">
+                        <button class="w-full py-4 bg-primary hover:bg-primary-dark text-background-dark rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 shadow-md shadow-primary/10">
+                            <span class="material-symbols-outlined">play_arrow</span> 启动服务器
+                        </button>
+                        <button class="w-full py-3 bg-red-900/30 text-red-400 hover:bg-red-900/50 rounded-xl font-bold text-sm flex items-center justify-center gap-2 border border-red-900/20">
+                            <span class="material-symbols-outlined">power_settings_new</span> 强制终止
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 导航栏 -->
+    <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+        <nav id="navbar" class="glass-nav px-2 py-1.5 flex items-center gap-1 ring-1 ring-white/5 relative">
+            <div id="nav-indicator"></div>
+            <div class="nav-item active" data-tab="dashboard">
+                <span class="material-symbols-outlined text-[22px]">dashboard</span>
+                <span class="text-[9px] font-medium uppercase tracking-tighter">Dash</span>
+            </div>
+            <div class="nav-item" data-tab="console">
+                <span class="material-symbols-outlined text-[22px]">terminal</span>
+                <span class="text-[9px] font-medium uppercase tracking-tighter">Term</span>
+            </div>
+            <div class="nav-item" data-tab="plugins">
+                <span class="material-symbols-outlined text-[22px]">extension</span>
+                <span class="text-[9px] font-medium uppercase tracking-tighter">Mods</span>
+            </div>
+            <div class="nav-item" data-tab="settings">
+                <span class="material-symbols-outlined text-[22px]">settings</span>
+                <span class="text-[9px] font-medium uppercase tracking-tighter">Set</span>
+            </div>
+        </nav>
+    </div>
+
+    <script>
+        const indicator = document.getElementById('nav-indicator');
+        const navbar = document.getElementById('navbar');
+        const navItems = document.querySelectorAll('.nav-item');
+
+        function updateIndicator(target) {
+            const rect = target.getBoundingClientRect();
+            const navRect = navbar.getBoundingClientRect();
+            // 计算精准居中位置
+            const x = (rect.left - navRect.left) + (rect.width / 2) - (indicator.offsetWidth / 2);
+            indicator.style.transform = `translateX(${x}px)`;
+        }
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                navItems.forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+                updateIndicator(item);
+            });
+        });
+
+        window.onload = () => {
+            const active = document.querySelector('.nav-item.active');
+            if (active) setTimeout(() => updateIndicator(active), 100);
+        };
+
+        window.onresize = () => {
+            const active = document.querySelector('.nav-item.active');
+            if (active) updateIndicator(active);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'com.mapbot'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Netty 核心 (用于分流和 HTTP/WS)
+    implementation 'io.netty:netty-all:4.1.100.Final'
+    
+    // JSON 解析
+    implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // 日志
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'ch.qos.logback:logback-classic:1.4.11'
+    
+    // TOML 解析
+    implementation 'com.moandjiezana.toml:toml4j:0.7.2'
+}
+
+application {
+    mainClass = 'com.mapbot.alpha.MapbotAlpha'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}

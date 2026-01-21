@@ -1,58 +1,43 @@
 # MapBot Reforged - AI Context Map
 
 ## 项目概览
-这是 **MapBot Reforged** 项目的上下文索引文件，帮助 AI 代理快速理解项目结构和导航。
+当前项目由两部分组成：
+1. **MapBot Reforged**: NeoForge 1.21.1 模组 (随服启动)。
+2. **MapBot Alpha V1**: 独立运行的 Bot 核心与守护进程 (7x24 在线)。
+
+当前版本: **v5.5.0+ (Alpha Phase)**
 
 ---
 
-## 目录用途说明
+## 🚀 核心进度 (截至 2026-01-21)
 
-| 目录 | 类型 | 用途 |
+### [Mod 端: 已完成]
+- **命令系统**: 全量迁移至 `CommandRegistry` 架构。
+- **安全管理**: Level 0-2 权限系统、时间戳禁言拦截。
+- **高级签到**: Tag 随机奖池、离线 CDK 暂存与兑换。
+- **互动**: 双向 @ 提及 (音效 + Title)。
+
+### [Alpha Core 端: 已完成]
+- **分流网关**: 25560 端口实现 MC 代理与 Web 服务共用。
+- **进程管理**: 独立进程启动与日志流捕获。
+- **UI 界面**: 极简 Material You 管理面板 (Animated)。
+
+---
+
+## 📂 关键导航
+
+| 路径 | 状态 | 内容 |
 |------|------|------|
-| `./MapBotv4/` | 🔴 只读 | **遗留参考代码** - 包含原始 Bukkit 插件的完整源代码。用于理解业务逻辑和功能需求。 |
-| `./MapBot_Reforged/` | 🟢 工作区 | **新项目代码** - NeoForge 1.21.1 模组的活动开发目录。所有新代码都在此创建。 |
-| `./Project_Docs/` | 🔵 知识库 | **文档中心** - 存储所有项目文档。 |
-| `./Project_Docs/Architecture/` | 🔵 知识库 | **技术设计文档** - 架构设计、API设计、数据流图等。 |
-| `./Project_Docs/Contracts/` | 🔵 知识库 | **许可证与法律文本** - 开源协议、第三方库许可证等。 |
-| `./Project_Docs/Manuals/` | 🔵 知识库 | **设置指南** - 安装手册、配置说明、部署指南等。 |
-| `./Project_Docs/Reports/` | 🔵 知识库 | **执行报告** - 每个任务完成后的状态报告。 |
+| `./MapBot_Reforged/` | 🟢 活跃 | NeoForge 模组源码。 |
+| `./Mapbot-Alpha-V1/` | 🔵 活跃 | 独立核心框架源码。 |
+| `./Project_Docs/Reports/` | 📖 完整 | 记录了 Task #017 至 #023 的所有技术报告。 |
+| `./Mapbot_Alpha_Dashboard_V1.html` | 🎨 预览 | 网页管理面板的最新静态原型。 |
 
 ---
 
-## 快速导航指南
-
-> **理解旧业务逻辑**
-> 
-> 请阅读 `/MapBotv4` 目录中的文件。主要关注:
-> - `src/main/java/` - Java 源代码
-> - `README.md` - 功能概述
-> - `pom.xml` - 依赖项列表
-
-> **理解新技术方向**
-> 
-> 请阅读项目根目录的 `.ai_rules.md` 文件，其中定义了:
-> - 技术栈: NeoForge 1.21.1 + Java 21
-> - 架构模式: 微服务 (NeoForge <-> WebSocket <-> NapCat/OneBot v11)
-> - 编码标准和操作工作流程
+## 🎯 下一对话目标
+1. **Task #023-STEP5**: 实现后端与 Web 前端的 WebSocket 日志实时推送。
+2. **多服同步逻辑**: 准备接入 Redis 实现跨服数据共享。
 
 ---
-
-## 核心治理文件
-
-| 文件 | 用途 |
-|------|------|
-| `.ai_rules.md` | **宪法** - 全局 AI 治理协议，所有 AI 代理必须遵守 |
-| `_AI_CONTEXT_MAP.md` | **本文件** - 项目上下文索引 |
-
----
-
-## 技术栈
-
-- **游戏端**: Minecraft NeoForge 1.21.1 (Java 21)
-- **通信协议**: WebSocket
-- **机器人端**: NapCat / OneBot v11 协议
-- **构建工具**: Gradle
-
----
-
-*此文件由项目初始化流程自动生成于 2026-01-14*
+*由 Lazarus 自动更新于对话结束前*
