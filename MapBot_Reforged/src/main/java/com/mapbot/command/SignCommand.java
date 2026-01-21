@@ -57,9 +57,9 @@ public class SignCommand implements ICommand {
 
         // 4. 构建回复
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("📅 [MapBot] 签到成功 (QQ: %d)\n", senderQQ));
+        sb.append(String.format("[签到] 成功 (QQ: %d)\n", senderQQ));
         sb.append("----------------\n");
-        sb.append(String.format("🎁 获得物品: [%s] %s x%d\n", item.rarity, item.name, item.count));
+        sb.append(String.format("物品: [%s] %s x%d\n", item.rarity, item.name, item.count));
         sb.append(LootConfig.INSTANCE.getRarityMessage(item.rarity)).append("\n");
         sb.append("----------------\n");
 
@@ -72,12 +72,12 @@ public class SignCommand implements ICommand {
         }
 
         if (isOnline) {
-            sb.append("✅ 检测到您当前在线\n");
-            sb.append("👉 请输入 #accept 确认背包有空位并直接领取");
+            sb.append("[状态] 检测到当前在线\n");
+            sb.append("[操作] 请输入 #accept 领取奖励");
         } else {
-            sb.append("💤 检测到您当前离线\n");
-            sb.append("👉 请私聊机器人输入 #cdk 获取兑换码\n");
-            sb.append("👉 上线后使用 /mapbot cdk [兑换码] 领取");
+            sb.append("[状态] 检测到当前离线\n");
+            sb.append("[操作] 请私聊机器人输入 #cdk 获取兑换码\n");
+            sb.append("[操作] 上线后使用 /mapbot cdk [兑换码] 领取");
         }
 
         InboundHandler.sendReplyToQQ(sourceGroupId, sb.toString());

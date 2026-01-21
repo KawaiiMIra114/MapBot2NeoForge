@@ -199,7 +199,7 @@ public class InboundHandler {
             long gid = getLongOrZero(json, "group_id");
             long uid = getLongOrZero(json, "user_id");
             if (gid == BotConfig.getPlayerGroupId()) {
-                BotClient.INSTANCE.sendGroupMessage(gid, String.format("[CQ:at,qq=%d] [Bot] 欢迎入群！\n请发送 #id <游戏ID> 绑定白名单。", uid));
+                BotClient.INSTANCE.sendGroupMessage(gid, String.format("[CQ:at,qq=%d] [Bot] 欢迎入群。\n请发送 #id <游戏ID> 绑定白名单。", uid));
             }
         }
     }
