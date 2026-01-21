@@ -504,6 +504,41 @@ public class DataManager {
         
         /** 玩家在线时长记录 (UUID → PlaytimeRecord) */
         Map<String, PlaytimeRecord> playerPlaytime = new HashMap<>();
+        
+        /** 签到记录 (QQ -> yyyy-MM-dd) */
+        Map<Long, String> lastSignIn = new HashMap<>();
+    }
+    
+    // ================== 签到管理 ==================
+    
+    /**
+     * 检查今日是否已签到
+     */
+    public boolean hasSignedInToday(long qq) {
+        lock.readLock().lock();
+        try {
+            String lastDate = data.lastSignIn.get(qq);
+            if (lastDate == null) return false;
+            
+            String today = java.time.LocalDate.now().toString(); // yyyy-MM-dd
+            return today.equals(lastDate);
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+    
+    /**
+     * 记录签到
+     */
+    public void recordSignIn(long qq) {
+        lock.writeLock().lock();
+        try {
+            String today = java.time.LocalDate.now().toString();
+            data.lastSignIn.put(qq, today);
+            save();
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
     
     /**
