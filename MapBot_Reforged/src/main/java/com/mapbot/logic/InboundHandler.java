@@ -73,6 +73,8 @@ public class InboundHandler {
         CommandRegistry.register("removeadmin", new RemoveAdminCommand());
         CommandRegistry.register("reload", new ReloadCommand());
         CommandRegistry.register("sign", new SignCommand());
+        CommandRegistry.register("accept", new AcceptCommand());
+        CommandRegistry.register("cdk", new CdkCommand());
 
         // --- 注册别名 ---
         CommandRegistry.registerAlias("菜单", "help");
@@ -90,6 +92,8 @@ public class InboundHandler {
         CommandRegistry.registerAlias("禁言", "mute");
         CommandRegistry.registerAlias("解禁", "unmute");
         CommandRegistry.registerAlias("签到", "sign");
+        CommandRegistry.registerAlias("领取", "accept");
+        CommandRegistry.registerAlias("兑换码", "cdk");
     }
 
     /**

@@ -10,62 +10,76 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 import java.util.UUID;
 
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+package com.mapbot.command;
+
+import com.mapbot.data.DataManager;
+import com.mapbot.data.loot.LootConfig;
+import com.mapbot.logic.InboundHandler;
+import com.mapbot.logic.SignManager;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
+
+import java.util.UUID;
 
 /**
- * 签到命令 (Task #020 预留)
+ * 每日签到命令 (v2)
  * #sign / #签到
  */
 public class SignCommand implements ICommand {
     @Override
     public String getDescription() {
-        return "每日签到领取奖励: #sign";
+        return "每日签到 (抽奖): #sign";
     }
 
     @Override
     public void execute(String args, long senderQQ, long sourceGroupId) {
-        // 检查是否已签到
-        if (DataManager.INSTANCE.hasSignedInToday(senderQQ)) {
-            InboundHandler.sendReplyToQQ(sourceGroupId, "[提示] 今天已签到，明天再来吧");
-            return;
-        }
-
+        // 1. 绑定检查
         String uuidStr = DataManager.INSTANCE.getBinding(senderQQ);
         if (uuidStr == null) {
             InboundHandler.sendReplyToQQ(sourceGroupId, "[签到失败] 请先使用 #id 绑定账号");
             return;
         }
 
+        // 2. 每日冷却检查
+        // 注意: 如果有待领取的奖励 (hasPendingReward)，允许再次输入 #sign 查看状态
+        if (DataManager.INSTANCE.hasSignedInToday(senderQQ) && !SignManager.INSTANCE.hasPendingReward(senderQQ)) {
+            InboundHandler.sendReplyToQQ(sourceGroupId, "[提示] 今天已签到，明天再来吧");
+            return;
+        }
+
+        // 3. 执行抽奖 (或获取暂存结果)
+        LootConfig.LootItem item = SignManager.INSTANCE.rollSignReward(senderQQ);
+        if (item == null) {
+            InboundHandler.sendReplyToQQ(sourceGroupId, "[错误] 奖池配置异常，无法抽奖");
+            return;
+        }
+
+        // 4. 构建回复
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format("📅 [MapBot] 签到成功 (QQ: %d)\n", senderQQ));
+        sb.append("----------------\n");
+        sb.append(String.format("🎁 获得物品: [%s] %s x%d\n", item.rarity, item.name, item.count));
+        sb.append(LootConfig.INSTANCE.getRarityMessage(item.rarity)).append("\n");
+        sb.append("----------------\n");
+
+        // 5. 检查在线状态，决定引导流程
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        if (server == null) return;
-
-        server.execute(() -> {
+        boolean isOnline = false;
+        if (server != null) {
             ServerPlayer player = server.getPlayerList().getPlayer(UUID.fromString(uuidStr));
-            if (player == null) {
-                InboundHandler.sendReplyToQQ(sourceGroupId, "[签到失败] 您必须在线才能签到并领取奖励");
-                return;
-            }
+            isOnline = (player != null);
+        }
 
-            // 记录签到
-            DataManager.INSTANCE.recordSignIn(senderQQ);
+        if (isOnline) {
+            sb.append("✅ 检测到您当前在线\n");
+            sb.append("👉 请输入 #accept 确认背包有空位并直接领取");
+        } else {
+            sb.append("💤 检测到您当前离线\n");
+            sb.append("👉 请私聊机器人输入 #cdk 获取兑换码\n");
+            sb.append("👉 上线后使用 /mapbot cdk [兑换码] 领取");
+        }
 
-            // 触发事件
-            MapBotSignInEvent event = new MapBotSignInEvent(player, senderQQ);
-            NeoForge.EVENT_BUS.post(event);
-
-            // 如果事件未被取消 (说明 KubeJS 未处理)，发放保底奖励
-            if (!event.isCanceled()) {
-                ItemStack reward = new ItemStack(Items.GOLDEN_APPLE, 1);
-                if (!player.getInventory().add(reward)) {
-                    player.drop(reward, false);
-                }
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§e[MapBot] 获得保底奖励: 金苹果 x1"));
-            }
-
-            // 基础反馈
-            InboundHandler.sendReplyToQQ(sourceGroupId, "[签到成功] 奖励已发放，请在游戏内查收！");
-            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a[MapBot] 签到成功！"));
-        });
+        InboundHandler.sendReplyToQQ(sourceGroupId, sb.toString());
     }
 }

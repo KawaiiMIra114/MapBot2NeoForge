@@ -26,6 +26,13 @@ import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import org.slf4j.Logger;
 
+import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.StringArgumentType;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import com.mapbot.logic.SignManager;
+
 /**
  * MapBot Reforged 主模组类
  * 负责初始化配置系统和管理 WebSocket 连接生命周期
@@ -54,6 +61,37 @@ public class MapBot {
     }
 
     /**
+     * 注册游戏内命令
+     */
+    @SubscribeEvent
+    public void onRegisterCommands(RegisterCommandsEvent event) {
+        event.getDispatcher().register(
+            Commands.literal("mapbot")
+                .then(Commands.literal("cdk")
+                    .then(Commands.argument("code", StringArgumentType.string())
+                        .executes(ctx -> {
+                            String code = StringArgumentType.getString(ctx, "code");
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            String uuidStr = player.getUUID().toString();
+                            
+                            // 执行兑换
+                            String result = SignManager.INSTANCE.redeemCdk(uuidStr, code);
+                            
+                            // 反馈结果
+                            if (result.startsWith("兑换成功")) {
+                                ctx.getSource().sendSuccess(() -> Component.literal("§a[MapBot] " + result), false);
+                            } else {
+                                ctx.getSource().sendFailure(Component.literal("§c[MapBot] " + result));
+                            }
+                            return 1;
+                        })
+                    )
+                )
+        );
+        LOGGER.info("已注册游戏命令: /mapbot cdk");
+    }
+
+    /**
      * 服务器启动中事件
      * 初始化数据和连接
      */
@@ -64,6 +102,10 @@ public class MapBot {
         // 初始化数据管理器
         DataManager.INSTANCE.init();
         LOGGER.info("数据管理器已初始化");
+        
+        // 初始化奖池配置
+        com.mapbot.data.loot.LootConfig.INSTANCE.init();
+        LOGGER.info("奖池配置已初始化");
 
         long groupId = BotConfig.getTargetGroupId();
         if (groupId == 0L) {
