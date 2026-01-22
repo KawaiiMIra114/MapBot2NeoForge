@@ -40,6 +40,9 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
                 case "event":
                     handleEvent(ctx, msg);
                     break;
+                case "chat":
+                    handleChat(msg);
+                    break;
                 case "file_response":
                     handleFileResponse(msg);
                     break;
@@ -83,6 +86,26 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         
         // 广播到 Web 控制台
         com.mapbot.alpha.network.LogWebSocketHandler.broadcast("[" + serverId + "] " + event);
+    }
+    
+    /**
+     * 处理来自 MC 的聊天消息，转发到 QQ 群
+     * STEP 12: MC -> QQ 消息流转
+     */
+    private void handleChat(String msg) {
+        String player = extractJsonValue(msg, "player");
+        String content = extractJsonValue(msg, "content");
+        
+        if (player.isEmpty() || content.isEmpty()) return;
+        
+        String formattedMsg = String.format("[%s] %s: %s", serverId, player, content);
+        LOGGER.info("[MC->QQ] {}", formattedMsg);
+        
+        // 发送到 QQ 群
+        com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(formattedMsg);
+        
+        // 广播到 Web 控制台
+        com.mapbot.alpha.network.LogWebSocketHandler.broadcast(formattedMsg);
     }
     
     private void handleFileResponse(String msg) {

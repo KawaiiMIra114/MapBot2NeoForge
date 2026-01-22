@@ -3,6 +3,8 @@ package com.mapbot.alpha.network;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpServerCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,9 +48,6 @@ public class ProtocolDetector extends ByteToMessageDecoder {
                (b1 == 'H' && b2 == 'E' && b3 == 'A') ||
                (b1 == 'D' && b2 == 'E' && b3 == 'L');
     }
-
-import io.netty.handler.codec.http.HttpObjectAggregator;
-import io.netty.handler.codec.http.HttpServerCodec;
 
     private void switchToHttp(ChannelHandlerContext ctx) {
         ctx.pipeline().addLast(new HttpServerCodec());

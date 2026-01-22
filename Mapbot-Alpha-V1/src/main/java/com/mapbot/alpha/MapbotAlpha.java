@@ -1,5 +1,6 @@
 package com.mapbot.alpha;
 
+import com.mapbot.alpha.bridge.BridgeServer;
 import com.mapbot.alpha.network.OneBotClient;
 import com.mapbot.alpha.network.ProtocolDetector;
 import com.mapbot.alpha.process.ProcessManager;
@@ -24,12 +25,15 @@ public class MapbotAlpha {
         LOGGER.info("[SYSTEM] Mapbot Alpha V1 正在启动...");
         
         // 1. 启动 OneBot 客户端
-        OneBotClient.INSTANCE.connect("ws://127.0.0.1:8080");
+        OneBotClient.INSTANCE.connect("ws://127.0.0.1:3000");
 
         // 2. 启动 MC 服务器进程 (异步)
         ProcessManager.INSTANCE.startServer("./MapBot_Reforged/run", "java -Xmx2G -jar ../build/libs/mapbot-5.0.0-REF.jar nogui");
 
-        // 3. 启动 Netty 分流服务器 (主线程阻塞)
+        // 3. 启动 Bridge 服务器 (接收 MC 服务器 Bridge Mod 连接)
+        BridgeServer.INSTANCE.start(25561);
+
+        // 4. 启动 Netty 分流服务器 (主线程阻塞)
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         

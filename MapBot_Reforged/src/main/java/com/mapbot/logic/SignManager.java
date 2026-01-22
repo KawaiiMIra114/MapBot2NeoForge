@@ -131,7 +131,7 @@ public class SignManager {
         try {
             // 解析物品 ID
             net.minecraft.resources.ResourceLocation id = net.minecraft.resources.ResourceLocation.parse(item.id);
-            net.minecraft.world.item.Item mcItem = net.neoforged.neoforge.registries.NeoforgeRegistries.ITEMS.getValue(id);
+            net.minecraft.world.item.Item mcItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
             
             if (mcItem == null || mcItem == net.minecraft.world.item.Items.AIR) {
                 LOGGER.error("未知物品ID: {}", item.id);

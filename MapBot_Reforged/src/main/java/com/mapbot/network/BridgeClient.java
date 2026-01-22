@@ -144,6 +144,9 @@ public class BridgeClient {
                 case "command":
                     handleCommand(msg);
                     break;
+                case "qq_message":
+                    handleQQMessage(msg);
+                    break;
                 case "file_list":
                 case "file_read":
                 case "file_write":
@@ -162,6 +165,32 @@ public class BridgeClient {
         String cmd = extractJsonValue(msg, "cmd");
         LOGGER.info("[Bridge] 收到指令: {}", cmd);
         // TODO: 在游戏线程中执行指令
+    }
+    
+    /**
+     * 处理来自 Alpha 的 QQ 消息，广播到游戏内
+     * STEP 12: QQ -> MC 消息流转
+     */
+    private void handleQQMessage(String msg) {
+        String sender = extractJsonValue(msg, "sender");
+        String content = extractJsonValue(msg, "content");
+        
+        if (sender.isEmpty() || content.isEmpty()) return;
+        
+        String formattedMsg = String.format("[QQ] %s: %s", sender, content);
+        LOGGER.info("[QQ->MC] {}", formattedMsg);
+        
+        // 在主服务器线程中广播消息
+        net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer().execute(() -> {
+            net.minecraft.server.MinecraftServer server = 
+                net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+            if (server != null) {
+                server.getPlayerList().broadcastSystemMessage(
+                    net.minecraft.network.chat.Component.literal(formattedMsg), 
+                    false
+                );
+            }
+        });
     }
     
     private void handleFileRequest(String msg) {
@@ -287,6 +316,16 @@ public class BridgeClient {
      */
     public void sendEvent(String event, String data) {
         String msg = String.format("{\"type\":\"event\",\"event\":\"%s\",\"data\":%s}", event, data);
+        send(msg);
+    }
+    
+    /**
+     * 发送聊天消息到 Alpha Core
+     * STEP 12: MC -> Alpha -> QQ
+     */
+    public void sendChat(String player, String content) {
+        String msg = String.format("{\"type\":\"chat\",\"player\":\"%s\",\"content\":\"%s\"}", 
+                escapeJson(player), escapeJson(content));
         send(msg);
     }
     

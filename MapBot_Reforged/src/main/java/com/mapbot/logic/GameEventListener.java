@@ -15,7 +15,7 @@ package com.mapbot.logic;
 import com.mapbot.MapBot;
 import com.mapbot.config.BotConfig;
 import com.mapbot.data.PlaytimeManager;
-import com.mapbot.network.BotClient;
+import com.mapbot.network.BridgeClient;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -170,7 +170,8 @@ public class GameEventListener {
         String formattedMessage = String.format("[%s] %s", playerName, message);
         
         LOGGER.debug("转发聊天消息: {}", formattedMessage);
-        BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
+        // STEP 12: 通过 Bridge 发送到 Alpha Core，再由 Alpha 转发到 QQ
+        BridgeClient.INSTANCE.sendChat(playerName, message);
     }
 
     /**
@@ -194,7 +195,8 @@ public class GameEventListener {
         String formattedMessage = String.format("[+] %s 加入了服务器", playerName);
         
         LOGGER.info("玩家加入: {}", playerName);
-        BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
+        // STEP 12: 通过 Bridge 发送到 Alpha Core
+        BridgeClient.INSTANCE.sendChat("系统", formattedMessage);
         
         // Task #016-STEP2: 记录登录时间
         PlaytimeManager.INSTANCE.onPlayerLogin(player.getUUID());
@@ -221,7 +223,8 @@ public class GameEventListener {
         String formattedMessage = String.format("[-] %s 离开了服务器", playerName);
         
         LOGGER.info("玩家离开: {}", playerName);
-        BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
+        // STEP 12: 通过 Bridge 发送到 Alpha Core
+        BridgeClient.INSTANCE.sendChat("系统", formattedMessage);
         
         // Task #016-STEP2: 计算并保存在线时长
         PlaytimeManager.INSTANCE.onPlayerLogout(player.getUUID());
@@ -253,6 +256,7 @@ public class GameEventListener {
         String formattedMessage = String.format("[☠️] %s", deathMessage);
         
         LOGGER.info("玩家死亡: {}", deathMessage);
-        BotClient.INSTANCE.sendGroupMessage(groupId, formattedMessage);
+        // STEP 12: 通过 Bridge 发送到 Alpha Core
+        BridgeClient.INSTANCE.sendChat("系统", formattedMessage);
     }
 }

@@ -1,18 +1,6 @@
 package com.mapbot.command;
 
 import com.mapbot.data.DataManager;
-import com.mapbot.event.MapBotSignInEvent;
-import com.mapbot.logic.InboundHandler;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
-
-import java.util.UUID;
-
-package com.mapbot.command;
-
-import com.mapbot.data.DataManager;
 import com.mapbot.data.loot.LootConfig;
 import com.mapbot.logic.InboundHandler;
 import com.mapbot.logic.SignManager;
