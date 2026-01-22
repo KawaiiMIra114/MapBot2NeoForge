@@ -174,6 +174,12 @@ public class BridgeClient {
                 case "broadcast":
                     handleBroadcast(msg);
                     break;
+                case "get_playtime":
+                    handleGetPlaytime(msg);
+                    break;
+                case "get_cdk":
+                    handleGetCdk(msg);
+                    break;
                 case "file_list":
                 case "file_read":
                 case "file_write":
@@ -243,7 +249,8 @@ public class BridgeClient {
         }
         
         // 获取 TPS 和内存
-        String tps = com.mapbot.logic.ServerStatusManager.getCurrentTpsFormatted();
+        double tps = com.mapbot.logic.ServerStatusManager.getCurrentTPS();
+        String tpsStr = String.format("%.1f", tps);
         Runtime rt = Runtime.getRuntime();
         long usedMB = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
         long maxMB = rt.maxMemory() / 1024 / 1024;
@@ -252,7 +259,7 @@ public class BridgeClient {
         String result = String.format(
             "[状态] %s\n在线: %d 人\nTPS: %s\n内存: %dMB / %dMB",
             com.mapbot.config.BotConfig.getServerId(),
-            playerCount, tps, usedMB, maxMB
+            playerCount, tpsStr, usedMB, maxMB
         );
         sendProxyResponse(requestId, result);
     }
@@ -353,7 +360,7 @@ public class BridgeClient {
         
         try {
             long qq = Long.parseLong(qqStr);
-            boolean success = com.mapbot.logic.SignManager.INSTANCE.acceptRewardOnline(qq);
+            boolean success = com.mapbot.logic.SignManager.INSTANCE.claimOnline(qq);
             
             sendProxyResponse(requestId, success ? "[领取成功] 物品已发放到背包" : "[领取失败] 无待领取奖励或玩家离线");
             
@@ -380,7 +387,7 @@ public class BridgeClient {
             return;
         }
         
-        String result = com.mapbot.logic.InventoryManager.formatInventory(player);
+        String result = com.mapbot.logic.InventoryManager.getPlayerInventory(player);
         sendProxyResponse(requestId, result);
     }
     
@@ -447,6 +454,67 @@ public class BridgeClient {
         }
         
         sendProxyResponse(requestId, "OK");
+    }
+    
+    private void handleGetPlaytime(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String playerName = extractJsonValue(msg, "arg1");
+        String modeStr = extractJsonValue(msg, "arg2");
+        
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendProxyResponse(requestId, "[错误] 服务器未就绪");
+            return;
+        }
+        
+        int mode = 0;
+        try {
+            mode = Integer.parseInt(modeStr);
+        } catch (Exception ignored) {}
+        
+        final int finalMode = mode;
+        server.execute(() -> {
+            java.util.UUID uuid = server.getProfileCache().get(playerName)
+                    .map(com.mojang.authlib.GameProfile::getId)
+                    .orElse(null);
+            
+            if (uuid == null) {
+                sendProxyResponse(requestId, "[错误] 玩家不存在: " + playerName);
+                return;
+            }
+            
+            long mins = com.mapbot.data.PlaytimeManager.INSTANCE.getPlaytimeMinutes(uuid, finalMode);
+            String time = com.mapbot.data.PlaytimeManager.formatDuration(mins);
+            String[] periods = {"日", "周", "月", "总"};
+            String period = (finalMode >= 0 && finalMode < periods.length) ? periods[finalMode] : "总";
+            
+            sendProxyResponse(requestId, String.format("[在线时长] %s (%s)\n时长: %s", playerName, period, time));
+        });
+    }
+    
+    private void handleGetCdk(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String qqStr = extractJsonValue(msg, "arg1");
+        
+        try {
+            long qq = Long.parseLong(qqStr);
+            
+            if (!com.mapbot.logic.SignManager.INSTANCE.hasPendingReward(qq)) {
+                sendProxyResponse(requestId, "[提示] 您没有待领取的奖励，请先 #sign");
+                return;
+            }
+            
+            String code = com.mapbot.logic.SignManager.INSTANCE.generateCdk(qq);
+            if (code != null) {
+                sendProxyResponse(requestId, String.format("[兑换码] %s\n进服输入: /mapbot cdk %s", code, code));
+            } else {
+                sendProxyResponse(requestId, "[错误] 生成兑换码失败");
+            }
+        } catch (Exception e) {
+            sendProxyResponse(requestId, "[错误] " + e.getMessage());
+        }
     }
     
     /**

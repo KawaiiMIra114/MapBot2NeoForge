@@ -47,6 +47,8 @@ public class InboundHandler {
         CommandRegistry.register("removeadmin", new RemoveAdminCommand());
         CommandRegistry.register("reload", new ReloadCommand());
         CommandRegistry.register("adminunbind", new ForceUnbindCommand());
+        CommandRegistry.register("playtime", new PlaytimeCommand());
+        CommandRegistry.register("cdk", new CdkCommand());
         
         // 别名
         CommandRegistry.registerAlias("菜单", "help");
@@ -62,6 +64,8 @@ public class InboundHandler {
         CommandRegistry.registerAlias("禁言", "mute");
         CommandRegistry.registerAlias("解禁", "unmute");
         CommandRegistry.registerAlias("强制解绑", "adminunbind");
+        CommandRegistry.registerAlias("在线时长", "playtime");
+        CommandRegistry.registerAlias("兑换码", "cdk");
         
         LOGGER.info("命令系统初始化完成: {} 个命令", CommandRegistry.getCommands().size());
     }

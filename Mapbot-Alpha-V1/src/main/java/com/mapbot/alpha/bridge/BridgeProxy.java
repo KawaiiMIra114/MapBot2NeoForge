@@ -138,6 +138,28 @@ public class BridgeProxy {
     }
     
     /**
+     * 获取在线时长
+     */
+    public String getPlaytime(String playerName, int mode) {
+        String result = sendRequest("get_playtime", playerName, String.valueOf(mode));
+        if (result == null) {
+            return "[错误] 无法获取在线时长";
+        }
+        return result;
+    }
+    
+    /**
+     * 获取 CDK 兑换码
+     */
+    public String getCdk(long senderQQ) {
+        String result = sendRequest("get_cdk", String.valueOf(senderQQ), null);
+        if (result == null) {
+            return "[错误] 获取兑换码失败";
+        }
+        return result;
+    }
+    
+    /**
      * 发送请求到第一个可用的服务器
      */
     private String sendRequest(String action, String arg1, String arg2) {
