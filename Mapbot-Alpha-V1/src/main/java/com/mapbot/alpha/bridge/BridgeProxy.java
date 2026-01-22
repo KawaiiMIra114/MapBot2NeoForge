@@ -102,17 +102,6 @@ public class BridgeProxy {
     }
     
     /**
-     * 给予物品
-     */
-    public String giveItem(String playerName, String itemId, int count) {
-        String result = sendRequest("give_item", playerName, itemId + ":" + count);
-        if (result == null) {
-            return "[错误] 给予物品失败";
-        }
-        return result;
-    }
-    
-    /**
      * 执行游戏指令
      */
     public String executeCommand(String command) {

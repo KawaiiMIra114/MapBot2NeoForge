@@ -2,7 +2,6 @@ package com.mapbot.alpha.command.impl;
 
 import com.mapbot.alpha.bridge.BridgeProxy;
 import com.mapbot.alpha.command.ICommand;
-import com.mapbot.alpha.config.AlphaConfig;
 
 /**
  * 背包查询命令
