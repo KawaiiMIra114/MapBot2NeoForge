@@ -1,125 +1,116 @@
 package com.mapbot.alpha.command;
 
+import com.mapbot.alpha.config.AlphaConfig;
+import com.mapbot.alpha.data.DataManager;
+import com.mapbot.alpha.network.OneBotClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
-import java.util.function.BiConsumer;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * 指令注册表
- * STEP 6: 指令系统
+ * 命令注册中心
+ * 从 Reforged 移植到 Alpha Core
  */
 public class CommandRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger("Mapbot/Command");
-    public static final CommandRegistry INSTANCE = new CommandRegistry();
     
-    private final Map<String, CommandInfo> commands = new LinkedHashMap<>();
+    private static final Map<String, ICommand> commands = new HashMap<>();
+    private static final Map<String, String> aliases = new HashMap<>();
     
-    public CommandRegistry() {
-        registerBuiltinCommands();
+    /**
+     * 注册命令
+     */
+    public static void register(String name, ICommand cmd) {
+        commands.put(name.toLowerCase(), cmd);
+        LOGGER.debug("注册命令: #{}", name);
     }
     
-    private void registerBuiltinCommands() {
-        // 帮助指令
-        register("help", "显示所有可用指令", (args, ctx) -> {
-            StringBuilder sb = new StringBuilder("可用指令:\n");
-            for (CommandInfo cmd : commands.values()) {
-                sb.append("  /").append(cmd.name).append(" - ").append(cmd.description).append("\n");
-            }
-            ctx.reply(sb.toString());
-        });
-        
-        // 状态指令
-        register("status", "显示系统状态", (args, ctx) -> {
-            StringBuilder sb = new StringBuilder();
-            sb.append("=== MapBot Alpha 状态 ===\n");
-            sb.append("MC 进程: ").append(com.mapbot.alpha.process.ProcessManager.INSTANCE.isRunning() ? "运行中" : "未启动").append("\n");
-            sb.append("WS 连接数: ").append(com.mapbot.alpha.network.LogWebSocketHandler.getConnectionCount()).append("\n");
-            sb.append("Bridge 连接数: ").append(com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.getServerCount()).append("\n");
-            ctx.reply(sb.toString());
-        });
-        
-        // 服务器列表
-        register("servers", "列出所有已连接的服务器", (args, ctx) -> {
-            var servers = com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.getAllServers();
-            if (servers.isEmpty()) {
-                ctx.reply("没有已连接的服务器");
-                return;
-            }
-            StringBuilder sb = new StringBuilder("已连接的服务器:\n");
-            for (var server : servers) {
-                sb.append("  - ").append(server.serverId)
-                  .append(" (").append(server.isOnline() ? "在线" : "离线").append(")\n");
-            }
-            ctx.reply(sb.toString());
-        });
-        
-        // 广播指令
-        register("say", "向所有服务器广播消息", (args, ctx) -> {
-            if (args.length == 0) {
-                ctx.reply("用法: /say <消息>");
-                return;
-            }
-            String message = String.join(" ", args);
-            String cmd = "say [Alpha] " + message;
-            com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.broadcast("{\"type\":\"command\",\"cmd\":\"" + cmd + "\"}");
-            ctx.reply("已广播: " + message);
-        });
-        
-        LOGGER.info("已注册 {} 个内置指令", commands.size());
+    /**
+     * 注册别名
+     */
+    public static void registerAlias(String alias, String target) {
+        aliases.put(alias.toLowerCase(), target.toLowerCase());
     }
     
-    public void register(String name, String description, BiConsumer<String[], CommandContext> handler) {
-        commands.put(name.toLowerCase(), new CommandInfo(name, description, handler));
-    }
-    
-    public boolean execute(String input, CommandContext ctx) {
-        if (input == null || input.isEmpty()) return false;
+    /**
+     * 分发命令
+     * @return true 如果命令存在并被处理
+     */
+    public static boolean dispatch(String cmdName, String args, long senderQQ, long sourceGroupId) {
+        String name = cmdName.toLowerCase();
         
-        // 移除开头的 /
-        if (input.startsWith("/")) {
-            input = input.substring(1);
+        // 解析别名
+        if (aliases.containsKey(name)) {
+            name = aliases.get(name);
         }
         
-        String[] parts = input.split("\\s+", 2);
-        String cmdName = parts[0].toLowerCase();
-        String[] args = parts.length > 1 ? parts[1].split("\\s+") : new String[0];
-        
-        CommandInfo cmd = commands.get(cmdName);
+        ICommand cmd = commands.get(name);
         if (cmd == null) {
-            ctx.reply("未知指令: " + cmdName + " (输入 /help 查看可用指令)");
             return false;
+        }
+        
+        // 权限检查: 管理群专属
+        if (cmd.adminGroupOnly() && sourceGroupId != AlphaConfig.getAdminGroupId()) {
+            sendReply(sourceGroupId, "[权限] 此命令仅限管理群使用");
+            return true;
+        }
+        
+        // 权限检查: 管理员
+        if (cmd.requiresAdmin() && !DataManager.INSTANCE.isAdmin(senderQQ)) {
+            sendReply(sourceGroupId, "[权限] 此命令需要管理员权限");
+            return true;
+        }
+        
+        // 权限检查: 等级
+        int userLevel = DataManager.INSTANCE.getPermission(senderQQ);
+        if (userLevel < cmd.requiredPermLevel()) {
+            sendReply(sourceGroupId, "[权限] 权限不足，需要等级 " + cmd.requiredPermLevel());
+            return true;
         }
         
         try {
-            cmd.handler.accept(args, ctx);
-            return true;
+            String result = cmd.execute(args, senderQQ, sourceGroupId);
+            if (result != null && !result.isEmpty()) {
+                sendReply(sourceGroupId, result);
+            }
         } catch (Exception e) {
-            LOGGER.error("执行指令失败: " + cmdName, e);
-            ctx.reply("指令执行失败: " + e.getMessage());
-            return false;
+            LOGGER.error("命令执行异常: #{} {}", name, args, e);
+            sendReply(sourceGroupId, "[错误] 命令执行失败: " + e.getMessage());
         }
-    }
-    
-    public Collection<CommandInfo> getAllCommands() {
-        return commands.values();
-    }
-    
-    public static class CommandInfo {
-        public final String name;
-        public final String description;
-        public final BiConsumer<String[], CommandContext> handler;
         
-        public CommandInfo(String name, String description, BiConsumer<String[], CommandContext> handler) {
-            this.name = name;
-            this.description = description;
-            this.handler = handler;
-        }
+        return true;
     }
     
-    public interface CommandContext {
-        void reply(String message);
-        String getSender();
+    /**
+     * 发送回复到 QQ 群
+     */
+    public static void sendReply(long groupId, String message) {
+        OneBotClient.INSTANCE.sendGroupMessage(groupId, message);
+    }
+    
+    /**
+     * 获取所有命令
+     */
+    public static Map<String, ICommand> getCommands() {
+        return commands;
+    }
+    
+    /**
+     * 获取命令帮助文本
+     */
+    public static String getHelpText() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== MapBot 命令帮助 ===\n");
+        for (Map.Entry<String, ICommand> e : commands.entrySet()) {
+            sb.append("#").append(e.getKey());
+            String help = e.getValue().getHelp();
+            if (help != null && !help.isEmpty()) {
+                sb.append(" - ").append(help);
+            }
+            sb.append("\n");
+        }
+        return sb.toString().trim();
     }
 }

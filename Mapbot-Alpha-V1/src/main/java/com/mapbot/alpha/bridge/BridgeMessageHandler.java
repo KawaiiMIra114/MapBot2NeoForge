@@ -1,6 +1,6 @@
 package com.mapbot.alpha.bridge;
 
-import io.netty.channel.Channel;
+import com.mapbot.alpha.config.AlphaConfig;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.timeout.IdleState;
@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Bridge 消息处理器
  * 处理来自 MC 服务端的消息
+ * STEP 13: 添加 proxy_response 处理
  */
 public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
     private static final Logger LOGGER = LoggerFactory.getLogger("Mapbot/Bridge/Handler");
@@ -27,7 +28,6 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         LOGGER.debug("收到 Bridge 消息: {}", msg);
         
         try {
-            // 简单 JSON 解析 (生产环境使用 Gson)
             String type = extractJsonValue(msg, "type");
             
             switch (type) {
@@ -49,6 +49,9 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
                 case "status_update":
                     handleStatusUpdate(msg);
                     break;
+                case "proxy_response":
+                    handleProxyResponse(msg);
+                    break;
                 default:
                     LOGGER.warn("未知消息类型: {}", type);
             }
@@ -61,17 +64,13 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         serverId = extractJsonValue(msg, "serverId");
         String version = extractJsonValue(msg, "version");
         
-        // 注册到服务器管理器
         ServerRegistry.INSTANCE.register(serverId, ctx.channel());
         
         LOGGER.info("服务器已注册: {} (版本: {})", serverId, version);
-        
-        // 回复确认
         ctx.writeAndFlush("{\"type\":\"register_ack\",\"success\":true}\n");
     }
     
     private void handleHeartbeat(ChannelHandlerContext ctx) {
-        // 更新最后活跃时间
         if (serverId != null) {
             ServerRegistry.INSTANCE.updateHeartbeat(serverId);
         }
@@ -80,17 +79,12 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
     
     private void handleEvent(ChannelHandlerContext ctx, String msg) {
         String event = extractJsonValue(msg, "event");
-        String data = msg; // 完整消息传递给事件处理器
-        
-        LOGGER.info("[{}] 事件: {} - {}", serverId, event, data);
-        
-        // 广播到 Web 控制台
+        LOGGER.info("[{}] 事件: {}", serverId, event);
         com.mapbot.alpha.network.LogWebSocketHandler.broadcast("[" + serverId + "] " + event);
     }
     
     /**
-     * 处理来自 MC 的聊天消息，转发到 QQ 群
-     * STEP 12: MC -> QQ 消息流转
+     * 处理来自 MC 的聊天消息 -> QQ 群
      */
     private void handleChat(String msg) {
         String player = extractJsonValue(msg, "player");
@@ -101,8 +95,9 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         String formattedMsg = String.format("[%s] %s: %s", serverId, player, content);
         LOGGER.info("[MC->QQ] {}", formattedMsg);
         
-        // 发送到 QQ 群
-        com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(formattedMsg);
+        // 发送到玩家群
+        long groupId = AlphaConfig.getPlayerGroupId();
+        com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(groupId, formattedMsg);
         
         // 广播到 Web 控制台
         com.mapbot.alpha.network.LogWebSocketHandler.broadcast(formattedMsg);
@@ -112,8 +107,6 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         String requestId = extractJsonValue(msg, "requestId");
         String content = extractJsonValue(msg, "content");
         String error = extractJsonValue(msg, "error");
-        
-        // 通过回调机制返回结果
         BridgeFileProxy.completeRequest(requestId, content, error);
     }
     
@@ -126,6 +119,18 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         
         ServerRegistry.INSTANCE.updateStatus(serverId, players, tps, memory);
     }
+    
+    /**
+     * 处理 Bridge 代理响应
+     * STEP 13: 用于命令执行结果返回
+     */
+    private void handleProxyResponse(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String result = extractJsonValue(msg, "result");
+        
+        // 传递给 BridgeProxy 完成请求
+        BridgeProxy.INSTANCE.completeRequest(requestId, result);
+    }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
@@ -137,8 +142,7 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
-        if (evt instanceof IdleStateEvent) {
-            IdleStateEvent e = (IdleStateEvent) evt;
+        if (evt instanceof IdleStateEvent e) {
             if (e.state() == IdleState.READER_IDLE) {
                 LOGGER.warn("Bridge 连接超时，断开: {}", serverId);
                 ctx.close();
@@ -156,7 +160,6 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         String search = "\"" + key + "\":\"";
         int start = json.indexOf(search);
         if (start == -1) {
-            // 尝试非字符串值
             search = "\"" + key + "\":";
             start = json.indexOf(search);
             if (start == -1) return "";
