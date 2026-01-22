@@ -304,17 +304,17 @@ public class BridgeClient {
                         whitelist.save();
                     }
                     
-                    sendProxyResponse(requestId, String.format("[绑定成功] %s", playerName));
+                    sendProxyResponse(requestId, "SUCCESS:" + uuid + ":" + playerName);
                     return;
                 }
-                sendProxyResponse(requestId, "[绑定失败] 玩家不存在");
+                sendProxyResponse(requestId, "FAIL:[绑定失败] 玩家不存在");
                 return;
             }
             
             String uuid = profile.get().getId().toString();
             
             if (com.mapbot.data.DataManager.INSTANCE.isUUIDBound(uuid)) {
-                sendProxyResponse(requestId, "[绑定失败] 该游戏ID已被其他QQ绑定");
+                sendProxyResponse(requestId, "FAIL:[绑定失败] 该游戏ID已被其他QQ绑定");
                 return;
             }
             
@@ -327,7 +327,7 @@ public class BridgeClient {
                 whitelist.save();
             }
             
-            sendProxyResponse(requestId, String.format("[绑定成功] %s", profile.get().getName()));
+            sendProxyResponse(requestId, "SUCCESS:" + uuid + ":" + profile.get().getName());
             
         } catch (Exception e) {
             LOGGER.error("绑定失败", e);

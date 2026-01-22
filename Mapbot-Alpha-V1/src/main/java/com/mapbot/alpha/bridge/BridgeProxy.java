@@ -5,6 +5,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.*;
 
+import com.mapbot.alpha.data.DataManager;
+
 /**
  * Bridge 代理
  * 用于 Alpha Core 向 MC 服务器发送请求并获取响应
@@ -50,6 +52,19 @@ public class BridgeProxy {
         if (result == null) {
             return "[错误] 服务器无响应";
         }
+        
+        if (result.startsWith("SUCCESS:")) {
+            String[] parts = result.split(":", 3);
+            if (parts.length >= 3) {
+                String uuid = parts[1];
+                String name = parts[2];
+                DataManager.INSTANCE.bind(senderQQ, uuid);
+                return "[绑定成功] " + name;
+            }
+        } else if (result.startsWith("FAIL:")) {
+            return result.substring(5);
+        }
+        
         return result;
     }
     
