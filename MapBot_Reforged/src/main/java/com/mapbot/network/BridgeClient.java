@@ -139,13 +139,40 @@ public class BridgeClient {
                     LOGGER.info("[Bridge] 注册确认收到");
                     break;
                 case "heartbeat_ack":
-                    // 心跳响应，静默处理
                     break;
                 case "command":
                     handleCommand(msg);
                     break;
                 case "qq_message":
                     handleQQMessage(msg);
+                    break;
+                // STEP 13: Alpha 代理请求
+                case "get_players":
+                    handleGetPlayers(msg);
+                    break;
+                case "get_status":
+                    handleGetStatus(msg);
+                    break;
+                case "bind_player":
+                    handleBindPlayer(msg);
+                    break;
+                case "sign_in":
+                    handleSignIn(msg);
+                    break;
+                case "accept_reward":
+                    handleAcceptReward(msg);
+                    break;
+                case "get_inventory":
+                    handleGetInventory(msg);
+                    break;
+                case "get_location":
+                    handleGetLocation(msg);
+                    break;
+                case "execute_command":
+                    handleExecuteCommand(msg);
+                    break;
+                case "broadcast":
+                    handleBroadcast(msg);
                     break;
                 case "file_list":
                 case "file_read":
@@ -163,8 +190,274 @@ public class BridgeClient {
     
     private void handleCommand(String msg) {
         String cmd = extractJsonValue(msg, "cmd");
+        String requestId = extractJsonValue(msg, "requestId");
         LOGGER.info("[Bridge] 收到指令: {}", cmd);
-        // TODO: 在游戏线程中执行指令
+        
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server != null) {
+            server.execute(() -> {
+                server.getCommands().performPrefixedCommand(
+                    server.createCommandSourceStack(), cmd);
+            });
+            sendProxyResponse(requestId, "指令已执行");
+        } else {
+            sendProxyResponse(requestId, "服务器未就绪");
+        }
+    }
+    
+    // ==================== STEP 13: Alpha 代理请求处理 ====================
+    
+    private void handleGetPlayers(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendProxyResponse(requestId, "[服务器] 未就绪");
+            return;
+        }
+        
+        var players = server.getPlayerList().getPlayers();
+        if (players.isEmpty()) {
+            sendProxyResponse(requestId, "[在线] 当前无玩家在线");
+            return;
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("[在线] ").append(players.size()).append(" 人\n");
+        for (var player : players) {
+            sb.append("• ").append(player.getName().getString()).append("\n");
+        }
+        sendProxyResponse(requestId, sb.toString().trim());
+    }
+    
+    private void handleGetStatus(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendProxyResponse(requestId, "[服务器] 未就绪");
+            return;
+        }
+        
+        // 获取 TPS 和内存
+        String tps = com.mapbot.logic.ServerStatusManager.getCurrentTpsFormatted();
+        Runtime rt = Runtime.getRuntime();
+        long usedMB = (rt.totalMemory() - rt.freeMemory()) / 1024 / 1024;
+        long maxMB = rt.maxMemory() / 1024 / 1024;
+        int playerCount = server.getPlayerList().getPlayers().size();
+        
+        String result = String.format(
+            "[状态] %s\n在线: %d 人\nTPS: %s\n内存: %dMB / %dMB",
+            com.mapbot.config.BotConfig.getServerId(),
+            playerCount, tps, usedMB, maxMB
+        );
+        sendProxyResponse(requestId, result);
+    }
+    
+    private void handleBindPlayer(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String playerName = extractJsonValue(msg, "arg1");
+        String qqStr = extractJsonValue(msg, "arg2");
+        
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendProxyResponse(requestId, "[错误] 服务器未就绪");
+            return;
+        }
+        
+        try {
+            long qq = Long.parseLong(qqStr);
+            
+            // 解析玩家 UUID
+            java.util.Optional<com.mojang.authlib.GameProfile> profile = 
+                server.getProfileCache().get(playerName);
+            
+            if (profile.isEmpty()) {
+                // 离线模式
+                if (!server.usesAuthentication()) {
+                    var uuid = net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(playerName);
+                    com.mapbot.data.DataManager.INSTANCE.bind(qq, uuid.toString());
+                    
+                    // 添加白名单
+                    var whitelist = server.getPlayerList().getWhiteList();
+                    var gp = new com.mojang.authlib.GameProfile(uuid, playerName);
+                    if (!whitelist.isWhiteListed(gp)) {
+                        whitelist.add(new net.minecraft.server.players.UserWhiteListEntry(gp));
+                        whitelist.save();
+                    }
+                    
+                    sendProxyResponse(requestId, String.format("[绑定成功] %s", playerName));
+                    return;
+                }
+                sendProxyResponse(requestId, "[绑定失败] 玩家不存在");
+                return;
+            }
+            
+            String uuid = profile.get().getId().toString();
+            
+            if (com.mapbot.data.DataManager.INSTANCE.isUUIDBound(uuid)) {
+                sendProxyResponse(requestId, "[绑定失败] 该游戏ID已被其他QQ绑定");
+                return;
+            }
+            
+            com.mapbot.data.DataManager.INSTANCE.bind(qq, uuid);
+            
+            // 添加白名单
+            var whitelist = server.getPlayerList().getWhiteList();
+            if (!whitelist.isWhiteListed(profile.get())) {
+                whitelist.add(new net.minecraft.server.players.UserWhiteListEntry(profile.get()));
+                whitelist.save();
+            }
+            
+            sendProxyResponse(requestId, String.format("[绑定成功] %s", profile.get().getName()));
+            
+        } catch (Exception e) {
+            LOGGER.error("绑定失败", e);
+            sendProxyResponse(requestId, "[错误] 绑定失败: " + e.getMessage());
+        }
+    }
+    
+    private void handleSignIn(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String qqStr = extractJsonValue(msg, "arg1");
+        
+        try {
+            long qq = Long.parseLong(qqStr);
+            var item = com.mapbot.logic.SignManager.INSTANCE.rollSignReward(qq);
+            
+            if (item == null) {
+                sendProxyResponse(requestId, "[错误] 奖池配置异常");
+                return;
+            }
+            
+            String result = String.format(
+                "[签到成功]\n物品: [%s] %s x%d\n%s\n请输入 #accept 领取",
+                item.rarity, item.name, item.count,
+                com.mapbot.data.loot.LootConfig.INSTANCE.getRarityMessage(item.rarity)
+            );
+            sendProxyResponse(requestId, result);
+            
+        } catch (Exception e) {
+            sendProxyResponse(requestId, "[错误] 签到失败: " + e.getMessage());
+        }
+    }
+    
+    private void handleAcceptReward(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String qqStr = extractJsonValue(msg, "arg1");
+        
+        try {
+            long qq = Long.parseLong(qqStr);
+            boolean success = com.mapbot.logic.SignManager.INSTANCE.acceptRewardOnline(qq);
+            
+            sendProxyResponse(requestId, success ? "[领取成功] 物品已发放到背包" : "[领取失败] 无待领取奖励或玩家离线");
+            
+        } catch (Exception e) {
+            sendProxyResponse(requestId, "[错误] 领取失败: " + e.getMessage());
+        }
+    }
+    
+    private void handleGetInventory(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String playerName = extractJsonValue(msg, "arg1");
+        
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendProxyResponse(requestId, "[错误] 服务器未就绪");
+            return;
+        }
+        
+        var player = server.getPlayerList().getPlayerByName(playerName);
+        if (player == null) {
+            sendProxyResponse(requestId, "[错误] 玩家不在线: " + playerName);
+            return;
+        }
+        
+        String result = com.mapbot.logic.InventoryManager.formatInventory(player);
+        sendProxyResponse(requestId, result);
+    }
+    
+    private void handleGetLocation(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String playerName = extractJsonValue(msg, "arg1");
+        
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendProxyResponse(requestId, "[错误] 服务器未就绪");
+            return;
+        }
+        
+        var player = server.getPlayerList().getPlayerByName(playerName);
+        if (player == null) {
+            sendProxyResponse(requestId, "[错误] 玩家不在线: " + playerName);
+            return;
+        }
+        
+        String world = player.level().dimension().location().toString();
+        int x = (int) player.getX();
+        int y = (int) player.getY();
+        int z = (int) player.getZ();
+        
+        String result = String.format("[位置] %s\n世界: %s\n坐标: %d, %d, %d", 
+            playerName, world, x, y, z);
+        sendProxyResponse(requestId, result);
+    }
+    
+    private void handleExecuteCommand(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String command = extractJsonValue(msg, "arg1");
+        
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        
+        if (server == null) {
+            sendProxyResponse(requestId, "[错误] 服务器未就绪");
+            return;
+        }
+        
+        server.execute(() -> {
+            server.getCommands().performPrefixedCommand(
+                server.createCommandSourceStack(), command);
+        });
+        
+        sendProxyResponse(requestId, "[成功] 指令已执行: " + command);
+    }
+    
+    private void handleBroadcast(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String message = extractJsonValue(msg, "arg1");
+        
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        
+        if (server != null) {
+            server.execute(() -> {
+                server.getPlayerList().broadcastSystemMessage(
+                    net.minecraft.network.chat.Component.literal(message), false);
+            });
+        }
+        
+        sendProxyResponse(requestId, "OK");
+    }
+    
+    /**
+     * 发送代理响应到 Alpha Core
+     */
+    private void sendProxyResponse(String requestId, String result) {
+        String response = String.format(
+            "{\"type\":\"proxy_response\",\"requestId\":\"%s\",\"result\":\"%s\"}",
+            requestId, escapeJson(result)
+        );
+        send(response);
     }
     
     /**
