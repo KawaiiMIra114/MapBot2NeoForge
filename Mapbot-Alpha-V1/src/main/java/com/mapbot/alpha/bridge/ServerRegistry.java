@@ -71,6 +71,34 @@ public class ServerRegistry {
     }
     
     /**
+     * 更新服务器状态
+     */
+    public void updateStatus(String serverId, String players, String tps, String memory) {
+        ServerInfo info = servers.get(serverId);
+        if (info != null) {
+            info.players = players;
+            info.tps = tps;
+            info.memory = memory;
+            info.lastHeartbeat = System.currentTimeMillis();
+        }
+    }
+    
+    /**
+     * 获取服务器列表 JSON
+     */
+    public String toJson() {
+        StringBuilder sb = new StringBuilder("[");
+        boolean first = true;
+        for (ServerInfo info : servers.values()) {
+            if (!first) sb.append(",");
+            first = false;
+            sb.append(info.toJson());
+        }
+        sb.append("]");
+        return sb.toString();
+    }
+    
+    /**
      * 服务器信息
      */
     public static class ServerInfo {
@@ -78,6 +106,9 @@ public class ServerRegistry {
         public final Channel channel;
         public final long connectedAt;
         public long lastHeartbeat;
+        public String players = "0";
+        public String tps = "20.0";
+        public String memory = "0MB";
         
         public ServerInfo(String serverId, Channel channel) {
             this.serverId = serverId;
@@ -88,6 +119,19 @@ public class ServerRegistry {
         
         public boolean isOnline() {
             return channel.isActive();
+        }
+        
+        public long getUptimeMs() {
+            return System.currentTimeMillis() - connectedAt;
+        }
+        
+        public String toJson() {
+            return "{\"id\":\"" + serverId + "\"," +
+                   "\"online\":" + isOnline() + "," +
+                   "\"players\":\"" + players + "\"," +
+                   "\"tps\":\"" + tps + "\"," +
+                   "\"memory\":\"" + memory + "\"," +
+                   "\"uptime\":" + getUptimeMs() + "}";
         }
     }
 }

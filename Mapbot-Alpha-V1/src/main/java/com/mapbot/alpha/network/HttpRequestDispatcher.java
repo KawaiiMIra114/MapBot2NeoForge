@@ -30,6 +30,17 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         
         // API 请求
         if (uri.startsWith("/api/")) {
+            // 服务器列表 API (STEP 10)
+            if (uri.equals("/api/servers")) {
+                sendJson(ctx, com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.toJson());
+                return;
+            }
+            // 跨服文件 API (STEP 9)
+            if (uri.startsWith("/api/remote/")) {
+                RemoteFileApiHandler.handle(ctx, req);
+                return;
+            }
+            // 本地文件 API (STEP 8)
             FileApiHandler.handle(ctx, req);
             return;
         }
@@ -101,6 +112,17 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
 
     private void sendError(ChannelHandlerContext ctx, HttpResponseStatus status) {
         FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status);
+        ctx.writeAndFlush(response);
+    }
+    
+    private void sendJson(ChannelHandlerContext ctx, String json) {
+        byte[] bytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        FullHttpResponse response = new DefaultFullHttpResponse(
+                HttpVersion.HTTP_1_1, HttpResponseStatus.OK, 
+                io.netty.buffer.Unpooled.wrappedBuffer(bytes));
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json; charset=UTF-8");
+        response.headers().set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
+        HttpUtil.setContentLength(response, bytes.length);
         ctx.writeAndFlush(response);
     }
 }

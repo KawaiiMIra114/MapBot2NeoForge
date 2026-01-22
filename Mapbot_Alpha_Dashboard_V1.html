@@ -458,12 +458,22 @@
 
         async function refreshFiles() {
             try {
-                const res = await fetch('/api/files/list?path=' + encodeURIComponent(currentPath));
+                // 根据选择的服务器决定 API 端点
+                const apiBase = currentServerId ? '/api/remote/' + currentServerId + '/files' : '/api/files';
+                const res = await fetch(apiBase + '/list?path=' + encodeURIComponent(currentPath));
                 const files = await res.json();
 
-                document.getElementById('current-path').textContent = '/' + currentPath;
+                const pathPrefix = currentServerId ? '[' + currentServerId + '] /' : '/';
+                document.getElementById('current-path').textContent = pathPrefix + currentPath;
 
                 let html = '';
+                // 添加返回本地按钮 (如果在远程模式)
+                if (currentServerId) {
+                    html += '<div class="file-item flex items-center gap-3 p-3 rounded-xl cursor-pointer bg-primary/10 mb-2" onclick="switchToLocal()">';
+                    html += '<span class="material-symbols-outlined text-primary">home</span>';
+                    html += '<span class="text-sm font-bold text-primary">返回本地</span>';
+                    html += '</div>';
+                }
                 files.forEach(f => {
                     const icon = f.isDir ? 'folder' : 'description';
                     html += '<div class="file-item flex items-center gap-3 p-3 rounded-xl cursor-pointer" onclick="' + (f.isDir ? 'openDir(\'' + f.name + '\')' : 'openFile(\'' + f.name + '\')') + '">';
@@ -474,8 +484,15 @@
                 });
                 document.getElementById('file-list').innerHTML = html || '<p class="text-center text-gray-500 py-8">空目录</p>';
             } catch (e) {
-                document.getElementById('file-list').innerHTML = '<p class="text-center text-red-400 py-8">加载失败</p>';
+                document.getElementById('file-list').innerHTML = '<p class="text-center text-red-400 py-8">加载失败: ' + e.message + '</p>';
             }
+        }
+
+        function switchToLocal() {
+            currentServerId = null;
+            currentPath = '';
+            refreshFiles();
+            appendLog('[SYSTEM] 已切换到本地文件');
         }
 
         function openDir(name) {
@@ -521,6 +538,74 @@
             if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
             return (bytes / 1024 / 1024).toFixed(1) + ' MB';
         }
+
+        // === Server Management (STEP 10) ===
+        let currentServerId = null; // null = 本地, 'xxx' = 远程服务器
+
+        async function refreshServers() {
+            try {
+                const res = await fetch('/api/servers');
+                const servers = await res.json();
+
+                document.getElementById('server-count').textContent = servers.length;
+                document.getElementById('bridge-count').textContent = servers.length;
+
+                if (servers.length === 0) {
+                    document.getElementById('server-list').innerHTML = `
+                        <div class="glass-card text-center py-8">
+                            <span class="material-symbols-outlined text-4xl text-white/20">cloud_off</span>
+                            <p class="text-txt-sub mt-2">暂无连接的服务器</p>
+                            <p class="text-xs text-gray-500 mt-1">等待 Bridge Mod 连接...</p>
+                        </div>`;
+                    return;
+                }
+
+                let html = '';
+                servers.forEach(s => {
+                    const uptime = formatUptime(s.uptime);
+                    html += `
+                        <div class="glass-card hover:border-primary/50 transition-colors cursor-pointer" onclick="selectServer('${s.id}')">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-primary">dns</span>
+                                    <span class="font-bold">${s.id}</span>
+                                </div>
+                                <span class="flex h-2 w-2 rounded-full ${s.online ? 'bg-green-500 animate-pulse' : 'bg-red-500'}"></span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2 text-sm">
+                                <div><span class="text-txt-sub">玩家</span><br><span class="font-bold">${s.players}</span></div>
+                                <div><span class="text-txt-sub">TPS</span><br><span class="font-bold">${s.tps}</span></div>
+                                <div><span class="text-txt-sub">内存</span><br><span class="font-bold">${s.memory}</span></div>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-3">运行时间: ${uptime}</div>
+                        </div>`;
+                });
+                document.getElementById('server-list').innerHTML = html;
+            } catch (e) {
+                console.error('刷新服务器列表失败', e);
+            }
+        }
+
+        function selectServer(serverId) {
+            currentServerId = serverId;
+            appendLog('[SYSTEM] 已选择服务器: ' + serverId);
+            switchTab('files');
+            currentPath = '';
+            refreshFiles();
+        }
+
+        function formatUptime(ms) {
+            const sec = Math.floor(ms / 1000);
+            const min = Math.floor(sec / 60);
+            const hour = Math.floor(min / 60);
+            const day = Math.floor(hour / 24);
+            if (day > 0) return day + '天 ' + (hour % 24) + '小时';
+            if (hour > 0) return hour + '小时 ' + (min % 60) + '分钟';
+            return min + '分钟';
+        }
+
+        // 定时刷新服务器列表
+        setInterval(refreshServers, 5000);
     </script>
 </body>
 

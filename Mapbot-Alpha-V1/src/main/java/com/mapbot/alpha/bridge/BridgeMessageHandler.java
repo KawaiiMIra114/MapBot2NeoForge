@@ -40,6 +40,12 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
                 case "event":
                     handleEvent(ctx, msg);
                     break;
+                case "file_response":
+                    handleFileResponse(msg);
+                    break;
+                case "status_update":
+                    handleStatusUpdate(msg);
+                    break;
                 default:
                     LOGGER.warn("未知消息类型: {}", type);
             }
@@ -75,7 +81,27 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         
         LOGGER.info("[{}] 事件: {} - {}", serverId, event, data);
         
-        // TODO: 转发给 OneBot / Web 控制台
+        // 广播到 Web 控制台
+        com.mapbot.alpha.network.LogWebSocketHandler.broadcast("[" + serverId + "] " + event);
+    }
+    
+    private void handleFileResponse(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String content = extractJsonValue(msg, "content");
+        String error = extractJsonValue(msg, "error");
+        
+        // 通过回调机制返回结果
+        BridgeFileProxy.completeRequest(requestId, content, error);
+    }
+    
+    private void handleStatusUpdate(String msg) {
+        if (serverId == null) return;
+        
+        String players = extractJsonValue(msg, "players");
+        String tps = extractJsonValue(msg, "tps");
+        String memory = extractJsonValue(msg, "memory");
+        
+        ServerRegistry.INSTANCE.updateStatus(serverId, players, tps, memory);
     }
 
     @Override
