@@ -45,6 +45,8 @@ public class InboundHandler {
         CommandRegistry.register("myperm", new MyPermCommand());
         CommandRegistry.register("addadmin", new AddAdminCommand());
         CommandRegistry.register("removeadmin", new RemoveAdminCommand());
+        CommandRegistry.register("reload", new ReloadCommand());
+        CommandRegistry.register("adminunbind", new ForceUnbindCommand());
         
         // 别名
         CommandRegistry.registerAlias("菜单", "help");
@@ -59,6 +61,7 @@ public class InboundHandler {
         CommandRegistry.registerAlias("位置", "location");
         CommandRegistry.registerAlias("禁言", "mute");
         CommandRegistry.registerAlias("解禁", "unmute");
+        CommandRegistry.registerAlias("强制解绑", "adminunbind");
         
         LOGGER.info("命令系统初始化完成: {} 个命令", CommandRegistry.getCommands().size());
     }

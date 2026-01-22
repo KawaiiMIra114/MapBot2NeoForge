@@ -86,4 +86,14 @@ public class AlphaConfig {
     // Setters
     public void setPlayerGroupId(long id) { this.playerGroupId = id; save(); }
     public void setAdminGroupId(long id) { this.adminGroupId = id; save(); }
+    public void setWsUrl(String url) { this.wsUrl = url; save(); }
+    public void setBotQQ(long qq) { this.botQQ = qq; save(); }
+    
+    /**
+     * 重新加载配置
+     */
+    public void reload() {
+        load();
+        LOGGER.info("配置已重新加载");
+    }
 }
