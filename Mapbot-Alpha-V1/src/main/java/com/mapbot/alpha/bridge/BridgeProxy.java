@@ -160,6 +160,56 @@ public class BridgeProxy {
     }
     
     /**
+     * 关闭服务器 (异步)
+     */
+    public static CompletableFuture<String> stopServer(int countdown) {
+        return sendRequestAsync("stop_server", String.valueOf(countdown), null);
+    }
+    
+    /**
+     * 取消关服 (异步)
+     */
+    public static CompletableFuture<String> cancelStop() {
+        return sendRequestAsync("cancel_stop", null, null);
+    }
+    
+    /**
+     * 异步发送请求
+     */
+    private static CompletableFuture<String> sendRequestAsync(String action, String arg1, String arg2) {
+        var servers = ServerRegistry.INSTANCE.getAllServers();
+        if (servers.isEmpty()) {
+            LOGGER.warn("无可用服务器");
+            return CompletableFuture.completedFuture("[错误] 无可用服务器");
+        }
+        
+        ServerRegistry.ServerInfo server = servers.iterator().next();
+        String requestId = action + "_" + System.currentTimeMillis();
+        
+        CompletableFuture<String> future = new CompletableFuture<>();
+        INSTANCE.pendingRequests.put(requestId, future);
+        
+        StringBuilder json = new StringBuilder();
+        json.append("{\"type\":\"").append(action).append("\"");
+        json.append(",\"requestId\":\"").append(requestId).append("\"");
+        if (arg1 != null) {
+            json.append(",\"arg1\":\"").append(INSTANCE.escapeJson(arg1)).append("\"");
+        }
+        if (arg2 != null) {
+            json.append(",\"arg2\":\"").append(INSTANCE.escapeJson(arg2)).append("\"");
+        }
+        json.append("}");
+        
+        server.channel.writeAndFlush(json.toString() + "\n");
+        
+        return future.orTimeout(TIMEOUT, TimeUnit.SECONDS)
+            .exceptionally(e -> {
+                INSTANCE.pendingRequests.remove(requestId);
+                return "[错误] 请求超时";
+            });
+    }
+    
+    /**
      * 发送请求到第一个可用的服务器
      */
     private String sendRequest(String action, String arg1, String arg2) {

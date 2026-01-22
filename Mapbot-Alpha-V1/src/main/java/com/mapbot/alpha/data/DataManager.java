@@ -17,6 +17,11 @@ public class DataManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("Mapbot/Data");
     public static final DataManager INSTANCE = new DataManager();
     
+    // 权限等级常量
+    public static final int PERMISSION_LEVEL_USER = 0;
+    public static final int PERMISSION_LEVEL_VIP = 1;
+    public static final int PERMISSION_LEVEL_ADMIN = 2;
+    
     private final Path dataDir = Paths.get("data");
     
     // QQ -> UUID 绑定

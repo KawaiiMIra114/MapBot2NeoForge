@@ -180,6 +180,12 @@ public class BridgeClient {
                 case "get_cdk":
                     handleGetCdk(msg);
                     break;
+                case "stop_server":
+                    handleStopServer(msg);
+                    break;
+                case "cancel_stop":
+                    handleCancelStop(msg);
+                    break;
                 case "file_list":
                 case "file_read":
                 case "file_write":
@@ -515,6 +521,68 @@ public class BridgeClient {
         } catch (Exception e) {
             sendProxyResponse(requestId, "[错误] " + e.getMessage());
         }
+    }
+    
+    private void handleStopServer(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String countdownStr = extractJsonValue(msg, "arg1");
+        
+        net.minecraft.server.MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            sendProxyResponse(requestId, "[错误] 服务器未就绪");
+            return;
+        }
+        
+        int countdown = 0;
+        try {
+            countdown = Integer.parseInt(countdownStr);
+        } catch (Exception ignored) {}
+        
+        if (countdown == 0) {
+            sendProxyResponse(requestId, "[系统] 正在立即关闭服务器...");
+            LOGGER.warn("收到立即关服指令");
+            server.execute(() -> server.halt(false));
+        } else {
+            final int seconds = countdown;
+            com.mapbot.logic.ServerStatusManager.setStopCancelled(false);
+            sendProxyResponse(requestId, String.format("[系统] 服务器将在 %d 秒后关闭", seconds));
+            LOGGER.warn("收到倒计时关服指令: {}s", seconds);
+            
+            new Thread(() -> {
+                try {
+                    int remaining = seconds;
+                    while (remaining > 0) {
+                        if (com.mapbot.logic.ServerStatusManager.isStopCancelled()) {
+                            return;
+                        }
+                        
+                        if (remaining <= 10 || remaining == 30 || remaining == 60) {
+                            final int r = remaining;
+                            server.execute(() -> {
+                                server.getPlayerList().getPlayers().forEach(p -> 
+                                    p.sendSystemMessage(net.minecraft.network.chat.Component.literal("§c[警告] 服务器将在 " + r + " 秒后关闭"))
+                                );
+                            });
+                        }
+                        
+                        Thread.sleep(1000);
+                        remaining--;
+                    }
+                    
+                    if (!com.mapbot.logic.ServerStatusManager.isStopCancelled()) {
+                        server.execute(() -> server.halt(false));
+                    }
+                } catch (InterruptedException e) {
+                    LOGGER.error("关服线程中断", e);
+                }
+            }, "MapBot-StopCountdown").start();
+        }
+    }
+    
+    private void handleCancelStop(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        com.mapbot.logic.ServerStatusManager.setStopCancelled(true);
+        sendProxyResponse(requestId, "[系统] 已发送取消请求");
     }
     
     /**
