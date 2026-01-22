@@ -115,8 +115,11 @@ public class MapBot {
             LOGGER.info("目标群号: {}", groupId);
         }
 
-        // 启动 WebSocket 连接
+        // 启动 WebSocket 连接 (OneBot)
         BotClient.INSTANCE.connect();
+        
+        // 启动 Alpha Core Bridge 连接 (STEP 11)
+        com.mapbot.network.BridgeClient.INSTANCE.connect();
     }
     
     /**
@@ -167,6 +170,9 @@ public class MapBot {
                 Thread.currentThread().interrupt();
             }
         }
+        
+        // 断开 Alpha Core Bridge 连接 (STEP 11)
+        com.mapbot.network.BridgeClient.INSTANCE.disconnect();
         
         BotClient.INSTANCE.disconnect();
     }

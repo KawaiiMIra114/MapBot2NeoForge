@@ -32,6 +32,11 @@ public class BotConfig {
     public final ModConfigSpec.LongValue botQQ;
     public final ModConfigSpec.IntValue reconnectInterval;
     public final ModConfigSpec.BooleanValue debugMode;
+    
+    // Alpha Core 配置 (STEP 11)
+    public final ModConfigSpec.ConfigValue<String> serverId;
+    public final ModConfigSpec.ConfigValue<String> alphaHost;
+    public final ModConfigSpec.IntValue alphaPort;
 
     static {
         Pair<BotConfig, ModConfigSpec> pair = new ModConfigSpec.Builder()
@@ -76,6 +81,26 @@ public class BotConfig {
                 .comment("用于识别机器人转发的消息，实现回复通知功能")
                 .defineInRange("botQQ", 0L, 0L, Long.MAX_VALUE);
 
+        builder.pop();
+        
+        // Alpha Core 连接配置 (STEP 11)
+        builder.push("alpha");
+        
+        serverId = builder
+                .comment("服务器 ID")
+                .comment("在 Alpha Core 中标识此服务器的唯一名称")
+                .define("serverId", "default");
+        
+        alphaHost = builder
+                .comment("Alpha Core 主机地址")
+                .comment("设置为空字符串将禁用 Bridge 功能")
+                .define("alphaHost", "");
+        
+        alphaPort = builder
+                .comment("Alpha Core Bridge 端口")
+                .comment("默认使用 25561")
+                .defineInRange("alphaPort", 25561, 1, 65535);
+        
         builder.pop();
 
         builder.push("debug");
@@ -146,5 +171,29 @@ public class BotConfig {
      */
     public static long getBotQQ() {
         return INSTANCE.botQQ.get();
+    }
+    
+    /**
+     * 获取服务器 ID (Bridge 注册名)
+     * STEP 11 新增
+     */
+    public static String getServerId() {
+        return INSTANCE.serverId.get();
+    }
+    
+    /**
+     * 获取 Alpha Core 主机地址
+     * STEP 11 新增
+     */
+    public static String getAlphaHost() {
+        return INSTANCE.alphaHost.get();
+    }
+    
+    /**
+     * 获取 Alpha Core Bridge 端口
+     * STEP 11 新增
+     */
+    public static int getAlphaPort() {
+        return INSTANCE.alphaPort.get();
     }
 }
