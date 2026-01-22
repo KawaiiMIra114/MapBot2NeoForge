@@ -77,7 +77,8 @@ public class ProcessManager {
             logHistory.remove(0);
         }
         
-        // TODO: 通过 WebSocket 广播给所有已连接的 Web 客户端
+        // 通过 WebSocket 广播给所有已连接的 Web 客户端
+        com.mapbot.alpha.network.LogWebSocketHandler.broadcast(line);
     }
 
     public List<String> getLogHistory() {

@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html class="dark" lang="zh-CN">
+
 <head>
-    <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MapBot Alpha | 控制中心</title>
-    <link href="https://fonts.googleapis.com" rel="preconnect"/>
-    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script id="tailwind-config">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -17,51 +21,119 @@
                     colors: {
                         "primary": "#a7f042",
                         "primary-dark": "#8bc936",
-                        "background-dark": "#1a2210",
-                        "surface-dark": "#2a3320",
-                        "text-main": "#eef3e7",
-                        "text-sub": "#4f5e3e",
+                        "bg-dark": "#1a2210",
+                        "surface": "#2a3320",
+                        "txt": "#eef3e7",
+                        "txt-sub": "#4f5e3e",
                     },
-                    fontFamily: { "display": ["Space Grotesk", "sans-serif"] },
-                    borderRadius: {"extra-large": "1.75rem", "large": "1rem", "full": "9999px"},
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "mono": ["Roboto Mono", "monospace"]
+                    },
                 },
             },
         }
     </script>
-    <style type="text/tailwindcss">
-        @layer utilities {
-            .nav-item {
-                @apply flex flex-col items-center justify-center transition-all duration-500 cursor-pointer w-24 relative text-text-sub dark:text-gray-400 z-10;
-                height: 48px;
-            }
-            .nav-item.active { @apply text-primary font-bold; }
-            .material-symbols-outlined {
-                font-variation-settings: 'FILL' 0, 'wght' 400;
-                transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            }
-            .active .material-symbols-outlined {
-                font-variation-settings: 'FILL' 1, 'wght' 500;
-                @apply scale-110;
-            }
-            #nav-indicator {
-                @apply absolute bottom-1 h-0.5 bg-primary rounded-full transition-all duration-500 ease-[cubic-bezier(0.34, 1.56, 0.64, 1)];
-                width: 16px;
-                box-shadow: 0 0 12px rgba(167, 240, 66, 0.6);
-            }
-            .glass-nav { @apply bg-black/20 backdrop-blur-[40px] border border-white/5 rounded-full shadow-2xl; }
-            .glass-card { @apply bg-surface-dark border border-white/5 shadow-sm rounded-extra-large p-5; }
-            .terminal-window { @apply bg-black/40 rounded-extra-large border border-white/5 overflow-hidden font-mono text-sm shadow-inner; }
-            .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-            .custom-scrollbar::-webkit-scrollbar-thumb { @apply bg-primary/20 rounded-full; }
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .active .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 500;
+            transform: scale(1.1);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 5rem;
+            height: 48px;
+            cursor: pointer;
+            color: #4f5e3e;
+            position: relative;
+            z-index: 10;
+            transition: all 0.5s;
+        }
+
+        .nav-item.active {
+            color: #a7f042;
+            font-weight: bold;
+        }
+
+        #nav-indicator {
+            position: absolute;
+            left: 0;
+            bottom: 4px;
+            height: 2px;
+            width: 16px;
+            background: #a7f042;
+            border-radius: 9999px;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 0 12px rgba(167, 240, 66, 0.6);
+        }
+
+        .glass-nav {
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 9999px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        .glass-card {
+            background: #2a3320;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 1.75rem;
+            padding: 1.25rem;
+        }
+
+        .view-section {
+            display: none;
+        }
+
+        .view-section.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(167, 240, 66, 0.2);
+            border-radius: 9999px;
+        }
+
+        .file-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .ws-connected {
+            color: #22c55e;
+        }
+
+        .ws-disconnected {
+            color: #ef4444;
         }
     </style>
 </head>
-<body class="bg-background-dark font-display text-text-main antialiased h-screen overflow-hidden flex flex-col">
 
-    <!-- Header (Stitch Concept) -->
-    <header class="flex items-center justify-between border-b border-surface-dark px-8 py-4 bg-background-dark/80 backdrop-blur-md z-10 shrink-0">
+<body class="bg-bg-dark text-txt antialiased h-screen overflow-hidden flex flex-col">
+
+    <!-- Header -->
+    <header
+        class="flex items-center justify-between border-b border-surface px-8 py-4 bg-bg-dark/80 backdrop-blur-md z-10 shrink-0">
         <div class="flex items-center gap-4">
-            <div class="bg-primary rounded-xl size-10 flex items-center justify-center text-background-dark shadow-lg shadow-primary/20">
+            <div class="bg-primary rounded-xl w-10 h-10 flex items-center justify-center text-bg-dark shadow-lg">
                 <span class="material-symbols-outlined font-bold">smart_toy</span>
             </div>
             <div class="flex flex-col">
@@ -69,118 +141,387 @@
                 <p class="text-primary text-[10px] font-bold tracking-widest uppercase">Center Hub</p>
             </div>
             <div class="h-6 w-px bg-white/10 mx-2 hidden sm:block"></div>
-            <div class="hidden sm:flex items-center gap-3 bg-surface-dark px-3 py-1.5 rounded-lg border border-white/5">
-                <span class="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
-                <span class="text-xs font-bold">生存服_第五季</span>
+            <div class="hidden sm:flex items-center gap-3 bg-surface px-3 py-1.5 rounded-lg border border-white/5">
+                <span id="ws-status" class="flex h-2 w-2 rounded-full bg-red-500"></span>
+                <span class="text-xs font-bold" id="status-text">未连接</span>
             </div>
         </div>
         <div class="flex items-center gap-4">
-            <div class="hidden md:flex items-center gap-3 text-[11px] font-mono text-text-sub">
-                <div>TPS <span class="text-primary font-bold">20.0</span></div>
-                <div>MEM <span class="text-primary font-bold">4.2G</span></div>
-            </div>
-            <div class="size-8 rounded-full overflow-hidden border-2 border-primary/20">
-                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKkxUW3Iw9EDMhYoe7mRpb1d5u-sq8i2Z9QY5Di9_1WuoME1ICnJ6cx6VZeNIfpFnG9saU91D5VfRBUMrliaiOHDhbV9dF57SZJSqgSH2j4NcapXWPLnuGB6KClP1bXE_pbVMB6yoIK3kup6AGZZz4XgIvp0hpg4RA5nyQvYyFJBBWT4WSAa0B007LgD93hYb5dDQqMOc3E3YxBzXCSwByUE2x0vg-yR2NlPopa9GGsCtnuge4sZfsQhkwZAC7OUNmrKAZpkHfPB0" class="w-full h-full object-cover">
+            <div class="hidden md:flex items-center gap-3 text-[11px] font-mono text-txt-sub">
+                <div>Bridge <span class="text-primary font-bold" id="bridge-count">0</span></div>
+                <div>WS <span class="text-primary font-bold" id="ws-count">0</span></div>
             </div>
         </div>
     </header>
 
-    <main class="flex-1 overflow-hidden relative p-6">
-        <div id="view-dashboard" class="flex h-full flex-col gap-6 overflow-y-auto custom-scrollbar pb-32">
-            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
-                <div class="glass-card flex flex-col gap-2">
-                    <span class="text-text-sub text-[10px] font-bold uppercase tracking-wider">Server Status</span>
-                    <p class="text-2xl font-bold">运行中</p>
-                </div>
-                <div class="glass-card flex flex-col gap-2">
-                    <span class="text-text-sub text-[10px] font-bold uppercase tracking-wider">Online Players</span>
-                    <p class="text-2xl font-bold">5 / 20</p>
-                </div>
-            </section>
+    <!-- Main Content -->
+    <main class="flex-1 overflow-hidden relative p-0">
 
-            <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 flex-1 min-h-0">
-                <div class="xl:col-span-2 flex flex-col gap-4 min-h-0">
-                    <h2 class="text-lg font-bold px-2 tracking-tight">实时控制台</h2>
-                    <div class="flex-1 terminal-window flex flex-col">
-                        <div class="flex-1 p-6 overflow-y-auto custom-scrollbar text-white/70 space-y-1" id="dash-logs">
-                            <p><span class="opacity-30">[14:30:01]</span> <span class="text-primary font-bold">[SYSTEM]</span> Alpha Core Ready.</p>
-                            <p><span class="opacity-30">[14:30:05]</span> <span class="text-blue-400 font-bold">[INFO]</span> Sub-process MC linked.</p>
-                            <p class="mt-4 text-primary animate-pulse">_</p>
+        <!-- DASHBOARD -->
+        <div id="view-dashboard" class="view-section active h-full overflow-y-auto p-6 pb-32">
+            <div class="flex flex-col gap-8 max-w-7xl mx-auto w-full">
+                <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="glass-card">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="flex w-2 h-2 rounded-full bg-green-500"></span>
+                            <p class="text-txt-sub text-sm">服务器状态</p>
                         </div>
-                        <div class="px-4 py-3 bg-surface-dark/50 border-t border-white/5 flex items-center gap-3 shrink-0">
-                            <span class="text-primary font-bold ml-2">></span>
-                            <input type="text" class="bg-transparent border-none text-white font-mono text-sm w-full focus:ring-0 p-0 placeholder-white/10" placeholder="键入指令..." autofocus />
+                        <p class="text-white text-2xl font-bold" id="mc-status">未启动</p>
+                        <p class="text-primary-dark text-xs mt-1" id="mc-uptime">--</p>
+                    </div>
+                    <div class="glass-card">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="material-symbols-outlined text-sm text-txt-sub">dns</span>
+                            <p class="text-txt-sub text-sm">已连接服务器</p>
+                        </div>
+                        <p class="text-white text-2xl font-bold" id="server-count">0</p>
+                    </div>
+                    <div class="glass-card">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="material-symbols-outlined text-sm text-txt-sub">speed</span>
+                            <p class="text-txt-sub text-sm">WebSocket</p>
+                        </div>
+                        <p class="text-white text-2xl font-bold" id="ws-status-text">断开</p>
+                    </div>
+                    <div class="glass-card">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="material-symbols-outlined text-sm text-txt-sub">folder</span>
+                            <p class="text-txt-sub text-sm">文件管理</p>
+                        </div>
+                        <button onclick="switchTab('files')" class="text-primary text-sm font-bold hover:underline">打开
+                            →</button>
+                    </div>
+                </section>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    <div class="xl:col-span-2 flex flex-col gap-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-white text-xl font-bold">实时控制台</h2>
+                            <button
+                                class="text-sm font-bold text-primary-dark hover:text-primary flex items-center gap-1"
+                                onclick="switchTab('console')">
+                                全屏模式 <span class="material-symbols-outlined text-sm">open_in_new</span>
+                            </button>
+                        </div>
+                        <div class="flex flex-col rounded-2xl bg-bg-dark overflow-hidden border border-surface">
+                            <div class="flex items-center justify-between px-4 py-3 bg-surface border-b border-white/5">
+                                <div class="flex gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                                </div>
+                                <p class="text-xs text-txt-sub font-mono">server.log</p>
+                                <div class="w-3 h-3"></div>
+                            </div>
+                            <div id="mini-logs"
+                                class="p-4 font-mono text-xs h-60 overflow-y-auto bg-[#1a2210] space-y-0.5">
+                                <p class="text-gray-500">等待连接...</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="flex flex-col gap-6 shrink-0">
-                    <h2 class="text-lg font-bold px-2 tracking-tight">快捷管理</h2>
-                    <div class="glass-card flex flex-col gap-4">
-                        <button class="w-full py-4 bg-primary hover:bg-primary-dark text-background-dark rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 shadow-md shadow-primary/10">
-                            <span class="material-symbols-outlined">play_arrow</span> 启动服务器
-                        </button>
-                        <button class="w-full py-3 bg-red-900/30 text-red-400 hover:bg-red-900/50 rounded-xl font-bold text-sm flex items-center justify-center gap-2 border border-red-900/20">
-                            <span class="material-symbols-outlined">power_settings_new</span> 强制终止
-                        </button>
+
+                    <div class="flex flex-col gap-4">
+                        <h2 class="text-white text-xl font-bold">快捷操作</h2>
+                        <div class="glass-card flex flex-col gap-4 h-full">
+                            <button onclick="sendCommand('/status')"
+                                class="w-full py-3 bg-primary hover:bg-primary-dark text-bg-dark rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/10">
+                                <span class="material-symbols-outlined">info</span> 系统状态
+                            </button>
+                            <button onclick="sendCommand('/servers')"
+                                class="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors border border-white/5">
+                                <span class="material-symbols-outlined">dns</span> 服务器列表
+                            </button>
+                            <button onclick="sendCommand('/help')"
+                                class="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors border border-white/5">
+                                <span class="material-symbols-outlined">help</span> 帮助指令
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- CONSOLE -->
+        <div id="view-console" class="view-section h-full flex-col bg-[#0f0f0f]">
+            <div class="h-14 flex items-center justify-between px-6 bg-surface border-b border-white/5 shrink-0">
+                <div class="flex items-center gap-3">
+                    <span class="text-primary font-bold font-mono text-lg">>_ Console</span>
+                    <span id="console-ws-badge"
+                        class="text-xs px-2 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800">DISCONNECTED</span>
+                </div>
+                <button onclick="clearLogs()" class="p-2 hover:bg-white/5 rounded-lg text-txt-sub hover:text-white"
+                    title="清屏">
+                    <span class="material-symbols-outlined text-lg">delete</span>
+                </button>
+            </div>
+            <div id="full-logs" class="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed space-y-0.5"></div>
+            <div class="p-4 bg-surface border-t border-white/5 pb-24">
+                <div class="bg-black/40 rounded-full border border-white/10 flex items-center px-4 py-2">
+                    <span class="text-gray-500 font-mono mr-3">></span>
+                    <input id="cmd-input" onkeypress="handleCmdKey(event)"
+                        class="flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-white placeholder-gray-600 text-sm font-mono h-8"
+                        placeholder="输入指令...">
+                    <button onclick="sendCmdFromInput()" class="text-primary hover:text-white transition-colors">
+                        <span class="material-symbols-outlined">send</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FILES -->
+        <div id="view-files" class="view-section h-full overflow-hidden p-6 pb-32">
+            <div class="flex flex-col gap-4 max-w-6xl mx-auto w-full h-full">
+                <header class="flex justify-between items-center shrink-0">
+                    <div>
+                        <h1 class="text-2xl font-bold text-white">文件管理</h1>
+                        <p class="text-txt-sub text-sm" id="current-path">/</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="goUp()"
+                            class="p-2 bg-surface hover:bg-white/5 rounded-lg border border-white/5">
+                            <span class="material-symbols-outlined">arrow_upward</span>
+                        </button>
+                        <button onclick="refreshFiles()"
+                            class="p-2 bg-surface hover:bg-white/5 rounded-lg border border-white/5">
+                            <span class="material-symbols-outlined">refresh</span>
+                        </button>
+                    </div>
+                </header>
+                <div class="flex gap-4 flex-1 min-h-0">
+                    <div id="file-list" class="w-1/3 bg-surface rounded-2xl border border-white/5 overflow-y-auto p-2">
+                    </div>
+                    <div class="flex-1 flex flex-col bg-surface rounded-2xl border border-white/5 overflow-hidden">
+                        <div class="px-4 py-3 border-b border-white/5 flex justify-between items-center shrink-0">
+                            <span id="file-name" class="font-mono text-sm text-txt-sub">选择文件</span>
+                            <button onclick="saveFile()"
+                                class="text-xs bg-primary text-bg-dark px-3 py-1 rounded-full font-bold hover:bg-primary-dark">保存</button>
+                        </div>
+                        <textarea id="file-editor"
+                            class="flex-1 bg-transparent text-white font-mono text-sm p-4 resize-none focus:ring-0 focus:outline-none"
+                            placeholder="选择一个文件以编辑..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SERVERS -->
+        <div id="view-servers" class="view-section h-full overflow-y-auto p-6 pb-32">
+            <div class="flex flex-col gap-6 max-w-4xl mx-auto w-full">
+                <header>
+                    <h1 class="text-2xl font-bold text-white">服务器管理</h1>
+                    <p class="text-txt-sub">已连接的 MC 服务器列表</p>
+                </header>
+                <div id="server-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="glass-card text-center py-8">
+                        <span class="material-symbols-outlined text-4xl text-white/20">cloud_off</span>
+                        <p class="text-txt-sub mt-2">暂无连接的服务器</p>
+                        <p class="text-xs text-gray-500 mt-1">等待 Bridge Mod 连接...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETTINGS -->
+        <div id="view-settings" class="view-section h-full flex items-center justify-center p-6 pb-32">
+            <div class="text-center">
+                <span class="material-symbols-outlined text-6xl text-white/10 mb-4">settings_suggest</span>
+                <h2 class="text-2xl font-bold text-white/50">设置中心</h2>
+                <p class="text-txt-sub mt-2">敬请期待</p>
+            </div>
+        </div>
     </main>
 
-    <!-- 导航栏 -->
+    <!-- Navigation -->
     <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
         <nav id="navbar" class="glass-nav px-2 py-1.5 flex items-center gap-1 ring-1 ring-white/5 relative">
             <div id="nav-indicator"></div>
-            <div class="nav-item active" data-tab="dashboard">
-                <span class="material-symbols-outlined text-[22px]">dashboard</span>
-                <span class="text-[9px] font-medium uppercase tracking-tighter">Dash</span>
-            </div>
-            <div class="nav-item" data-tab="console">
-                <span class="material-symbols-outlined text-[22px]">terminal</span>
-                <span class="text-[9px] font-medium uppercase tracking-tighter">Term</span>
-            </div>
-            <div class="nav-item" data-tab="plugins">
-                <span class="material-symbols-outlined text-[22px]">extension</span>
-                <span class="text-[9px] font-medium uppercase tracking-tighter">Mods</span>
-            </div>
-            <div class="nav-item" data-tab="settings">
-                <span class="material-symbols-outlined text-[22px]">settings</span>
-                <span class="text-[9px] font-medium uppercase tracking-tighter">Set</span>
-            </div>
+            <div class="nav-item active" data-tab="dashboard"><span
+                    class="material-symbols-outlined text-[22px]">dashboard</span><span
+                    class="text-[9px] font-medium uppercase">Dash</span></div>
+            <div class="nav-item" data-tab="console"><span
+                    class="material-symbols-outlined text-[22px]">terminal</span><span
+                    class="text-[9px] font-medium uppercase">Term</span></div>
+            <div class="nav-item" data-tab="files"><span
+                    class="material-symbols-outlined text-[22px]">folder</span><span
+                    class="text-[9px] font-medium uppercase">Files</span></div>
+            <div class="nav-item" data-tab="servers"><span class="material-symbols-outlined text-[22px]">dns</span><span
+                    class="text-[9px] font-medium uppercase">Svrs</span></div>
+            <div class="nav-item" data-tab="settings"><span
+                    class="material-symbols-outlined text-[22px]">settings</span><span
+                    class="text-[9px] font-medium uppercase">Set</span></div>
         </nav>
     </div>
 
     <script>
+        // === Navigation ===
         const indicator = document.getElementById('nav-indicator');
         const navbar = document.getElementById('navbar');
         const navItems = document.querySelectorAll('.nav-item');
+        const views = document.querySelectorAll('.view-section');
 
         function updateIndicator(target) {
             const rect = target.getBoundingClientRect();
             const navRect = navbar.getBoundingClientRect();
-            // 计算精准居中位置
-            const x = (rect.left - navRect.left) + (rect.width / 2) - (indicator.offsetWidth / 2);
-            indicator.style.transform = `translateX(${x}px)`;
+            const x = (rect.left - navRect.left) + (rect.width / 2) - (indicator.offsetWidth / 2) - navbar.clientLeft;
+            indicator.style.transform = 'translateX(' + x + 'px)';
         }
 
-        navItems.forEach(item => {
-            item.addEventListener('click', () => {
-                navItems.forEach(i => i.classList.remove('active'));
-                item.classList.add('active');
-                updateIndicator(item);
+        function switchTab(tabId) {
+            navItems.forEach(i => {
+                if (i.dataset.tab === tabId) { i.classList.add('active'); updateIndicator(i); }
+                else { i.classList.remove('active'); }
             });
-        });
+            views.forEach(v => {
+                if (v.id === 'view-' + tabId) { v.classList.add('active'); }
+                else { v.classList.remove('active'); }
+            });
+            if (tabId === 'files') refreshFiles();
+        }
 
-        window.onload = () => {
-            const active = document.querySelector('.nav-item.active');
-            if (active) setTimeout(() => updateIndicator(active), 100);
-        };
+        navItems.forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
+        window.onload = () => { const a = document.querySelector('.nav-item.active'); if (a) setTimeout(() => updateIndicator(a), 100); connectWebSocket(); };
+        window.onresize = () => { const a = document.querySelector('.nav-item.active'); if (a) updateIndicator(a); };
 
-        window.onresize = () => {
-            const active = document.querySelector('.nav-item.active');
-            if (active) updateIndicator(active);
-        };
+        // === WebSocket ===
+        let ws = null;
+        const logs = [];
+        const MAX_LOGS = 500;
+
+        function connectWebSocket() {
+            const host = window.location.host || 'localhost:25560';
+            ws = new WebSocket('ws://' + host + '/ws');
+
+            ws.onopen = () => {
+                document.getElementById('ws-status').className = 'flex h-2 w-2 rounded-full bg-green-500 animate-pulse';
+                document.getElementById('status-text').textContent = '已连接';
+                document.getElementById('ws-status-text').textContent = '已连接';
+                document.getElementById('console-ws-badge').className = 'text-xs px-2 py-0.5 rounded bg-green-900/30 text-green-400 border border-green-800';
+                document.getElementById('console-ws-badge').textContent = 'CONNECTED';
+                appendLog('[SYSTEM] WebSocket 已连接');
+            };
+
+            ws.onmessage = (e) => appendLog(e.data);
+
+            ws.onclose = () => {
+                document.getElementById('ws-status').className = 'flex h-2 w-2 rounded-full bg-red-500';
+                document.getElementById('status-text').textContent = '已断开';
+                document.getElementById('ws-status-text').textContent = '断开';
+                document.getElementById('console-ws-badge').className = 'text-xs px-2 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800';
+                document.getElementById('console-ws-badge').textContent = 'DISCONNECTED';
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = () => appendLog('[ERROR] WebSocket 连接失败');
+        }
+
+        function appendLog(line) {
+            logs.push(line);
+            if (logs.length > MAX_LOGS) logs.shift();
+
+            const logHtml = '<div class="hover:bg-white/5 px-2 py-0.5 rounded">' + escapeHtml(line) + '</div>';
+            document.getElementById('full-logs').innerHTML += logHtml;
+            document.getElementById('mini-logs').innerHTML += logHtml;
+
+            document.getElementById('full-logs').scrollTop = document.getElementById('full-logs').scrollHeight;
+            document.getElementById('mini-logs').scrollTop = document.getElementById('mini-logs').scrollHeight;
+        }
+
+        function clearLogs() {
+            logs.length = 0;
+            document.getElementById('full-logs').innerHTML = '';
+            document.getElementById('mini-logs').innerHTML = '<p class="text-gray-500">日志已清空</p>';
+        }
+
+        function sendCommand(cmd) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(cmd);
+                appendLog('> ' + cmd);
+            } else {
+                appendLog('[ERROR] WebSocket 未连接');
+            }
+        }
+
+        function sendCmdFromInput() {
+            const input = document.getElementById('cmd-input');
+            if (input.value.trim()) {
+                sendCommand(input.value);
+                input.value = '';
+            }
+        }
+
+        function handleCmdKey(e) { if (e.key === 'Enter') sendCmdFromInput(); }
+        function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        // === File Management ===
+        let currentPath = '';
+        let currentFile = '';
+
+        async function refreshFiles() {
+            try {
+                const res = await fetch('/api/files/list?path=' + encodeURIComponent(currentPath));
+                const files = await res.json();
+
+                document.getElementById('current-path').textContent = '/' + currentPath;
+
+                let html = '';
+                files.forEach(f => {
+                    const icon = f.isDir ? 'folder' : 'description';
+                    html += '<div class="file-item flex items-center gap-3 p-3 rounded-xl cursor-pointer" onclick="' + (f.isDir ? 'openDir(\'' + f.name + '\')' : 'openFile(\'' + f.name + '\')') + '">';
+                    html += '<span class="material-symbols-outlined text-' + (f.isDir ? 'primary' : 'gray-400') + '">' + icon + '</span>';
+                    html += '<span class="text-sm truncate">' + f.name + '</span>';
+                    if (!f.isDir) html += '<span class="text-xs text-gray-500 ml-auto">' + formatSize(f.size) + '</span>';
+                    html += '</div>';
+                });
+                document.getElementById('file-list').innerHTML = html || '<p class="text-center text-gray-500 py-8">空目录</p>';
+            } catch (e) {
+                document.getElementById('file-list').innerHTML = '<p class="text-center text-red-400 py-8">加载失败</p>';
+            }
+        }
+
+        function openDir(name) {
+            currentPath = currentPath ? currentPath + '/' + name : name;
+            refreshFiles();
+        }
+
+        function goUp() {
+            const parts = currentPath.split('/');
+            parts.pop();
+            currentPath = parts.join('/');
+            refreshFiles();
+        }
+
+        async function openFile(name) {
+            currentFile = currentPath ? currentPath + '/' + name : name;
+            document.getElementById('file-name').textContent = name;
+            try {
+                const res = await fetch('/api/files/read?path=' + encodeURIComponent(currentFile));
+                const data = await res.json();
+                document.getElementById('file-editor').value = data.content || '';
+            } catch (e) {
+                document.getElementById('file-editor').value = '加载失败: ' + e.message;
+            }
+        }
+
+        async function saveFile() {
+            if (!currentFile) return;
+            try {
+                await fetch('/api/files/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: currentFile, content: document.getElementById('file-editor').value })
+                });
+                appendLog('[SYSTEM] 文件已保存: ' + currentFile);
+            } catch (e) {
+                appendLog('[ERROR] 保存失败: ' + e.message);
+            }
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        }
     </script>
 </body>
+
 </html>

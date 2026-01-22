@@ -53,7 +53,7 @@ import io.netty.handler.codec.http.HttpServerCodec;
     private void switchToHttp(ChannelHandlerContext ctx) {
         ctx.pipeline().addLast(new HttpServerCodec());
         ctx.pipeline().addLast(new HttpObjectAggregator(65536));
-        ctx.pipeline().addLast(new HttpConsoleHandler());
+        ctx.pipeline().addLast(new HttpRequestDispatcher());
         ctx.pipeline().remove(this);
     }
 
