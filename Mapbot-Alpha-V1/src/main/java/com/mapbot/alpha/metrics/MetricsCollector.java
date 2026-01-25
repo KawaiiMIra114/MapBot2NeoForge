@@ -133,4 +133,30 @@ public enum MetricsCollector {
             this.value = value;
         }
     }
+    
+    // === 数据恢复方法 ===
+    
+    public void restoreTpsHistory(String serverId, List<MetricPoint> points) {
+        var q = tpsHistory.computeIfAbsent(serverId, k -> new ConcurrentLinkedDeque<>());
+        q.addAll(points);
+        trimQueue(q);
+    }
+    
+    public void restoreMemoryHistory(String serverId, List<MetricPoint> points) {
+        var q = memoryHistory.computeIfAbsent(serverId, k -> new ConcurrentLinkedDeque<>());
+        q.addAll(points);
+        trimQueue(q);
+    }
+    
+    public void restorePlayersHistory(String serverId, List<MetricPoint> points) {
+        var q = playersHistory.computeIfAbsent(serverId, k -> new ConcurrentLinkedDeque<>());
+        q.addAll(points);
+        trimQueue(q);
+    }
+    
+    private void trimQueue(Deque<MetricPoint> q) {
+        while (q.size() > MAX_DATA_POINTS) {
+            q.removeFirst();
+        }
+    }
 }

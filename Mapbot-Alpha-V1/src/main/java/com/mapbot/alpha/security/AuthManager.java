@@ -201,7 +201,7 @@ public enum AuthManager {
         }
     }
     
-    private void saveUsers() {
+    public void saveUsers() {
         try {
             Files.createDirectories(usersFile.getParent());
             Files.writeString(usersFile, GSON.toJson(users), StandardCharsets.UTF_8);

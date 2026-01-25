@@ -28,63 +28,68 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         LOGGER.debug("收到 Bridge 消息: {}", msg);
         
         try {
-            String type = extractJsonValue(msg, "type");
+            var data = com.mapbot.alpha.utils.JsonUtils.fromJson(msg, java.util.Map.class);
+            if (data == null) return;
+            
+            String type = String.valueOf(data.get("type"));
             
             switch (type) {
                 case "register":
-                    handleRegister(ctx, msg);
+                    handleRegister(ctx, data);
                     break;
                 case "heartbeat":
-                    handleHeartbeat(ctx);
+                    handleHeartbeat(ctx, data);
                     break;
                 case "event":
-                    handleEvent(ctx, msg);
+                    handleEvent(ctx, data);
                     break;
                 case "chat":
-                    handleChat(msg);
+                    handleChat(data);
                     break;
                 case "file_response":
-                    handleFileResponse(msg);
+                    handleFileResponse(data);
                     break;
                 case "status_update":
-                    handleStatusUpdate(msg);
+                    handleStatusUpdate(data);
                     break;
                 case "proxy_response":
-                    handleProxyResponse(msg);
+                    handleProxyResponse(data);
                     break;
                 default:
                     LOGGER.warn("未知消息类型: {}", type);
             }
         } catch (Exception e) {
-            LOGGER.error("处理 Bridge 消息失败", e);
+            LOGGER.error("处理 Bridge 消息失败: " + msg, e);
         }
     }
     
-    private void handleRegister(ChannelHandlerContext ctx, String msg) {
-        serverId = extractJsonValue(msg, "serverId");
-        String version = extractJsonValue(msg, "version");
+    private void handleRegister(ChannelHandlerContext ctx, java.util.Map<String, Object> data) {
+        serverId = String.valueOf(data.get("serverId"));
+        String version = String.valueOf(data.getOrDefault("version", "1.0"));
         
         ServerRegistry.INSTANCE.register(serverId, ctx.channel());
         
         LOGGER.info("服务器已注册: {} (版本: {})", serverId, version);
         ctx.writeAndFlush("{\"type\":\"register_ack\",\"success\":true}\n");
         
-        // 问题 #3: 服务器启动时发送通知到群
         String notifyMsg = "[服务器] " + serverId + " 已启动";
-        long groupId = com.mapbot.alpha.config.AlphaConfig.getPlayerGroupId();
+        long groupId = AlphaConfig.getPlayerGroupId();
         com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(groupId, notifyMsg);
-        LOGGER.info("已发送启动通知: {}", notifyMsg);
     }
     
-    private void handleHeartbeat(ChannelHandlerContext ctx) {
+    private void handleHeartbeat(ChannelHandlerContext ctx, java.util.Map<String, Object> data) {
         if (serverId != null) {
-            ServerRegistry.INSTANCE.updateHeartbeat(serverId);
+            String players = String.valueOf(data.getOrDefault("players", "0"));
+            String tps = String.valueOf(data.getOrDefault("tps", "20.0"));
+            String memory = String.valueOf(data.getOrDefault("memory", "0MB"));
+            
+            ServerRegistry.INSTANCE.updateStatus(serverId, players, tps, memory);
         }
         ctx.writeAndFlush("{\"type\":\"heartbeat_ack\"}\n");
     }
     
-    private void handleEvent(ChannelHandlerContext ctx, String msg) {
-        String event = extractJsonValue(msg, "event");
+    private void handleEvent(ChannelHandlerContext ctx, java.util.Map<String, Object> data) {
+        String event = String.valueOf(data.get("event"));
         LOGGER.info("[{}] 事件: {}", serverId, event);
         com.mapbot.alpha.network.LogWebSocketHandler.broadcast("[" + serverId + "] " + event);
     }
@@ -92,69 +97,39 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
     /**
      * 处理来自 MC 的聊天消息 -> QQ 群
      */
-    private void handleChat(String msg) {
-        String player = extractJsonValue(msg, "player");
-        String content = extractJsonValue(msg, "content");
+    private void handleChat(java.util.Map<String, Object> data) {
+        String player = String.valueOf(data.get("player"));
+        String content = String.valueOf(data.get("content"));
+        if (player == null || content == null) return;
         
-        if (player.isEmpty() || content.isEmpty()) return;
-        
-        String formattedMsg = String.format("[%s] %s: %s", serverId, player, content);
-        LOGGER.info("[MC->QQ] {}", formattedMsg);
-        
-        // 发送到玩家群
         long groupId = AlphaConfig.getPlayerGroupId();
-        com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(groupId, formattedMsg);
-        
-        // 广播到 Web 控制台
-        com.mapbot.alpha.network.LogWebSocketHandler.broadcast(formattedMsg);
+        String format = AlphaConfig.INSTANCE.getBridgeIngameMsgFormat();
+        String qqMsg = format.replace("{player}", player).replace("{content}", content);
+        com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(groupId, qqMsg);
     }
     
-    private void handleFileResponse(String msg) {
-        String requestId = extractJsonValue(msg, "requestId");
-        String error = extractJsonValue(msg, "error");
+    private void handleFileResponse(java.util.Map<String, Object> data) {
+        String requestId = String.valueOf(data.get("requestId"));
+        String error = String.valueOf(data.getOrDefault("error", ""));
         
-        // 文件列表使用 files 字段 (JSON 数组), 文件内容使用 content 字段
-        String content = extractJsonValue(msg, "content");
-        String files = extractJsonArray(msg, "files");
-        
-        // 优先使用 files 字段
-        String result = (files != null && !files.isEmpty()) ? files : content;
-        BridgeFileProxy.completeRequest(requestId, result, error);
-    }
-    
-    /**
-     * 提取 JSON 数组字段 (不带引号的值)
-     */
-    private String extractJsonArray(String json, String key) {
-        String search = "\"" + key + "\":";
-        int start = json.indexOf(search);
-        if (start == -1) return null;
-        start += search.length();
-        
-        // 跳过空白
-        while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
-        
-        if (start >= json.length() || json.charAt(start) != '[') return null;
-        
-        // 找到匹配的 ]
-        int depth = 1;
-        int end = start + 1;
-        while (end < json.length() && depth > 0) {
-            char c = json.charAt(end);
-            if (c == '[') depth++;
-            else if (c == ']') depth--;
-            end++;
+        // 文件列表可能是 "files" 字段 (Array)
+        Object filesObj = data.get("files");
+        String result;
+        if (filesObj != null) {
+            result = com.mapbot.alpha.utils.JsonUtils.toJson(filesObj);
+        } else {
+            result = String.valueOf(data.getOrDefault("content", ""));
         }
         
-        return json.substring(start, end);
+        com.mapbot.alpha.bridge.BridgeFileProxy.completeRequest(requestId, result, error);
     }
     
-    private void handleStatusUpdate(String msg) {
+    private void handleStatusUpdate(java.util.Map<String, Object> data) {
         if (serverId == null) return;
         
-        String players = extractJsonValue(msg, "players");
-        String tps = extractJsonValue(msg, "tps");
-        String memory = extractJsonValue(msg, "memory");
+        String players = String.valueOf(data.get("players"));
+        String tps = String.valueOf(data.get("tps"));
+        String memory = String.valueOf(data.get("memory"));
         
         ServerRegistry.INSTANCE.updateStatus(serverId, players, tps, memory);
     }
@@ -163,9 +138,9 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
      * 处理 Bridge 代理响应
      * STEP 13: 用于命令执行结果返回
      */
-    private void handleProxyResponse(String msg) {
-        String requestId = extractJsonValue(msg, "requestId");
-        String result = extractJsonValue(msg, "result");
+    private void handleProxyResponse(java.util.Map<String, Object> data) {
+        String requestId = String.valueOf(data.get("requestId"));
+        String result = String.valueOf(data.get("result"));
         
         // 传递给 BridgeProxy 完成请求
         BridgeProxy.INSTANCE.completeRequest(requestId, result);
@@ -193,22 +168,5 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         LOGGER.error("Bridge 连接异常: " + serverId, cause);
         ctx.close();
-    }
-    
-    private String extractJsonValue(String json, String key) {
-        String search = "\"" + key + "\":\"";
-        int start = json.indexOf(search);
-        if (start == -1) {
-            search = "\"" + key + "\":";
-            start = json.indexOf(search);
-            if (start == -1) return "";
-            start += search.length();
-            int end = json.indexOf(",", start);
-            if (end == -1) end = json.indexOf("}", start);
-            return json.substring(start, end).trim();
-        }
-        start += search.length();
-        int end = json.indexOf("\"", start);
-        return json.substring(start, end);
     }
 }

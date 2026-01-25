@@ -66,12 +66,23 @@ public class MapbotAlpha {
         BridgeServer.INSTANCE.start(25561);
         LOGGER.info("[BRIDGE] Bridge 服务器已启动: 25561");
         
+        // 4.3. 初始化指标存储并加载历史数据
+        com.mapbot.alpha.metrics.MetricsStorage.INSTANCE.init();
+        LOGGER.info("[METRICS] 指标存储已加载");
+        
         // 4.5. 启动性能指标收集器
         com.mapbot.alpha.metrics.MetricsCollector.INSTANCE.start();
         LOGGER.info("[METRICS] 性能指标收集器已启动");
         
         // 5. (可选) 启动 MC 服务器进程
         // ProcessManager.INSTANCE.startServer("./MapBot_Reforged/run", "java -Xmx2G -jar server.jar nogui");
+
+        // 5.5. 添加退出钩子
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            LOGGER.info("[SYSTEM] 正在关闭，保存数据...");
+            com.mapbot.alpha.metrics.MetricsStorage.INSTANCE.save();
+            com.mapbot.alpha.security.AuthManager.INSTANCE.saveUsers();
+        }));
 
         // 6. 启动 Netty 分流服务器 (主线程阻塞)
         EventLoopGroup bossGroup = new NioEventLoopGroup(1);

@@ -3,6 +3,8 @@ package com.mapbot.alpha.bridge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.*;
 
 import com.mapbot.alpha.data.DataManager;
@@ -193,18 +195,14 @@ public class BridgeProxy {
         CompletableFuture<String> future = new CompletableFuture<>();
         INSTANCE.pendingRequests.put(requestId, future);
         
-        StringBuilder json = new StringBuilder();
-        json.append("{\"type\":\"").append(action).append("\"");
-        json.append(",\"requestId\":\"").append(requestId).append("\"");
-        if (arg1 != null) {
-            json.append(",\"arg1\":\"").append(INSTANCE.escapeJson(arg1)).append("\"");
-        }
-        if (arg2 != null) {
-            json.append(",\"arg2\":\"").append(INSTANCE.escapeJson(arg2)).append("\"");
-        }
-        json.append("}");
+        Map<String, Object> req = new HashMap<>();
+        req.put("type", action);
+        req.put("requestId", requestId);
+        if (arg1 != null) req.put("arg1", arg1);
+        if (arg2 != null) req.put("arg2", arg2);
         
-        server.channel.writeAndFlush(json.toString() + "\n");
+        String json = com.mapbot.alpha.utils.JsonUtils.toJson(req);
+        server.channel.writeAndFlush(json + "\n");
         
         return future.orTimeout(TIMEOUT, TimeUnit.SECONDS)
             .exceptionally(e -> {
@@ -217,7 +215,6 @@ public class BridgeProxy {
      * 发送请求到第一个可用的服务器
      */
     private String sendRequest(String action, String arg1, String arg2) {
-        // 获取第一个在线服务器
         var servers = ServerRegistry.INSTANCE.getAllServers();
         if (servers.isEmpty()) {
             LOGGER.warn("无可用服务器");
@@ -230,19 +227,13 @@ public class BridgeProxy {
         CompletableFuture<String> future = new CompletableFuture<>();
         pendingRequests.put(requestId, future);
         
-        // 构建请求
-        StringBuilder json = new StringBuilder();
-        json.append("{\"type\":\"").append(action).append("\"");
-        json.append(",\"requestId\":\"").append(requestId).append("\"");
-        if (arg1 != null) {
-            json.append(",\"arg1\":\"").append(escapeJson(arg1)).append("\"");
-        }
-        if (arg2 != null) {
-            json.append(",\"arg2\":\"").append(escapeJson(arg2)).append("\"");
-        }
-        json.append("}");
+        Map<String, Object> req = new HashMap<>();
+        req.put("type", action);
+        req.put("requestId", requestId);
+        if (arg1 != null) req.put("arg1", arg1);
+        if (arg2 != null) req.put("arg2", arg2);
         
-        server.channel.writeAndFlush(json.toString() + "\n");
+        server.channel.writeAndFlush(com.mapbot.alpha.utils.JsonUtils.toJson(req) + "\n");
         
         try {
             return future.get(TIMEOUT, TimeUnit.SECONDS);
@@ -255,12 +246,5 @@ public class BridgeProxy {
             LOGGER.error("请求失败: {}", action, e);
             return null;
         }
-    }
-    
-    private String escapeJson(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n");
     }
 }

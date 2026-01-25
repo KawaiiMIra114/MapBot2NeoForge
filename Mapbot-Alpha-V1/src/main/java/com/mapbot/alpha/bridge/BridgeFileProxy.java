@@ -60,16 +60,15 @@ public class BridgeFileProxy {
         
         try {
             // 构建请求消息
-            StringBuilder json = new StringBuilder();
-            json.append("{\"type\":\"").append(action).append("\",");
-            json.append("\"requestId\":\"").append(requestId).append("\",");
-            json.append("\"path\":\"").append(escapeJson(path)).append("\"");
+            Map<String, Object> req = new java.util.HashMap<>();
+            req.put("type", action);
+            req.put("requestId", requestId);
+            req.put("path", path);
             if (content != null) {
-                json.append(",\"content\":\"").append(escapeJson(content)).append("\"");
+                req.put("content", content);
             }
-            json.append("}\n");
             
-            server.channel.writeAndFlush(json.toString());
+            server.channel.writeAndFlush(com.mapbot.alpha.utils.JsonUtils.toJson(req) + "\n");
             
             // 等待响应
             return future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -96,14 +95,6 @@ public class BridgeFileProxy {
                 future.complete(new FileResponse(content, null));
             }
         }
-    }
-    
-    private static String escapeJson(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r");
     }
     
     /**

@@ -247,40 +247,40 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
      */
     private String getConfigJson() {
         var cfg = com.mapbot.alpha.config.AlphaConfig.INSTANCE;
-        return "{\"wsUrl\":\"" + escapeJson(cfg.getWsUrl()) + "\"," +
-               "\"reconnectInterval\":" + cfg.getReconnectInterval() + "," +
-               "\"playerGroupId\":\"" + cfg.getPlayerGroupId() + "\"," +
-               "\"adminGroupId\":\"" + cfg.getAdminGroupId() + "\"," +
-               "\"botQQ\":\"" + cfg.getBotQQ() + "\"," +
-               "\"debugMode\":" + cfg.isDebugMode() + "}";
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put("wsUrl", cfg.getWsUrl());
+        data.put("reconnectInterval", cfg.getReconnectInterval());
+        data.put("playerGroupId", cfg.getPlayerGroupId());
+        data.put("adminGroupId", cfg.getAdminGroupId());
+        data.put("botQQ", cfg.getBotQQ());
+        data.put("debugMode", cfg.isDebugMode());
+        data.put("bridgeIngameMsgFormat", cfg.getBridgeIngameMsgFormat());
+        
+        return com.mapbot.alpha.utils.JsonUtils.toJson(data);
     }
     
-    /**
-     * 保存配置 (#10 设置页面)
-     */
     private void handleConfigSave(ChannelHandlerContext ctx, FullHttpRequest req) {
         try {
-            String body = req.content().toString(StandardCharsets.UTF_8);
+            String json = req.content().toString(java.nio.charset.StandardCharsets.UTF_8);
+            var data = com.mapbot.alpha.utils.JsonUtils.fromJson(json, java.util.Map.class);
+            
             var cfg = com.mapbot.alpha.config.AlphaConfig.INSTANCE;
-            
-            // 简易 JSON 解析
-            String wsUrl = extractJsonString(body, "wsUrl");
-            if (!wsUrl.isEmpty()) cfg.setWsUrl(wsUrl);
-            
-            String playerGroup = extractJsonString(body, "playerGroupId");
-            if (!playerGroup.isEmpty()) cfg.setPlayerGroupId(Long.parseLong(playerGroup));
-            
-            String adminGroup = extractJsonString(body, "adminGroupId");
-            if (!adminGroup.isEmpty()) cfg.setAdminGroupId(Long.parseLong(adminGroup));
-            
-            String botQQ = extractJsonString(body, "botQQ");
-            if (!botQQ.isEmpty()) cfg.setBotQQ(Long.parseLong(botQQ));
+            if (data.containsKey("wsUrl")) cfg.setWsUrl(String.valueOf(data.get("wsUrl")));
+            if (data.containsKey("playerGroupId")) {
+                try { cfg.setPlayerGroupId(Long.parseLong(String.valueOf(data.get("playerGroupId")))); } catch (Exception ignored) {}
+            }
+            if (data.containsKey("adminGroupId")) {
+                try { cfg.setAdminGroupId(Long.parseLong(String.valueOf(data.get("adminGroupId")))); } catch (Exception ignored) {}
+            }
+            if (data.containsKey("botQQ")) {
+                try { cfg.setBotQQ(Long.parseLong(String.valueOf(data.get("botQQ")))); } catch (Exception ignored) {}
+            }
             
             cfg.save();
             sendJson(ctx, "{\"success\":true}");
-            LOGGER.info("配置已通过 Web 面板更新");
         } catch (Exception e) {
-            sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+            LOGGER.error("保存配置失败", e);
+            sendError(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR);
         }
     }
     

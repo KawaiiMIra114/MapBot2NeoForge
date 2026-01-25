@@ -19,6 +19,8 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import com.google.gson.*;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * Alpha Core Bridge 客户端
@@ -27,6 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class BridgeClient {
     private static final Logger LOGGER = LogUtils.getLogger();
     public static final BridgeClient INSTANCE = new BridgeClient();
+    private static final Gson GSON = new GsonBuilder().create();
     
     private Socket socket;
     private BufferedReader reader;
@@ -110,10 +113,71 @@ public class BridgeClient {
         heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(r -> new Thread(r, "Bridge-Heartbeat"));
         heartbeatExecutor.scheduleAtFixedRate(() -> {
             if (connected.get()) {
-                send("{\"type\":\"heartbeat\",\"timestamp\":" + System.currentTimeMillis() + "}");
+                // 收集服务器状态
+                int players = getOnlinePlayers();
+                double tps = getServerTps();
+                String memory = getMemoryUsage();
+                long uptime = getServerUptime();
+                
+                String heartbeat = String.format(
+                    "{\"type\":\"heartbeat\",\"serverId\":\"%s\",\"players\":%d,\"tps\":\"%.1f\",\"memory\":\"%s\",\"uptime\":%d,\"timestamp\":%d}",
+                    serverId, players, tps, memory, uptime, System.currentTimeMillis()
+                );
+                send(heartbeat);
             }
-        }, 30, 30, TimeUnit.SECONDS);
+        }, 5, 5, TimeUnit.SECONDS); // 改为每 5 秒发送一次
     }
+    
+    /**
+     * 获取在线玩家数
+     */
+    private int getOnlinePlayers() {
+        try {
+            var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+            return server != null ? server.getPlayerCount() : 0;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * 获取服务器 TPS
+     */
+    private double getServerTps() {
+        try {
+            var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+            if (server != null) {
+                // NeoForge 提供的 TPS 获取方式
+                double mspt = server.getAverageTickTimeNanos() / 1_000_000.0;
+                return Math.min(20.0, 1000.0 / Math.max(mspt, 50.0));
+            }
+        } catch (Exception e) {
+            // 忽略
+        }
+        return 20.0;
+    }
+    
+    /**
+     * 获取内存使用
+     */
+    private String getMemoryUsage() {
+        Runtime rt = Runtime.getRuntime();
+        long used = rt.totalMemory() - rt.freeMemory();
+        long mb = used / (1024 * 1024);
+        if (mb > 1024) {
+            return String.format("%.1fG", mb / 1024.0);
+        }
+        return mb + "MB";
+    }
+    
+    /**
+     * 获取服务器运行时长（毫秒）
+     */
+    private long getServerUptime() {
+        return System.currentTimeMillis() - serverStartTime;
+    }
+    
+    private static final long serverStartTime = System.currentTimeMillis();
     
     private void readLoop() {
         try {
@@ -794,20 +858,15 @@ public class BridgeClient {
     }
     
     private String extractJsonValue(String json, String key) {
-        String search = "\"" + key + "\":\"";
-        int start = json.indexOf(search);
-        if (start == -1) {
-            search = "\"" + key + "\":";
-            start = json.indexOf(search);
-            if (start == -1) return "";
-            start += search.length();
-            int end = json.indexOf(",", start);
-            if (end == -1) end = json.indexOf("}", start);
-            return json.substring(start, end).trim();
-        }
-        start += search.length();
-        int end = json.indexOf("\"", start);
-        return json.substring(start, end);
+        try {
+            JsonObject obj = GSON.fromJson(json, JsonObject.class);
+            if (obj.has(key)) {
+                JsonElement el = obj.get(key);
+                if (el.isJsonPrimitive()) return el.getAsString();
+                return el.toString();
+            }
+        } catch (Exception ignored) {}
+        return "";
     }
     
     private String escapeJson(String s) {

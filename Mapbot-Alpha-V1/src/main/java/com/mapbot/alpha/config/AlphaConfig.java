@@ -26,6 +26,9 @@ public class AlphaConfig {
     private long adminGroupId = 885810515L;
     private long botQQ = 2133782376L;
     
+    // 消息格式配置
+    private String bridgeIngameMsgFormat = "[群消息] {player}: {content}";
+    
     // 调试
     private boolean debugMode = true;
     
@@ -82,6 +85,7 @@ public class AlphaConfig {
     public static long getOpGroupId() { return INSTANCE.adminGroupId; }
     public static long getBotQQ() { return INSTANCE.botQQ; }
     public static boolean isDebugMode() { return INSTANCE.debugMode; }
+    public String getBridgeIngameMsgFormat() { return bridgeIngameMsgFormat; }
     
     // Setters
     public void setPlayerGroupId(long id) { this.playerGroupId = id; save(); }
