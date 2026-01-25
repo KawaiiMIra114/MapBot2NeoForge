@@ -168,19 +168,28 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         }
 
         try {
+            // 尝试多种方式加载资源
             var is = getClass().getResourceAsStream(resourcePath);
             if (is == null) {
-                LOGGER.warn("未找到资源: {}", resourcePath);
+                // 备选：使用 ClassLoader
+                is = getClass().getClassLoader().getResourceAsStream(resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath);
+            }
+            if (is == null) {
+                LOGGER.warn("未找到资源: {} (尝试了 Class 和 ClassLoader)", resourcePath);
                 sendError(ctx, HttpResponseStatus.NOT_FOUND);
                 return;
             }
 
             byte[] content = is.readAllBytes();
+            is.close();
+            
             FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
             response.headers().set(HttpHeaderNames.CONTENT_TYPE, contentType);
+            response.headers().set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
             response.content().writeBytes(content);
             HttpUtil.setContentLength(response, content.length);
             ctx.writeAndFlush(response);
+            LOGGER.debug("发送资源: {} ({} bytes)", resourcePath, content.length);
         } catch (Exception e) {
             LOGGER.error("发送资源失败: " + uri, e);
             sendError(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR);
