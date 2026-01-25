@@ -441,12 +441,17 @@
             <div class="flex flex-col gap-8 max-w-7xl mx-auto w-full">
                 <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="glass-card">
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="flex w-2 h-2 rounded-full bg-green-500"></span>
-                            <p class="text-txt-sub text-sm">本地 MC 进程</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-outlined text-sm text-txt-sub">lan</span>
+                                <p class="text-txt-sub text-sm">Bridge 状态</p>
+                            </div>
+                            <button onclick="switchTab('servers')"
+                                class="text-primary text-xs hover:underline">查看全部</button>
                         </div>
-                        <p class="text-white text-2xl font-bold" id="mc-status">未启动</p>
-                        <p class="text-primary-dark text-xs mt-1" id="mc-uptime">Alpha 启动的服务器</p>
+                        <div id="dashboard-server-mini" class="space-y-1 max-h-20 overflow-y-auto text-xs">
+                            <p class="text-gray-500">加载中...</p>
+                        </div>
                     </div>
                     <div class="glass-card">
                         <div class="flex items-center gap-2 mb-2">
@@ -1161,6 +1166,27 @@
                 document.getElementById('server-count').textContent = servers.length;
                 document.getElementById('bridge-count').textContent = servers.length;
 
+                // 更新 Dashboard 迷你服务器列表
+                const miniContainer = document.getElementById('dashboard-server-mini');
+                if (miniContainer) {
+                    if (servers.length === 0) {
+                        miniContainer.innerHTML = '<p class="text-gray-500">暂无连接的服务器</p>';
+                    } else {
+                        let miniHtml = '';
+                        servers.slice(0, 3).forEach(s => {
+                            const tpsColor = parseFloat(s.tps) >= 18 ? 'text-green-400' : parseFloat(s.tps) >= 15 ? 'text-yellow-400' : 'text-red-400';
+                            miniHtml += `<div class="flex items-center justify-between">
+                                <span class="text-white font-medium">${s.id}</span>
+                                <span class="${tpsColor}">${s.tps} TPS · ${s.players} 在线</span>
+                            </div>`;
+                        });
+                        if (servers.length > 3) {
+                            miniHtml += `<p class="text-gray-500 text-center">+${servers.length - 3} 更多...</p>`;
+                        }
+                        miniContainer.innerHTML = miniHtml;
+                    }
+                }
+
                 if (servers.length === 0) {
                     document.getElementById('server-list').innerHTML = `
                         <div class="glass-card text-center py-8">
@@ -1290,12 +1316,7 @@
             try {
                 const res = await apiFetch('/api/status');
                 const status = await res.json();
-                document.getElementById('mc-status').textContent = status.mcRunning ? '运行中' : '未启动';
-                document.getElementById('mc-uptime').textContent = status.mcRunning ? formatUptime(status.mcUptime) : '--';
                 document.getElementById('ws-count').textContent = status.wsConnections;
-                // 更新状态卡片指示灯
-                const indicator = document.querySelector('#view-dashboard .glass-card:first-child .rounded-full');
-                if (indicator) indicator.className = 'flex w-2 h-2 rounded-full ' + (status.mcRunning ? 'bg-green-500 animate-pulse' : 'bg-red-500');
             } catch (e) { console.error('获取状态失败', e); }
         }
 
