@@ -30,3 +30,43 @@
 2026-01-25 09:21:21 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:3119
 2026-01-25 09:21:55 [INFO] Mapbot/Bridge/Handler - [MC->QQ] [default] 系统: [+] Kawaii_Milk_awa 加入了服务器
 2026-01-25 09:22:09 [INFO] Mapbot/Bridge/Handler - [MC->QQ] [default] Kawaii_Milk_awa: 1
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha - ==============================================
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha -   Mapbot Alpha V1 - 多服中枢
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha -   STEP 13: Reforged 功能完整移植版
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha - ==============================================
+2026-01-25 09:34:26 [INFO] Mapbot/Config - 配置已加载: playerGroup=875585697, adminGroup=885810515, botQQ=2133782376
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha - [CONFIG] 配置已加载
+2026-01-25 09:34:26 [INFO] Mapbot/Data - 数据管理器初始化完成: 0 绑定, 0 禁言, 0 管理员
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha - [DATA] 数据管理器已初始化
+2026-01-25 09:34:26 [INFO] Mapbot/Inbound - 命令系统初始化完成: 21 个命令
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha - [COMMAND] 命令系统已初始化
+2026-01-25 09:34:26 [INFO] Mapbot/BotClient - 正在连接 OneBot: ws://127.0.0.1:7000
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha - [ONEBOT] 正在连接: ws://127.0.0.1:7000
+2026-01-25 09:34:26 [INFO] Mapbot/BotClient - OneBot WebSocket 已打开
+2026-01-25 09:34:26 [INFO] Mapbot/Inbound - OneBot 生命周期: connect
+2026-01-25 09:34:26 [INFO] Mapbot/BotClient - OneBot 连接成功
+2026-01-25 09:34:26 [INFO] Mapbot/Bridge - Bridge 服务器已启动，监听端口: 25561
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha - [BRIDGE] Bridge 服务器已启动: 25561
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha - [SYSTEM] 核心已就绪，监听端口: 25560
+2026-01-25 09:34:26 [INFO] Mapbot/Alpha - ==============================================
+2026-01-25 09:34:27 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:11753 (当前连接数: 1)
+2026-01-25 09:34:27 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:11753
+2026-01-25 09:34:36 [INFO] Mapbot/Network/WS - Web 控制台断开: /127.0.0.1:11753 (剩余连接数: 0)
+2026-01-25 09:34:36 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:13985 (当前连接数: 1)
+2026-01-25 09:34:36 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:13985
+2026-01-25 09:34:42 [INFO] Mapbot/Bridge/Handler - 新的 Bridge 连接: /127.0.0.1:5730
+2026-01-25 09:34:42 [INFO] Mapbot/Bridge/Registry - 服务器已注册: default (当前连接数: 1)
+2026-01-25 09:34:42 [INFO] Mapbot/Bridge/Handler - 服务器已注册: default (版本: 1.0)
+2026-01-25 09:35:03 [INFO] Mapbot/Network/WS - Web 控制台断开: /127.0.0.1:13985 (剩余连接数: 0)
+2026-01-25 09:35:03 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:6355 (当前连接数: 1)
+2026-01-25 09:35:03 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:6355
+2026-01-25 09:35:05 [INFO] Mapbot/Network/WS - Web 控制台断开: /127.0.0.1:6355 (剩余连接数: 0)
+2026-01-25 09:35:05 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:12159 (当前连接数: 1)
+2026-01-25 09:35:05 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:12159
+2026-01-25 09:35:05 [INFO] Mapbot/Network/WS - Web 控制台断开: /127.0.0.1:12159 (剩余连接数: 0)
+2026-01-25 09:35:05 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:2612 (当前连接数: 1)
+2026-01-25 09:35:05 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:2612
+2026-01-25 09:35:23 [INFO] Mapbot/Network/WS - Web 控制台断开: /127.0.0.1:2612 (剩余连接数: 0)
+2026-01-25 09:35:23 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:10245 (当前连接数: 1)
+2026-01-25 09:35:23 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:10245
+2026-01-25 09:35:38 [INFO] Mapbot/Bridge/Handler - [MC->QQ] [default] 系统: [+] Kawaii_Milk_awa 加入了服务器

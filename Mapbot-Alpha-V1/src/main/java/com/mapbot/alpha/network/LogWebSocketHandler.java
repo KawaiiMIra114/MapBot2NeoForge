@@ -45,8 +45,7 @@ public class LogWebSocketHandler extends SimpleChannelInboundHandler<TextWebSock
         
         // 处理从 Web 控制台发来的指令
         if (!text.isEmpty()) {
-            // BUG #3 修复: 命令路由
-            // 以 / 开头的是 Alpha 内置指令，其他发送给 MC 进程
+            // 以 / 开头的是 Alpha 内置指令，其他发送给 MC 服务器
             if (text.startsWith("/")) {
                 String cmd = text.substring(1); // 移除开头的 /
                 String result = ConsoleCommandHandler.handle(cmd);
@@ -54,8 +53,19 @@ public class LogWebSocketHandler extends SimpleChannelInboundHandler<TextWebSock
                     ctx.channel().writeAndFlush(new TextWebSocketFrame("[Alpha] " + result));
                 }
             } else {
-                // 发送给 MC 进程
-                ProcessManager.INSTANCE.sendCommand(text);
+                // 问题 #6 修复: 发送给 Bridge 服务器而非本地 ProcessManager
+                var servers = com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.getAllServers();
+                if (!servers.isEmpty()) {
+                    var server = servers.iterator().next();
+                    String json = String.format(
+                        "{\"type\":\"execute_command\",\"requestId\":\"%s\",\"arg1\":\"%s\"}",
+                        System.currentTimeMillis(), text.replace("\\", "\\\\").replace("\"", "\\\""));
+                    server.channel.writeAndFlush(json + "\n");
+                    ctx.channel().writeAndFlush(new TextWebSocketFrame("[发送到 " + server.serverId + "] " + text));
+                } else {
+                    // 没有 Bridge 服务器，尝试发给本地 ProcessManager
+                    ProcessManager.INSTANCE.sendCommand(text);
+                }
             }
         }
     }

@@ -68,6 +68,12 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         
         LOGGER.info("服务器已注册: {} (版本: {})", serverId, version);
         ctx.writeAndFlush("{\"type\":\"register_ack\",\"success\":true}\n");
+        
+        // 问题 #3: 服务器启动时发送通知到群
+        String notifyMsg = "[服务器] " + serverId + " 已启动";
+        long groupId = com.mapbot.alpha.config.AlphaConfig.getPlayerGroupId();
+        com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(groupId, notifyMsg);
+        LOGGER.info("已发送启动通知: {}", notifyMsg);
     }
     
     private void handleHeartbeat(ChannelHandlerContext ctx) {
