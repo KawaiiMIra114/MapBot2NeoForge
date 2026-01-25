@@ -144,18 +144,16 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         String resourcePath;
         String contentType;
 
-        // 路由映射 (默认使用 Vue 构建输出)
+        // 路由映射 (暂时默认使用原 HTML，Vue 前端需调试)
         if ("/".equals(uri) || "/index.html".equals(uri)) {
-            resourcePath = "/web-vue/index.html";
-            contentType = "text/html; charset=UTF-8";
-        } else if (uri.startsWith("/assets/")) {
-            // Vue 构建的静态资源
-            resourcePath = "/web-vue" + uri;
-            contentType = getMimeType(uri);
-        } else if ("/legacy".equals(uri) || "/legacy/".equals(uri)) {
-            // 保留原单文件 HTML
             resourcePath = "/web/index.html";
             contentType = "text/html; charset=UTF-8";
+        } else if (uri.startsWith("/vue") || uri.startsWith("/assets/")) {
+            // Vue 构建的静态资源 (/vue 或 /assets/*)
+            String vuePath = uri.startsWith("/vue") ? uri.substring(4) : uri;
+            if (vuePath.isEmpty() || vuePath.equals("/")) vuePath = "/index.html";
+            resourcePath = "/web-vue" + vuePath;
+            contentType = getMimeType(vuePath);
         } else if ("/tailwind.js".equals(uri)) {
             resourcePath = "/web/tailwind.js";
             contentType = "application/javascript";
