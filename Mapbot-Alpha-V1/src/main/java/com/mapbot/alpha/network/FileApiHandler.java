@@ -1,27 +1,32 @@
 package com.mapbot.alpha.network;
 
+import com.google.gson.JsonObject;
+import com.mapbot.alpha.utils.JsonUtils;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * 文件管理 API 处理器
- * STEP 8: 本地文件管理
+ * 已重构：使用 Gson 替换手工 JSON 拼接
  */
 public class FileApiHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger("Mapbot/Network/FileApi");
     
-    // 允许访问的根目录 (可配置)
+    // 允许访问的根目录
     private static Path ROOT_DIR = Paths.get(System.getProperty("user.dir"));
     
     public static void setRootDir(String path) {
@@ -46,69 +51,195 @@ public class FileApiHandler {
                 handleMkdir(ctx, req);
             } else if (uri.equals("/api/files/upload") && method == HttpMethod.POST) {
                 handleUploadFile(ctx, req);
+            } else if (uri.equals("/api/files/unzip") && method == HttpMethod.POST) {
+                handleUnzip(ctx, req);
+            } else if (uri.equals("/api/files/batch-delete") && method == HttpMethod.POST) {
+                handleBatchDelete(ctx, req);
             } else {
-                sendJson(ctx, HttpResponseStatus.NOT_FOUND, "{\"error\": \"Unknown API\"}");
+                sendJson(ctx, HttpResponseStatus.NOT_FOUND, JsonUtils.error("Unknown API"));
             }
         } catch (SecurityException e) {
-            sendJson(ctx, HttpResponseStatus.FORBIDDEN, "{\"error\": \"Access denied\"}");
+            sendJson(ctx, HttpResponseStatus.FORBIDDEN, JsonUtils.error("Access denied"));
         } catch (Exception e) {
             LOGGER.error("API 处理失败", e);
-            sendJson(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, "{\"error\": \"" + e.getMessage() + "\"}");
+            sendJson(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, JsonUtils.error(e.getMessage()));
         }
     }
     
+    // === 文件列表 ===
     private static void handleListDir(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
         String pathParam = getQueryParam(req.uri(), "path");
         Path dir = resolveSafePath(pathParam);
         
         if (!Files.isDirectory(dir)) {
-            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"Not a directory\"}");
+            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, JsonUtils.error("Not a directory"));
             return;
         }
         
-        StringBuilder json = new StringBuilder("[");
-        var files = Files.list(dir).collect(Collectors.toList());
-        for (int i = 0; i < files.size(); i++) {
-            Path f = files.get(i);
-            if (i > 0) json.append(",");
-            json.append("{\"name\":\"").append(escapeJson(f.getFileName().toString())).append("\",");
-            json.append("\"isDir\":").append(Files.isDirectory(f)).append(",");
-            json.append("\"size\":").append(Files.isRegularFile(f) ? Files.size(f) : 0).append("}");
-        }
-        json.append("]");
+        List<FileInfo> files = Files.list(dir)
+                .map(f -> new FileInfo(
+                        f.getFileName().toString(),
+                        Files.isDirectory(f),
+                        Files.isRegularFile(f) ? getFileSize(f) : 0
+                ))
+                .collect(Collectors.toList());
         
-        sendJson(ctx, HttpResponseStatus.OK, json.toString());
+        sendJson(ctx, HttpResponseStatus.OK, JsonUtils.toJson(files));
     }
     
+    private static long getFileSize(Path f) {
+        try { return Files.size(f); } catch (Exception e) { return 0; }
+    }
+    
+    // === 读取文件 ===
     private static void handleReadFile(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
         String pathParam = getQueryParam(req.uri(), "path");
         Path file = resolveSafePath(pathParam);
         
         if (!Files.isRegularFile(file)) {
-            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"Not a file\"}");
+            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, JsonUtils.error("Not a file"));
             return;
         }
         
-        // BUG #9 修复: 检测二进制文件
         String fileName = file.getFileName().toString().toLowerCase();
         if (isBinaryFile(fileName)) {
-            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"Binary file not supported for preview\"}");
+            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, JsonUtils.error("Binary file not supported for preview"));
             return;
         }
         
-        // 限制文件大小 (10MB)
         if (Files.size(file) > 10 * 1024 * 1024) {
-            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"File too large\"}");
+            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, JsonUtils.error("File too large (max 10MB)"));
             return;
         }
         
         String content = Files.readString(file, StandardCharsets.UTF_8);
-        sendJson(ctx, HttpResponseStatus.OK, "{\"content\":\"" + escapeJson(content) + "\"}");
+        sendJson(ctx, HttpResponseStatus.OK, JsonUtils.content(content));
     }
     
-    /**
-     * 检测是否为二进制文件 (根据扩展名)
-     */
+    // === 写入文件 ===
+    private static void handleWriteFile(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
+        String body = req.content().toString(StandardCharsets.UTF_8);
+        WriteRequest request = JsonUtils.fromJson(body, WriteRequest.class);
+        
+        Path file = resolveSafePath(request.path);
+        Files.writeString(file, request.content != null ? request.content : "", StandardCharsets.UTF_8);
+        
+        sendJson(ctx, HttpResponseStatus.OK, JsonUtils.success());
+        LOGGER.info("文件已保存: {}", file);
+    }
+    
+    // === 删除文件 ===
+    private static void handleDeleteFile(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
+        String pathParam = getQueryParam(req.uri(), "path");
+        Path file = resolveSafePath(pathParam);
+        
+        Files.deleteIfExists(file);
+        sendJson(ctx, HttpResponseStatus.OK, JsonUtils.success());
+        LOGGER.info("文件已删除: {}", file);
+    }
+    
+    // === 创建目录 ===
+    private static void handleMkdir(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
+        String body = req.content().toString(StandardCharsets.UTF_8);
+        PathRequest request = JsonUtils.fromJson(body, PathRequest.class);
+        
+        Path dir = resolveSafePath(request.path);
+        Files.createDirectories(dir);
+        
+        sendJson(ctx, HttpResponseStatus.OK, JsonUtils.success());
+        LOGGER.info("目录已创建: {}", dir);
+    }
+    
+    // === 上传文件 ===
+    private static void handleUploadFile(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
+        String body = req.content().toString(StandardCharsets.UTF_8);
+        UploadRequest request = JsonUtils.fromJson(body, UploadRequest.class);
+        
+        Path file = resolveSafePath(request.path);
+        
+        if ("base64".equals(request.encoding)) {
+            byte[] data = java.util.Base64.getDecoder().decode(request.content);
+            Files.write(file, data);
+        } else {
+            Files.writeString(file, request.content != null ? request.content : "", StandardCharsets.UTF_8);
+        }
+        
+        sendJson(ctx, HttpResponseStatus.OK, JsonUtils.success());
+        LOGGER.info("文件已上传: {}", file);
+    }
+    
+    // === 解压 ZIP ===
+    private static void handleUnzip(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
+        String body = req.content().toString(StandardCharsets.UTF_8);
+        UnzipRequest request = JsonUtils.fromJson(body, UnzipRequest.class);
+        
+        Path zipFile = resolveSafePath(request.path);
+        Path targetDir = request.target != null ? resolveSafePath(request.target) : zipFile.getParent();
+        
+        if (!Files.isRegularFile(zipFile)) {
+            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, JsonUtils.error("ZIP file not found"));
+            return;
+        }
+        
+        int extractedCount = 0;
+        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(zipFile))) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                Path entryPath = targetDir.resolve(entry.getName()).normalize();
+                
+                // 安全检查：防止 zip slip 攻击
+                if (!entryPath.startsWith(targetDir)) {
+                    throw new SecurityException("ZIP entry outside target directory: " + entry.getName());
+                }
+                
+                if (entry.isDirectory()) {
+                    Files.createDirectories(entryPath);
+                } else {
+                    Files.createDirectories(entryPath.getParent());
+                    Files.copy(zis, entryPath);
+                    extractedCount++;
+                }
+                zis.closeEntry();
+            }
+        }
+        
+        JsonObject result = new JsonObject();
+        result.addProperty("success", true);
+        result.addProperty("extracted", extractedCount);
+        sendJson(ctx, HttpResponseStatus.OK, result.toString());
+        LOGGER.info("ZIP 已解压: {} -> {} ({} 个文件)", zipFile, targetDir, extractedCount);
+    }
+    
+    // === 批量删除 ===
+    private static void handleBatchDelete(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
+        String body = req.content().toString(StandardCharsets.UTF_8);
+        BatchDeleteRequest request = JsonUtils.fromJson(body, BatchDeleteRequest.class);
+        
+        int deleted = 0;
+        List<String> errors = new ArrayList<>();
+        
+        for (String path : request.paths) {
+            try {
+                Path file = resolveSafePath(path);
+                if (Files.deleteIfExists(file)) {
+                    deleted++;
+                }
+            } catch (Exception e) {
+                errors.add(path + ": " + e.getMessage());
+            }
+        }
+        
+        JsonObject result = new JsonObject();
+        result.addProperty("success", errors.isEmpty());
+        result.addProperty("deleted", deleted);
+        if (!errors.isEmpty()) {
+            result.add("errors", JsonUtils.getGson().toJsonTree(errors));
+        }
+        sendJson(ctx, HttpResponseStatus.OK, result.toString());
+        LOGGER.info("批量删除: {} 个成功, {} 个失败", deleted, errors.size());
+    }
+    
+    // === 二进制文件检测 ===
     private static boolean isBinaryFile(String fileName) {
         String[] binaryExtensions = {
             ".jar", ".zip", ".tar", ".gz", ".7z", ".rar",
@@ -125,79 +256,18 @@ public class FileApiHandler {
         return false;
     }
     
-    private static void handleWriteFile(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
-        String body = req.content().toString(StandardCharsets.UTF_8);
-        // 简单 JSON 解析 (生产环境应使用 Gson/Jackson)
-        String pathParam = extractJsonValue(body, "path");
-        String content = extractJsonValue(body, "content");
-        
-        Path file = resolveSafePath(pathParam);
-        Files.writeString(file, content, StandardCharsets.UTF_8);
-        
-        sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
-        LOGGER.info("文件已保存: {}", file);
-    }
-    
-    private static void handleDeleteFile(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
-        String pathParam = getQueryParam(req.uri(), "path");
-        Path file = resolveSafePath(pathParam);
-        
-        Files.deleteIfExists(file);
-        sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
-        LOGGER.info("文件已删除: {}", file);
-    }
-    
-    private static void handleMkdir(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
-        String body = req.content().toString(StandardCharsets.UTF_8);
-        String pathParam = extractJsonValue(body, "path");
-        
-        Path dir = resolveSafePath(pathParam);
-        Files.createDirectories(dir);
-        
-        sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
-        LOGGER.info("目录已创建: {}", dir);
-    }
-    
-    /**
-     * 处理文件上传 (#12 文件上传)
-     */
-    private static void handleUploadFile(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
-        String body = req.content().toString(StandardCharsets.UTF_8);
-        String pathParam = extractJsonValue(body, "path");
-        String content = extractJsonValue(body, "content");
-        String encoding = extractJsonValue(body, "encoding");
-        
-        Path file = resolveSafePath(pathParam);
-        
-        if ("base64".equals(encoding)) {
-            // Base64 解码并写入二进制文件
-            byte[] data = java.util.Base64.getDecoder().decode(content);
-            Files.write(file, data);
-        } else {
-            // 纯文本写入
-            Files.writeString(file, content, StandardCharsets.UTF_8);
-        }
-        
-        sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
-        LOGGER.info("文件已上传: {}", file);
-    }
-    
-    /**
-     * 安全路径解析 - 防止目录遍历攻击
-     */
+    // === 安全路径解析 ===
     private static Path resolveSafePath(String relativePath) {
         if (relativePath == null || relativePath.isEmpty()) {
             return ROOT_DIR;
         }
         
-        // 移除开头的 /
         if (relativePath.startsWith("/")) {
             relativePath = relativePath.substring(1);
         }
         
         Path resolved = ROOT_DIR.resolve(relativePath).normalize();
         
-        // 确保解析后的路径仍在根目录下
         if (!resolved.startsWith(ROOT_DIR)) {
             throw new SecurityException("Path traversal detected: " + relativePath);
         }
@@ -217,46 +287,6 @@ public class FileApiHandler {
         return java.net.URLDecoder.decode(uri.substring(start, end), StandardCharsets.UTF_8);
     }
     
-    private static String extractJsonValue(String json, String key) {
-        // 简易 JSON 提取 (生产环境用 Gson)
-        String search = "\"" + key + "\":\"";
-        int start = json.indexOf(search);
-        if (start == -1) return "";
-        start += search.length();
-        
-        StringBuilder sb = new StringBuilder();
-        for (int i = start; i < json.length(); i++) {
-            char c = json.charAt(i);
-            if (c == '"' && json.charAt(i-1) != '\\') break;
-            sb.append(c);
-        }
-        return sb.toString().replace("\\\"", "\"").replace("\\n", "\n");
-    }
-    
-    private static String escapeJson(String s) {
-        if (s == null) return "";
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            switch (c) {
-                case '\\': sb.append("\\\\"); break;
-                case '"': sb.append("\\\""); break;
-                case '\n': sb.append("\\n"); break;
-                case '\r': sb.append("\\r"); break;
-                case '\t': sb.append("\\t"); break;
-                case '\b': sb.append("\\b"); break;
-                case '\f': sb.append("\\f"); break;
-                default:
-                    if (c < 0x20) {
-                        sb.append(String.format("\\u%04x", (int) c));
-                    } else {
-                        sb.append(c);
-                    }
-            }
-        }
-        return sb.toString();
-    }
-    
     private static void sendJson(ChannelHandlerContext ctx, HttpResponseStatus status, String json) {
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
         FullHttpResponse response = new DefaultFullHttpResponse(
@@ -265,5 +295,43 @@ public class FileApiHandler {
         response.headers().set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
         HttpUtil.setContentLength(response, bytes.length);
         ctx.writeAndFlush(response);
+    }
+    
+    // === DTO 类 ===
+    
+    public static class FileInfo {
+        public String name;
+        public boolean isDir;
+        public long size;
+        
+        public FileInfo(String name, boolean isDir, long size) {
+            this.name = name;
+            this.isDir = isDir;
+            this.size = size;
+        }
+    }
+    
+    public static class WriteRequest {
+        public String path;
+        public String content;
+    }
+    
+    public static class PathRequest {
+        public String path;
+    }
+    
+    public static class UploadRequest {
+        public String path;
+        public String content;
+        public String encoding;
+    }
+    
+    public static class UnzipRequest {
+        public String path;
+        public String target;
+    }
+    
+    public static class BatchDeleteRequest {
+        public String[] paths;
     }
 }

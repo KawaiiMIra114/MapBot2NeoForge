@@ -703,6 +703,21 @@
                                 <p id="detail-uptime" class="text-white text-2xl font-bold">--</p>
                             </div>
                         </div>
+                        <!-- TPS/内存历史图表 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <div class="bg-bg-dark rounded-xl p-4">
+                                <p class="text-txt-sub text-xs mb-2">TPS 历史 (最近 5 分钟)</p>
+                                <div class="h-32">
+                                    <canvas id="chart-tps"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-bg-dark rounded-xl p-4">
+                                <p class="text-txt-sub text-xs mb-2">内存历史 (最近 5 分钟)</p>
+                                <div class="h-32">
+                                    <canvas id="chart-memory"></canvas>
+                                </div>
+                            </div>
+                        </div>
                         <div class="flex gap-3">
                             <button onclick="openServerFiles()"
                                 class="flex-1 py-3 bg-primary hover:bg-primary-dark text-bg-dark rounded-xl font-bold flex items-center justify-center gap-2">
@@ -1253,7 +1268,87 @@
                     detailView.classList.remove('fade-out'); // 移除类触发 transition 到正常状态
                     detailView.classList.add('fade-in');
                 });
+
+                // 加载并渲染历史图表
+                loadServerCharts(serverId);
             });
+        }
+
+        // === TPS/内存历史图表 ===
+        let tpsChart = null;
+        let memoryChart = null;
+
+        async function loadServerCharts(serverId) {
+            try {
+                const res = await apiFetch('/api/metrics/' + serverId + '/history');
+                const data = await res.json();
+
+                // 准备 TPS 数据
+                const tpsLabels = data.tps.map(p => new Date(p.timestamp).toLocaleTimeString());
+                const tpsValues = data.tps.map(p => p.value);
+
+                // 准备内存数据
+                const memLabels = data.memory.map(p => new Date(p.timestamp).toLocaleTimeString());
+                const memValues = data.memory.map(p => p.value);
+
+                // 渲染 TPS 图表
+                const tpsCtx = document.getElementById('chart-tps').getContext('2d');
+                if (tpsChart) tpsChart.destroy();
+                tpsChart = new Chart(tpsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: tpsLabels.slice(-60), // 最近 60 个点
+                        datasets: [{
+                            label: 'TPS',
+                            data: tpsValues.slice(-60),
+                            borderColor: '#a3e635',
+                            backgroundColor: 'rgba(163, 230, 53, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { display: false },
+                            y: { min: 0, max: 20, ticks: { color: '#666' }, grid: { color: '#333' } }
+                        }
+                    }
+                });
+
+                // 渲染内存图表
+                const memCtx = document.getElementById('chart-memory').getContext('2d');
+                if (memoryChart) memoryChart.destroy();
+                memoryChart = new Chart(memCtx, {
+                    type: 'line',
+                    data: {
+                        labels: memLabels.slice(-60),
+                        datasets: [{
+                            label: 'Memory (MB)',
+                            data: memValues.slice(-60),
+                            borderColor: '#60a5fa',
+                            backgroundColor: 'rgba(96, 165, 250, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { display: false },
+                            y: { min: 0, ticks: { color: '#666' }, grid: { color: '#333' } }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.log('加载图表数据失败 (可能 API 未实现)', e);
+            }
         }
 
         function closeServerDetail() {

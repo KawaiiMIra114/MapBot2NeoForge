@@ -240,3 +240,34 @@ java.net.SocketException: Connection reset
 2026-01-25 10:34:52 [INFO] c.mapbot.alpha.security.AuthManager - 用户登录成功: admin
 2026-01-25 10:34:52 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:7301 (当前连接数: 1)
 2026-01-25 10:34:52 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:7301
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - ==============================================
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha -   Mapbot Alpha V1 - 多服中枢
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha -   STEP 13: Reforged 功能完整移植版
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - ==============================================
+2026-01-25 10:47:47 [INFO] Mapbot/Config - 配置已加载: playerGroup=875585697, adminGroup=885810515, botQQ=2133782376
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - [CONFIG] 配置已加载
+2026-01-25 10:47:47 [INFO] Mapbot/Data - 数据管理器初始化完成: 0 绑定, 0 禁言, 0 管理员
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - [DATA] 数据管理器已初始化
+2026-01-25 10:47:47 [INFO] Mapbot/Inbound - 命令系统初始化完成: 21 个命令
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - [COMMAND] 命令系统已初始化
+2026-01-25 10:47:47 [INFO] Mapbot/BotClient - 正在连接 OneBot: ws://127.0.0.1:7000
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - [ONEBOT] 正在连接: ws://127.0.0.1:7000
+2026-01-25 10:47:47 [INFO] Mapbot/BotClient - OneBot WebSocket 已打开
+2026-01-25 10:47:47 [INFO] Mapbot/BotClient - OneBot 连接成功
+2026-01-25 10:47:47 [INFO] Mapbot/Inbound - OneBot 生命周期: connect
+2026-01-25 10:47:47 [INFO] Mapbot/Bridge - Bridge 服务器已启动，监听端口: 25561
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - [BRIDGE] Bridge 服务器已启动: 25561
+2026-01-25 10:47:47 [INFO] c.m.alpha.metrics.MetricsCollector - 性能指标收集器已启动
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - [METRICS] 性能指标收集器已启动
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - [SYSTEM] 核心已就绪，监听端口: 25560
+2026-01-25 10:47:47 [INFO] Mapbot/Alpha - ==============================================
+2026-01-25 10:47:52 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:10909 (当前连接数: 1)
+2026-01-25 10:47:52 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:10909
+2026-01-25 10:48:05 [INFO] Mapbot/Bridge/Handler - 新的 Bridge 连接: /127.0.0.1:5379
+2026-01-25 10:48:05 [INFO] Mapbot/Bridge/Registry - 服务器已注册: default (当前连接数: 1)
+2026-01-25 10:48:05 [INFO] Mapbot/Bridge/Handler - 服务器已注册: default (版本: 1.0)
+2026-01-25 10:48:05 [INFO] Mapbot/Bridge/Handler - 已发送启动通知: [服务器] default 已启动
+2026-01-25 10:57:25 [INFO] Mapbot/Network/WS - Web 控制台断开: /127.0.0.1:10909 (剩余连接数: 0)
+2026-01-25 10:57:31 [INFO] c.mapbot.alpha.security.AuthManager - 用户登录成功: admin
+2026-01-25 10:57:31 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:8725 (当前连接数: 1)
+2026-01-25 10:57:31 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:8725
