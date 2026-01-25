@@ -144,13 +144,24 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         String resourcePath;
         String contentType;
 
-        // 路由映射
+        // 路由映射 (默认使用 Vue 构建输出)
         if ("/".equals(uri) || "/index.html".equals(uri)) {
+            resourcePath = "/web-vue/index.html";
+            contentType = "text/html; charset=UTF-8";
+        } else if (uri.startsWith("/assets/")) {
+            // Vue 构建的静态资源
+            resourcePath = "/web-vue" + uri;
+            contentType = getMimeType(uri);
+        } else if ("/legacy".equals(uri) || "/legacy/".equals(uri)) {
+            // 保留原单文件 HTML
             resourcePath = "/web/index.html";
             contentType = "text/html; charset=UTF-8";
         } else if ("/tailwind.js".equals(uri)) {
             resourcePath = "/web/tailwind.js";
             contentType = "application/javascript";
+        } else if ("/vite.svg".equals(uri)) {
+            resourcePath = "/web-vue/vite.svg";
+            contentType = "image/svg+xml";
         } else {
             sendError(ctx, HttpResponseStatus.NOT_FOUND);
             return;
@@ -174,6 +185,22 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             LOGGER.error("发送资源失败: " + uri, e);
             sendError(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+    
+    /**
+     * 根据文件扩展名获取 MIME 类型
+     */
+    private String getMimeType(String uri) {
+        if (uri.endsWith(".js")) return "application/javascript";
+        if (uri.endsWith(".css")) return "text/css";
+        if (uri.endsWith(".html")) return "text/html; charset=UTF-8";
+        if (uri.endsWith(".json")) return "application/json";
+        if (uri.endsWith(".svg")) return "image/svg+xml";
+        if (uri.endsWith(".png")) return "image/png";
+        if (uri.endsWith(".jpg") || uri.endsWith(".jpeg")) return "image/jpeg";
+        if (uri.endsWith(".woff2")) return "font/woff2";
+        if (uri.endsWith(".woff")) return "font/woff";
+        return "application/octet-stream";
     }
 
     private void sendError(ChannelHandlerContext ctx, HttpResponseStatus status) {
