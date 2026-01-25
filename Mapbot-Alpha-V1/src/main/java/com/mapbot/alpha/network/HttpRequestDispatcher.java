@@ -30,6 +30,11 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         
         // API 请求
         if (uri.startsWith("/api/")) {
+            // 系统状态 API (BUG #6, #7)
+            if (uri.equals("/api/status")) {
+                sendJson(ctx, getStatusJson());
+                return;
+            }
             // 服务器列表 API (STEP 10)
             if (uri.equals("/api/servers")) {
                 sendJson(ctx, com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.toJson());
@@ -124,5 +129,21 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         response.headers().set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
         HttpUtil.setContentLength(response, bytes.length);
         ctx.writeAndFlush(response);
+    }
+    
+    /**
+     * 获取系统状态 JSON (BUG #6, #7 修复)
+     */
+    private String getStatusJson() {
+        var pm = com.mapbot.alpha.process.ProcessManager.INSTANCE;
+        boolean running = pm.isRunning();
+        long uptime = running ? pm.getUptimeMs() : 0;
+        int wsCount = LogWebSocketHandler.getConnectionCount();
+        int bridgeCount = com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.getServerCount();
+        
+        return "{\"mcRunning\":" + running + 
+               ",\"mcUptime\":" + uptime +
+               ",\"wsConnections\":" + wsCount +
+               ",\"bridgeConnections\":" + bridgeCount + "}";
     }
 }

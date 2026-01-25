@@ -36,7 +36,7 @@
 	serverId = "default"
 	#Alpha Core 主机地址
 	#设置为空字符串将禁用 Bridge 功能
-	alphaHost = ""
+	alphaHost = "127.0.0.1"
 	#Alpha Core Bridge 端口
 	#默认使用 25561
 	#Range: 1 ~ 65535

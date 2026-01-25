@@ -87,6 +87,13 @@ public class FileApiHandler {
             return;
         }
         
+        // BUG #9 修复: 检测二进制文件
+        String fileName = file.getFileName().toString().toLowerCase();
+        if (isBinaryFile(fileName)) {
+            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"Binary file not supported for preview\"}");
+            return;
+        }
+        
         // 限制文件大小 (10MB)
         if (Files.size(file) > 10 * 1024 * 1024) {
             sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"File too large\"}");
@@ -95,6 +102,25 @@ public class FileApiHandler {
         
         String content = Files.readString(file, StandardCharsets.UTF_8);
         sendJson(ctx, HttpResponseStatus.OK, "{\"content\":\"" + escapeJson(content) + "\"}");
+    }
+    
+    /**
+     * 检测是否为二进制文件 (根据扩展名)
+     */
+    private static boolean isBinaryFile(String fileName) {
+        String[] binaryExtensions = {
+            ".jar", ".zip", ".tar", ".gz", ".7z", ".rar",
+            ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".ico", ".webp",
+            ".mp3", ".wav", ".ogg", ".flac",
+            ".mp4", ".avi", ".mkv", ".mov", ".webm",
+            ".exe", ".dll", ".so", ".class", ".o",
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx",
+            ".nbt", ".dat", ".mca", ".db", ".sqlite"
+        };
+        for (String ext : binaryExtensions) {
+            if (fileName.endsWith(ext)) return true;
+        }
+        return false;
     }
     
     private static void handleWriteFile(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {

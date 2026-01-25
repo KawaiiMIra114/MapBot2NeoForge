@@ -45,9 +45,18 @@ public class LogWebSocketHandler extends SimpleChannelInboundHandler<TextWebSock
         
         // 处理从 Web 控制台发来的指令
         if (!text.isEmpty()) {
-            // 移除开头的 / (如果有)
-            String cmd = text.startsWith("/") ? text.substring(1) : text;
-            ProcessManager.INSTANCE.sendCommand(cmd);
+            // BUG #3 修复: 命令路由
+            // 以 / 开头的是 Alpha 内置指令，其他发送给 MC 进程
+            if (text.startsWith("/")) {
+                String cmd = text.substring(1); // 移除开头的 /
+                String result = ConsoleCommandHandler.handle(cmd);
+                if (result != null && !result.isEmpty()) {
+                    ctx.channel().writeAndFlush(new TextWebSocketFrame("[Alpha] " + result));
+                }
+            } else {
+                // 发送给 MC 进程
+                ProcessManager.INSTANCE.sendCommand(text);
+            }
         }
     }
 

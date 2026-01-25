@@ -19,6 +19,7 @@ public class ProcessManager {
 
     private Process serverProcess;
     private BufferedWriter serverInput;
+    private long startTime;  // MC 进程启动时间
     private final List<String> logHistory = new CopyOnWriteArrayList<>();
     private static final int MAX_LOG_HISTORY = 1000;
 
@@ -35,6 +36,7 @@ public class ProcessManager {
                 pb.redirectErrorStream(true); // 合并 stdout 和 stderr
 
                 serverProcess = pb.start();
+                startTime = System.currentTimeMillis();  // 记录启动时间
                 serverInput = new BufferedWriter(new OutputStreamWriter(serverProcess.getOutputStream(), StandardCharsets.UTF_8));
 
                 LOGGER.info("MC 服务器进程已启动 (DIR: {})", workDir);
@@ -87,6 +89,14 @@ public class ProcessManager {
 
     public boolean isRunning() {
         return serverProcess != null && serverProcess.isAlive();
+    }
+    
+    /**
+     * 获取 MC 进程运行时长 (毫秒)
+     */
+    public long getUptimeMs() {
+        if (!isRunning()) return 0;
+        return System.currentTimeMillis() - startTime;
     }
 
     /**
