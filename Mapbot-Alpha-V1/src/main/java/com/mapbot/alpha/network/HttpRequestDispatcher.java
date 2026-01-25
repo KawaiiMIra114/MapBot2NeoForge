@@ -22,14 +22,43 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
         String uri = req.uri();
         
-        // WebSocket 升级请求
+        // WebSocket 升级请求 (无需认证)
         if (uri.equals("/ws") && isWebSocketUpgrade(req)) {
             handleWebSocketUpgrade(ctx, req);
             return;
         }
         
-        // API 请求
+        // 登录 API (无需认证)
+        if (uri.equals("/api/login") && req.method() == HttpMethod.POST) {
+            handleLogin(ctx, req);
+            return;
+        }
+        
+        // 静态资源 (无需认证)
+        if (!uri.startsWith("/api/")) {
+            handleStaticResource(ctx, req);
+            return;
+        }
+        
+        // === API 认证拦截 ===
+        String authHeader = req.headers().get("Authorization");
+        String token = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        }
+        
+        if (!com.mapbot.alpha.security.AuthManager.INSTANCE.validateToken(token)) {
+            sendUnauthorized(ctx);
+            return;
+        }
+        
+        // API 请求 (已认证)
         if (uri.startsWith("/api/")) {
+            // Metrics 历史数据 API
+            if (uri.matches("/api/metrics/.+/history")) {
+                handleMetricsHistory(ctx, uri);
+                return;
+            }
             // 系统状态 API (BUG #6, #7)
             if (uri.equals("/api/status")) {
                 sendJson(ctx, getStatusJson());
@@ -54,9 +83,23 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
                 handleServerCommand(ctx, req, uri);
                 return;
             }
+            // 服务器重启/停止 API
+            if (uri.matches("/api/servers/.+/restart") && req.method() == HttpMethod.POST) {
+                handleServerControl(ctx, uri, "restart");
+                return;
+            }
+            if (uri.matches("/api/servers/.+/stop") && req.method() == HttpMethod.POST) {
+                handleServerControl(ctx, uri, "stop");
+                return;
+            }
             // 跨服文件 API (STEP 9)
             if (uri.startsWith("/api/remote/")) {
                 RemoteFileApiHandler.handle(ctx, req);
+                return;
+            }
+            // 批量文件操作
+            if (uri.equals("/api/files/batch-delete") && req.method() == HttpMethod.POST) {
+                handleBatchDelete(ctx, req);
                 return;
             }
             // 本地文件 API (STEP 8)
@@ -64,8 +107,7 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             return;
         }
         
-        // 静态资源请求
-        handleStaticResource(ctx, req);
+        sendError(ctx, HttpResponseStatus.NOT_FOUND);
     }
     
     private boolean isWebSocketUpgrade(FullHttpRequest req) {
@@ -249,6 +291,139 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             
             sendJson(ctx, "{\"success\":true}");
             LOGGER.info("[命令] 发送到 {}: {}", serverId, command);
+        } catch (Exception e) {
+            sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+        }
+    }
+    
+    /**
+     * 处理用户登录
+     */
+    private void handleLogin(ChannelHandlerContext ctx, FullHttpRequest req) {
+        try {
+            String body = req.content().toString(StandardCharsets.UTF_8);
+            String username = extractJsonString(body, "username");
+            String password = extractJsonString(body, "password");
+            
+            String token = com.mapbot.alpha.security.AuthManager.INSTANCE.login(username, password);
+            
+            if (token != null) {
+                sendJson(ctx, "{\"success\":true,\"token\":\"" + token + "\"}");
+            } else {
+                sendJson(ctx, "{\"success\":false,\"error\":\"用户名或密码错误\"}");
+            }
+        } catch (Exception e) {
+            sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+        }
+    }
+    
+    /**
+     * 发送 401 未授权响应
+     */
+    private void sendUnauthorized(ChannelHandlerContext ctx) {
+        byte[] bytes = "{\"error\":\"Unauthorized\"}".getBytes(StandardCharsets.UTF_8);
+        FullHttpResponse response = new DefaultFullHttpResponse(
+                HttpVersion.HTTP_1_1, HttpResponseStatus.UNAUTHORIZED,
+                io.netty.buffer.Unpooled.wrappedBuffer(bytes));
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json");
+        response.headers().set("WWW-Authenticate", "Bearer");
+        HttpUtil.setContentLength(response, bytes.length);
+        ctx.writeAndFlush(response);
+    }
+    
+    /**
+     * 处理 Metrics 历史数据请求
+     */
+    private void handleMetricsHistory(ChannelHandlerContext ctx, String uri) {
+        try {
+            // 解析 serverId: /api/metrics/{serverId}/history
+            String path = uri.substring("/api/metrics/".length());
+            String serverId = path.substring(0, path.indexOf("/"));
+            
+            var collector = com.mapbot.alpha.metrics.MetricsCollector.INSTANCE;
+            var tps = collector.getTpsHistory(serverId);
+            var memory = collector.getMemoryHistory(serverId);
+            var players = collector.getPlayersHistory(serverId);
+            
+            StringBuilder json = new StringBuilder("{\"tps\":[");
+            for (int i = 0; i < tps.size(); i++) {
+                if (i > 0) json.append(",");
+                json.append("[").append(tps.get(i).timestamp).append(",").append(tps.get(i).value).append("]");
+            }
+            json.append("],\"memory\":[");
+            for (int i = 0; i < memory.size(); i++) {
+                if (i > 0) json.append(",");
+                json.append("[").append(memory.get(i).timestamp).append(",").append(memory.get(i).value).append("]");
+            }
+            json.append("],\"players\":[");
+            for (int i = 0; i < players.size(); i++) {
+                if (i > 0) json.append(",");
+                json.append("[").append(players.get(i).timestamp).append(",").append(players.get(i).value).append("]");
+            }
+            json.append("]}");
+            
+            sendJson(ctx, json.toString());
+        } catch (Exception e) {
+            sendJson(ctx, "{\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+        }
+    }
+    
+    /**
+     * 处理服务器重启/停止请求
+     */
+    private void handleServerControl(ChannelHandlerContext ctx, String uri, String action) {
+        try {
+            String path = uri.substring("/api/servers/".length());
+            String serverId = path.substring(0, path.indexOf("/"));
+            
+            var server = com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.getServer(serverId);
+            if (server == null || !server.isOnline()) {
+                sendJson(ctx, "{\"success\":false,\"error\":\"Server not connected\"}");
+                return;
+            }
+            
+            String json = String.format("{\"type\":\"%s_server\",\"requestId\":\"%s\"}",
+                    action, System.currentTimeMillis());
+            server.channel.writeAndFlush(json + "\n");
+            
+            sendJson(ctx, "{\"success\":true}");
+            LOGGER.info("[控制] {} 服务器: {}", action, serverId);
+        } catch (Exception e) {
+            sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+        }
+    }
+    
+    /**
+     * 处理批量文件删除
+     */
+    private void handleBatchDelete(ChannelHandlerContext ctx, FullHttpRequest req) {
+        try {
+            String body = req.content().toString(StandardCharsets.UTF_8);
+            // 简单解析 paths 数组: {"paths":["file1","file2"]}
+            int start = body.indexOf("[");
+            int end = body.lastIndexOf("]");
+            if (start == -1 || end == -1) {
+                sendJson(ctx, "{\"success\":false,\"error\":\"Invalid request\"}");
+                return;
+            }
+            
+            String pathsStr = body.substring(start + 1, end);
+            String[] paths = pathsStr.split(",");
+            int deleted = 0;
+            
+            for (String p : paths) {
+                p = p.trim().replace("\"", "");
+                if (p.isEmpty()) continue;
+                
+                java.nio.file.Path file = java.nio.file.Paths.get(".").resolve(p);
+                if (java.nio.file.Files.exists(file)) {
+                    java.nio.file.Files.deleteIfExists(file);
+                    deleted++;
+                }
+            }
+            
+            sendJson(ctx, "{\"success\":true,\"deleted\":" + deleted + "}");
+            LOGGER.info("[文件] 批量删除 {} 个文件", deleted);
         } catch (Exception e) {
             sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
         }

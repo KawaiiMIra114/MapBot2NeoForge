@@ -62,6 +62,10 @@ public class MapbotAlpha {
         BridgeServer.INSTANCE.start(25561);
         LOGGER.info("[BRIDGE] Bridge 服务器已启动: 25561");
         
+        // 4.5. 启动性能指标收集器
+        com.mapbot.alpha.metrics.MetricsCollector.INSTANCE.start();
+        LOGGER.info("[METRICS] 性能指标收集器已启动");
+        
         // 5. (可选) 启动 MC 服务器进程
         // ProcessManager.INSTANCE.startServer("./MapBot_Reforged/run", "java -Xmx2G -jar server.jar nogui");
 

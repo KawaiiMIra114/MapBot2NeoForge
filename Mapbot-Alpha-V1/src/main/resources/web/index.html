@@ -12,6 +12,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
         rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- CodeMirror 6 (轻量版) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/lib/codemirror.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/lib/codemirror.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/mode/yaml/yaml.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.15/mode/properties/properties.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -117,21 +125,46 @@
             background: rgba(255, 255, 255, 0.05);
         }
 
-        /* 无缝动画 (#4) */
+        /* 无缝动画 (#4 优化) */
         .view-section {
-            animation: fadeIn 0.3s ease-out;
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
+        .view-section.active {
+            display: flex;
+        }
 
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* 进场状态 */
+        .view-section.entering {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 退场状态 */
+        .view-section.exiting {
+            opacity: 0;
+            transform: translateY(-20px);
+            pointer-events: none;
+        }
+
+        /* 元素级过渡 */
+        #file-server-select,
+        #file-browser {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .fade-out {
+            opacity: 0 !important;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+
+        .fade-in {
+            opacity: 1 !important;
+            transform: scale(1);
         }
 
         .glass-card {
@@ -185,10 +218,195 @@
         .ws-disconnected {
             color: #ef4444;
         }
+
+        /* Toast 通知 */
+        #toast-container {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            backdrop-filter: blur(8px);
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast-success {
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+        }
+
+        .toast-error {
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+        }
+
+        .toast-warning {
+            background: rgba(234, 179, 8, 0.9);
+            color: black;
+        }
+
+        .toast-info {
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(167, 240, 66, 0.3);
+            border-top-color: #a7f042;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* CodeMirror 暗色主题 */
+        .CodeMirror {
+            background: #1a2210 !important;
+            color: #eef3e7 !important;
+            height: 100% !important;
+            font-family: 'Roboto Mono', monospace !important;
+            font-size: 13px !important;
+        }
+
+        .CodeMirror-gutters {
+            background: #2a3320 !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .CodeMirror-linenumber {
+            color: #4f5e3e !important;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .glass-nav {
+                border-radius: 1rem;
+                padding: 0.5rem;
+            }
+
+            .nav-item {
+                width: 3.5rem;
+                height: 40px;
+            }
+
+            .nav-item span:last-child {
+                display: none;
+            }
+
+            #view-files .flex.gap-4 {
+                flex-direction: column;
+            }
+
+            #view-files #file-list {
+                width: 100%;
+                max-height: 200px;
+            }
+
+            #server-detail {
+                position: fixed;
+                inset: 0;
+                z-index: 50;
+                margin: 1rem;
+            }
+
+            header {
+                padding: 0.75rem 1rem;
+            }
+        }
+
+        /* 登录页 */
+        #view-login {
+            position: fixed;
+            inset: 0;
+            background: #1a2210;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #view-login.hidden {
+            display: none;
+        }
     </style>
 </head>
 
 <body class="bg-bg-dark text-txt antialiased h-screen overflow-hidden flex flex-col">
+
+    <!-- Toast 容器 -->
+    <div id="toast-container"></div>
+
+    <!-- 登录页 -->
+    <div id="view-login">
+        <div class="glass-card w-full max-w-md mx-4">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="bg-primary rounded-xl w-12 h-12 flex items-center justify-center text-bg-dark">
+                    <span class="material-symbols-outlined text-2xl">smart_toy</span>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-white">MapBot Alpha</h1>
+                    <p class="text-xs text-txt-sub">控制中心登录</p>
+                </div>
+            </div>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="text-sm text-txt-sub block mb-1">用户名</label>
+                    <input type="text" id="login-username" required
+                        class="w-full bg-bg-dark rounded-lg px-4 py-3 text-white border border-white/10 focus:border-primary focus:outline-none"
+                        placeholder="admin">
+                </div>
+                <div>
+                    <label class="text-sm text-txt-sub block mb-1">密码</label>
+                    <input type="password" id="login-password" required
+                        class="w-full bg-bg-dark rounded-lg px-4 py-3 text-white border border-white/10 focus:border-primary focus:outline-none"
+                        placeholder="••••••••">
+                </div>
+                <button type="submit"
+                    class="w-full py-3 bg-primary hover:bg-primary-dark text-bg-dark rounded-xl font-bold flex items-center justify-center gap-2 transition-all">
+                    <span class="material-symbols-outlined">login</span> 登录
+                </button>
+            </form>
+            <p class="text-xs text-gray-500 mt-4 text-center">默认账号: admin / admin123</p>
+        </div>
+    </div>
 
     <!-- Header -->
     <header
@@ -597,6 +815,92 @@
     </div>
 
     <script>
+        // === 认证 Token ===
+        let authToken = localStorage.getItem('mapbot_token') || '';
+
+        // === Toast 系统 ===
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-' + type;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // === Loading 系统 ===
+        function showLoading(element) {
+            if (!element) return;
+            element.style.position = 'relative';
+            const overlay = document.createElement('div');
+            overlay.className = 'loading-overlay';
+            overlay.innerHTML = '<div class="spinner"></div>';
+            element.appendChild(overlay);
+        }
+        function hideLoading(element) {
+            if (!element) return;
+            const overlay = element.querySelector('.loading-overlay');
+            if (overlay) overlay.remove();
+        }
+
+        // === API 封装 (自动携带 Token) ===
+        async function apiFetch(url, options = {}) {
+            if (!options.headers) options.headers = {};
+            if (authToken) {
+                options.headers['Authorization'] = 'Bearer ' + authToken;
+            }
+            const res = await fetch(url, options);
+            if (res.status === 401) {
+                showToast('登录已过期，请重新登录', 'error');
+                logout();
+                throw new Error('Unauthorized');
+            }
+            return res;
+        }
+
+        // === 登录/登出 ===
+        function checkAuth() {
+            if (!authToken) {
+                document.getElementById('view-login').classList.remove('hidden');
+                return false;
+            }
+            document.getElementById('view-login').classList.add('hidden');
+            return true;
+        }
+
+        function logout() {
+            authToken = '';
+            localStorage.removeItem('mapbot_token');
+            document.getElementById('view-login').classList.remove('hidden');
+        }
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (data.success && data.token) {
+                    authToken = data.token;
+                    localStorage.setItem('mapbot_token', authToken);
+                    document.getElementById('view-login').classList.add('hidden');
+                    showToast('登录成功', 'success');
+                    initApp();
+                } else {
+                    showToast(data.error || '登录失败', 'error');
+                }
+            } catch (err) {
+                showToast('网络错误: ' + err.message, 'error');
+            }
+        });
+
         // === Navigation ===
         const indicator = document.getElementById('nav-indicator');
         const navbar = document.getElementById('navbar');
@@ -623,7 +927,28 @@
         }
 
         navItems.forEach(item => item.addEventListener('click', () => switchTab(item.dataset.tab)));
-        window.onload = () => { const a = document.querySelector('.nav-item.active'); if (a) setTimeout(() => updateIndicator(a), 100); connectWebSocket(); refreshServers(); refreshStatus(); };
+
+        // === 初始化应用 ===
+        function initApp() {
+            const a = document.querySelector('.nav-item.active');
+            if (a) setTimeout(() => updateIndicator(a), 100);
+            connectWebSocket();
+            refreshServers();
+            refreshStatus();
+
+            // 初始进场动画
+            setTimeout(() => {
+                const activeView = document.querySelector('.view-section.active');
+                if (activeView) activeView.classList.add('entering');
+            }, 50);
+        }
+
+        window.onload = () => {
+            // 检查登录状态
+            if (checkAuth()) {
+                initApp();
+            }
+        };
         window.onresize = () => { const a = document.querySelector('.nav-item.active'); if (a) updateIndicator(a); };
 
         // === WebSocket ===
@@ -830,7 +1155,7 @@
 
         async function refreshServers() {
             try {
-                const res = await fetch('/api/servers');
+                const res = await apiFetch('/api/servers');
                 const servers = await res.json();
 
                 document.getElementById('server-count').textContent = servers.length;
@@ -878,11 +1203,12 @@
             showServerDetail(serverId);
         }
 
-        // 显示服务器详情面板 (优化: 类似 MCSM)
+        // 显示服务器详情面板 (优化: 类似 MCSM, 带动画)
         function showServerDetail(serverId) {
             fetch('/api/servers').then(r => r.json()).then(servers => {
                 const s = servers.find(x => x.id === serverId);
                 if (!s) return;
+
                 document.getElementById('detail-name').textContent = s.id;
                 document.getElementById('detail-status').textContent = s.online ? '在线' : '离线';
                 document.getElementById('detail-status').className = 'text-sm ' + (s.online ? 'text-green-400' : 'text-red-400');
@@ -890,13 +1216,30 @@
                 document.getElementById('detail-tps').textContent = s.tps;
                 document.getElementById('detail-memory').textContent = s.memory;
                 document.getElementById('detail-uptime').textContent = formatUptime(s.uptime);
-                document.getElementById('server-detail').style.display = 'block';
+
+                const detailView = document.getElementById('server-detail');
+
+                // 动画: 从隐形状态淡入
+                detailView.style.display = 'block';
+                detailView.classList.add('fade-out'); // 初始状态: 透明 + 缩小
+
+                requestAnimationFrame(() => {
+                    detailView.classList.remove('fade-out'); // 移除类触发 transition 到正常状态
+                    detailView.classList.add('fade-in');
+                });
             });
         }
 
         function closeServerDetail() {
-            document.getElementById('server-detail').style.display = 'none';
-            currentServerId = null;
+            const detailView = document.getElementById('server-detail');
+            detailView.classList.remove('fade-in');
+            detailView.classList.add('fade-out');
+
+            setTimeout(() => {
+                detailView.style.display = 'none';
+                detailView.classList.remove('fade-out');
+                currentServerId = null;
+            }, 300);
         }
 
         function openServerFiles() {
@@ -945,7 +1288,7 @@
         // 获取 Alpha Core 状态 (BUG #6, #7)
         async function refreshStatus() {
             try {
-                const res = await fetch('/api/status');
+                const res = await apiFetch('/api/status');
                 const status = await res.json();
                 document.getElementById('mc-status').textContent = status.mcRunning ? '运行中' : '未启动';
                 document.getElementById('mc-uptime').textContent = status.mcRunning ? formatUptime(status.mcUptime) : '--';
@@ -959,7 +1302,7 @@
         // === Settings Management (#10) ===
         async function loadSettings() {
             try {
-                const res = await fetch('/api/config');
+                const res = await apiFetch('/api/config');
                 const cfg = await res.json();
                 document.getElementById('cfg-wsUrl').value = cfg.wsUrl || '';
                 document.getElementById('cfg-reconnect').value = cfg.reconnectInterval || 5;
@@ -983,7 +1326,7 @@
                 debugMode: document.getElementById('cfg-debug').checked
             };
             try {
-                const res = await fetch('/api/config', {
+                const res = await apiFetch('/api/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(cfg)
@@ -1105,31 +1448,66 @@
             document.getElementById('btn-delete').style.display = 'inline-block';
         };
 
-        // === 文件管理服务器选择 (问题 #1) ===
+        // === 文件管理服务器选择 (动画优化) ===
         function selectFileServer(serverId) {
             currentServerId = serverId;
-            document.getElementById('file-server-select').style.display = 'none';
-            document.getElementById('file-browser').style.display = 'flex';
+            const selectView = document.getElementById('file-server-select');
+            const browserView = document.getElementById('file-browser');
 
-            // 更新 badge
-            if (serverId) {
-                document.getElementById('file-server-badge').textContent = serverId;
-                document.getElementById('file-server-badge').className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400';
-            } else {
-                document.getElementById('file-server-badge').textContent = 'Alpha 本地';
-                document.getElementById('file-server-badge').className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary';
-            }
+            // 1. 淡出选择视图
+            selectView.classList.add('fade-out');
 
-            currentPath = '';
-            refreshFiles();
-            appendLog('[SYSTEM] 已选择服务器: ' + (serverId || 'Alpha 本地'));
+            setTimeout(() => {
+                selectView.style.display = 'none';
+                selectView.classList.remove('fade-out');
+
+                browserView.style.display = 'flex';
+                browserView.style.opacity = '0';
+                browserView.style.transform = 'translateY(20px)';
+
+                // 2. 淡入浏览器视图
+                requestAnimationFrame(() => {
+                    browserView.style.opacity = '1';
+                    browserView.style.transform = 'translateY(0)';
+                });
+
+                // 更新 Badge
+                if (serverId) {
+                    document.getElementById('file-server-badge').textContent = serverId;
+                    document.getElementById('file-server-badge').className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-400';
+                } else {
+                    document.getElementById('file-server-badge').textContent = 'Alpha 本地';
+                    document.getElementById('file-server-badge').className = 'px-2 py-0.5 rounded-full text-xs font-bold bg-primary/20 text-primary';
+                }
+
+                currentPath = '';
+                refreshFiles();
+                appendLog('[SYSTEM] 已选择服务器: ' + (serverId || 'Alpha 本地'));
+            }, 300);
         }
 
         function backToServerSelect() {
-            document.getElementById('file-browser').style.display = 'none';
-            document.getElementById('file-server-select').style.display = 'flex';
-            currentServerId = null;
-            loadFileServerCards();
+            const selectView = document.getElementById('file-server-select');
+            const browserView = document.getElementById('file-browser');
+
+            // 1. 淡出浏览器视图
+            browserView.style.opacity = '0';
+            browserView.style.transform = 'translateY(20px)';
+
+            setTimeout(() => {
+                browserView.style.display = 'none';
+
+                selectView.style.display = 'flex';
+                selectView.classList.add('fade-out'); // 先设为不可见状态 (复用 fade-out: opacity 0, scale 0.95)
+
+                loadFileServerCards();
+                currentServerId = null;
+
+                // 2. 淡入选择视图
+                requestAnimationFrame(() => {
+                    selectView.classList.remove('fade-out');
+                });
+            }, 300);
         }
 
         // 加载子服务器卡片到文件选择页
@@ -1170,15 +1548,48 @@
             }
         }
 
-        // 切换到文件页时加载服务器卡片
-        const origSwitchTab2 = switchTab;
+        // === 动画过渡系统 (主页面) ===
+        // 完全重写 switchTab 以支持动画和特殊逻辑
         switchTab = function (tabId) {
-            origSwitchTab2(tabId);
+            const currentView = document.querySelector('.view-section.active');
+            const targetView = document.getElementById('view-' + tabId);
+
+            // 1. 更新导航栏
+            navItems.forEach(i => {
+                if (i.dataset.tab === tabId) { i.classList.add('active'); updateIndicator(i); }
+                else { i.classList.remove('active'); }
+            });
+
+            // 2. 页面切换动画
+            if (currentView && currentView !== targetView) {
+                // 退出当前页面
+                currentView.classList.remove('entering');
+                currentView.classList.add('exiting');
+
+                setTimeout(() => {
+                    currentView.classList.remove('active', 'exiting');
+                    // 进入新页面
+                    targetView.classList.add('active');
+                    requestAnimationFrame(() => {
+                        targetView.classList.add('entering');
+                    });
+                }, 300);
+            } else if (!currentView) {
+                // 初始加载 (无淡出)
+                targetView.classList.add('active');
+                requestAnimationFrame(() => {
+                    targetView.classList.add('entering');
+                });
+            }
+
+            // 3. 特殊逻辑
             if (tabId === 'files') {
                 loadFileServerCards();
-                // 返回选择页面
+                // 确保显示服务器选择视图，隐藏文件浏览器
                 document.getElementById('file-browser').style.display = 'none';
                 document.getElementById('file-server-select').style.display = 'flex';
+                // 重置文件视图的透明度
+                document.getElementById('file-server-select').classList.remove('fade-out');
             }
             if (tabId === 'settings') loadSettings();
         };
