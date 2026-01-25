@@ -35,6 +35,15 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
                 sendJson(ctx, getStatusJson());
                 return;
             }
+            // 配置 API (#10 设置页面)
+            if (uri.equals("/api/config")) {
+                if (req.method() == HttpMethod.GET) {
+                    sendJson(ctx, getConfigJson());
+                } else if (req.method() == HttpMethod.POST) {
+                    handleConfigSave(ctx, req);
+                }
+                return;
+            }
             // 服务器列表 API (STEP 10)
             if (uri.equals("/api/servers")) {
                 sendJson(ctx, com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.toJson());
@@ -145,5 +154,61 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
                ",\"mcUptime\":" + uptime +
                ",\"wsConnections\":" + wsCount +
                ",\"bridgeConnections\":" + bridgeCount + "}";
+    }
+    
+    /**
+     * 获取配置 JSON (#10 设置页面)
+     */
+    private String getConfigJson() {
+        var cfg = com.mapbot.alpha.config.AlphaConfig.INSTANCE;
+        return "{\"wsUrl\":\"" + escapeJson(cfg.getWsUrl()) + "\"," +
+               "\"reconnectInterval\":" + cfg.getReconnectInterval() + "," +
+               "\"playerGroupId\":\"" + cfg.getPlayerGroupId() + "\"," +
+               "\"adminGroupId\":\"" + cfg.getAdminGroupId() + "\"," +
+               "\"botQQ\":\"" + cfg.getBotQQ() + "\"," +
+               "\"debugMode\":" + cfg.isDebugMode() + "}";
+    }
+    
+    /**
+     * 保存配置 (#10 设置页面)
+     */
+    private void handleConfigSave(ChannelHandlerContext ctx, FullHttpRequest req) {
+        try {
+            String body = req.content().toString(StandardCharsets.UTF_8);
+            var cfg = com.mapbot.alpha.config.AlphaConfig.INSTANCE;
+            
+            // 简易 JSON 解析
+            String wsUrl = extractJsonString(body, "wsUrl");
+            if (!wsUrl.isEmpty()) cfg.setWsUrl(wsUrl);
+            
+            String playerGroup = extractJsonString(body, "playerGroupId");
+            if (!playerGroup.isEmpty()) cfg.setPlayerGroupId(Long.parseLong(playerGroup));
+            
+            String adminGroup = extractJsonString(body, "adminGroupId");
+            if (!adminGroup.isEmpty()) cfg.setAdminGroupId(Long.parseLong(adminGroup));
+            
+            String botQQ = extractJsonString(body, "botQQ");
+            if (!botQQ.isEmpty()) cfg.setBotQQ(Long.parseLong(botQQ));
+            
+            cfg.save();
+            sendJson(ctx, "{\"success\":true}");
+            LOGGER.info("配置已通过 Web 面板更新");
+        } catch (Exception e) {
+            sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+        }
+    }
+    
+    private static String extractJsonString(String json, String key) {
+        String search = "\"" + key + "\":\"";
+        int start = json.indexOf(search);
+        if (start == -1) return "";
+        start += search.length();
+        int end = json.indexOf("\"", start);
+        return end > start ? json.substring(start, end) : "";
+    }
+    
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

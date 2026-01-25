@@ -44,6 +44,8 @@ public class FileApiHandler {
                 handleDeleteFile(ctx, req);
             } else if (uri.equals("/api/files/mkdir") && method == HttpMethod.POST) {
                 handleMkdir(ctx, req);
+            } else if (uri.equals("/api/files/upload") && method == HttpMethod.POST) {
+                handleUploadFile(ctx, req);
             } else {
                 sendJson(ctx, HttpResponseStatus.NOT_FOUND, "{\"error\": \"Unknown API\"}");
             }
@@ -154,6 +156,30 @@ public class FileApiHandler {
         
         sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
         LOGGER.info("目录已创建: {}", dir);
+    }
+    
+    /**
+     * 处理文件上传 (#12 文件上传)
+     */
+    private static void handleUploadFile(ChannelHandlerContext ctx, FullHttpRequest req) throws IOException {
+        String body = req.content().toString(StandardCharsets.UTF_8);
+        String pathParam = extractJsonValue(body, "path");
+        String content = extractJsonValue(body, "content");
+        String encoding = extractJsonValue(body, "encoding");
+        
+        Path file = resolveSafePath(pathParam);
+        
+        if ("base64".equals(encoding)) {
+            // Base64 解码并写入二进制文件
+            byte[] data = java.util.Base64.getDecoder().decode(content);
+            Files.write(file, data);
+        } else {
+            // 纯文本写入
+            Files.writeString(file, content, StandardCharsets.UTF_8);
+        }
+        
+        sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
+        LOGGER.info("文件已上传: {}", file);
     }
     
     /**
