@@ -277,9 +277,27 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             if (data.containsKey("redisEnabled")) cfg.setRedisEnabled(Boolean.parseBoolean(String.valueOf(data.get("redisEnabled"))));
             if (data.containsKey("redisHost")) {
                 String host = String.valueOf(data.get("redisHost"));
-                int port = data.containsKey("redisPort") ? Integer.parseInt(String.valueOf(data.get("redisPort"))) : 6379;
+                
+                int port = 6379;
+                if (data.containsKey("redisPort")) {
+                    try {
+                        port = (int) Double.parseDouble(String.valueOf(data.get("redisPort")));
+                    } catch (Exception e) {
+                        port = 6379;
+                    }
+                }
+                
                 String pass = data.containsKey("redisPassword") ? String.valueOf(data.get("redisPassword")) : "";
-                int db = data.containsKey("redisDatabase") ? Integer.parseInt(String.valueOf(data.get("redisDatabase"))) : 0;
+                
+                int db = 0;
+                if (data.containsKey("redisDatabase")) {
+                    try {
+                        db = (int) Double.parseDouble(String.valueOf(data.get("redisDatabase")));
+                    } catch (Exception e) {
+                        db = 0;
+                    }
+                }
+                
                 cfg.setRedisConfig(host, port, pass, db);
             }
             
