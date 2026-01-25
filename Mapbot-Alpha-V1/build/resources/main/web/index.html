@@ -533,10 +533,21 @@
                     <span id="console-ws-badge"
                         class="text-xs px-2 py-0.5 rounded bg-red-900/30 text-red-400 border border-red-800">DISCONNECTED</span>
                 </div>
-                <button onclick="clearLogs()" class="p-2 hover:bg-white/5 rounded-lg text-txt-sub hover:text-white"
-                    title="清屏">
-                    <span class="material-symbols-outlined text-lg">delete</span>
-                </button>
+                <div class="flex items-center gap-2">
+                    <div class="flex items-center bg-black/30 rounded-lg border border-white/10 px-3 py-1.5">
+                        <span class="material-symbols-outlined text-gray-500 text-sm mr-2">search</span>
+                        <input id="log-search" type="text" placeholder="搜索日志..."
+                            class="bg-transparent border-none focus:ring-0 focus:outline-none text-white text-xs w-32"
+                            oninput="filterLogs()">
+                        <button onclick="clearLogSearch()" class="text-gray-500 hover:text-white ml-1" title="清除">
+                            <span class="material-symbols-outlined text-sm">close</span>
+                        </button>
+                    </div>
+                    <button onclick="clearLogs()" class="p-2 hover:bg-white/5 rounded-lg text-txt-sub hover:text-white"
+                        title="清屏">
+                        <span class="material-symbols-outlined text-lg">delete</span>
+                    </button>
+                </div>
             </div>
             <div id="full-logs" class="flex-1 overflow-y-auto p-4 font-mono text-sm leading-relaxed space-y-0.5"></div>
             <div class="p-4 bg-surface border-t border-white/5 pb-24">
@@ -796,6 +807,22 @@
                                 class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
                             </div>
                         </label>
+                    </div>
+                </div>
+
+                <!-- 用户管理 -->
+                <div class="glass-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">group</span> 用户管理
+                        </h3>
+                        <button onclick="showAddUserDialog()"
+                            class="text-xs bg-primary text-bg-dark px-3 py-1 rounded-full font-bold hover:bg-primary-dark">
+                            + 添加用户
+                        </button>
+                    </div>
+                    <div id="user-list" class="space-y-2">
+                        <p class="text-gray-500 text-sm">加载中...</p>
                     </div>
                 </div>
 
@@ -1067,6 +1094,42 @@
             }
         }
         function escapeHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        // === 日志搜索功能 ===
+        let allLogs = []; // 保存所有日志用于搜索
+
+        function filterLogs() {
+            const keyword = document.getElementById('log-search').value.toLowerCase().trim();
+            const logsContainer = document.getElementById('full-logs');
+
+            if (!keyword) {
+                // 显示所有日志
+                logsContainer.querySelectorAll('p').forEach(p => {
+                    p.style.display = '';
+                    p.innerHTML = p.dataset.original || p.innerHTML;
+                });
+                return;
+            }
+
+            // 过滤并高亮匹配的日志
+            logsContainer.querySelectorAll('p').forEach(p => {
+                const text = p.textContent.toLowerCase();
+                if (text.includes(keyword)) {
+                    p.style.display = '';
+                    // 高亮关键词
+                    if (!p.dataset.original) p.dataset.original = p.innerHTML;
+                    const regex = new RegExp('(' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+                    p.innerHTML = p.dataset.original.replace(regex, '<mark class="bg-yellow-500/50 text-white rounded px-0.5">$1</mark>');
+                } else {
+                    p.style.display = 'none';
+                }
+            });
+        }
+
+        function clearLogSearch() {
+            document.getElementById('log-search').value = '';
+            filterLogs();
+        }
         function escapeAttr(s) { return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
         // === File Management ===
@@ -1462,8 +1525,113 @@
         const origSwitchTab = switchTab;
         switchTab = function (tabId) {
             origSwitchTab(tabId);
-            if (tabId === 'settings') loadSettings();
+            if (tabId === 'settings') {
+                loadSettings();
+                loadUsers();
+            }
         };
+
+        // === 用户管理 ===
+        async function loadUsers() {
+            try {
+                const res = await apiFetch('/api/users');
+                const users = await res.json();
+
+                if (users.error) {
+                    document.getElementById('user-list').innerHTML = '<p class="text-red-400 text-sm">' + users.error + '</p>';
+                    return;
+                }
+
+                let html = '';
+                users.forEach(u => {
+                    const roleColor = u.role === 'ADMIN' ? 'text-red-400' : u.role === 'OPERATOR' ? 'text-yellow-400' : 'text-gray-400';
+                    const roleBg = u.role === 'ADMIN' ? 'bg-red-500/20' : u.role === 'OPERATOR' ? 'bg-yellow-500/20' : 'bg-gray-500/20';
+                    html += `<div class="flex items-center justify-between bg-bg-dark rounded-lg px-4 py-2">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-primary">person</span>
+                            <span class="text-white font-medium">${u.username}</span>
+                            <span class="text-xs px-2 py-0.5 rounded ${roleBg} ${roleColor}">${u.role}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select onchange="changeUserRole('${u.username}', this.value)" class="bg-surface text-white text-xs rounded px-2 py-1 border border-white/10">
+                                <option value="VIEWER" ${u.role === 'VIEWER' ? 'selected' : ''}>VIEWER</option>
+                                <option value="OPERATOR" ${u.role === 'OPERATOR' ? 'selected' : ''}>OPERATOR</option>
+                                <option value="ADMIN" ${u.role === 'ADMIN' ? 'selected' : ''}>ADMIN</option>
+                            </select>
+                            ${u.username !== 'admin' ? `<button onclick="deleteUser('${u.username}')" class="text-red-400 hover:text-red-300" title="删除">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                            </button>` : ''}
+                        </div>
+                    </div>`;
+                });
+                document.getElementById('user-list').innerHTML = html || '<p class="text-gray-500 text-sm">暂无用户</p>';
+            } catch (e) {
+                document.getElementById('user-list').innerHTML = '<p class="text-red-400 text-sm">加载失败: ' + e.message + '</p>';
+            }
+        }
+
+        function showAddUserDialog() {
+            showModal('添加用户', '用户名:密码:角色 (如 test:123456:VIEWER)', input => {
+                const parts = input.split(':');
+                if (parts.length >= 2) {
+                    createUser(parts[0], parts[1], parts[2] || 'VIEWER');
+                }
+            });
+        }
+
+        async function createUser(username, password, role) {
+            try {
+                const res = await apiFetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password, role })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    appendLog('[SYSTEM] 用户已创建: ' + username);
+                    loadUsers();
+                } else {
+                    appendLog('[ERROR] 创建失败: ' + result.error);
+                }
+            } catch (e) {
+                appendLog('[ERROR] 创建用户失败: ' + e.message);
+            }
+        }
+
+        async function deleteUser(username) {
+            if (!confirm('确定删除用户 "' + username + '"？')) return;
+            try {
+                const res = await apiFetch('/api/users/' + username, { method: 'DELETE' });
+                const result = await res.json();
+                if (result.success) {
+                    appendLog('[SYSTEM] 用户已删除: ' + username);
+                    loadUsers();
+                } else {
+                    appendLog('[ERROR] 删除失败: ' + result.error);
+                }
+            } catch (e) {
+                appendLog('[ERROR] 删除用户失败: ' + e.message);
+            }
+        }
+
+        async function changeUserRole(username, role) {
+            try {
+                const res = await apiFetch('/api/users/' + username + '/role', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    appendLog('[SYSTEM] 角色已修改: ' + username + ' -> ' + role);
+                    loadUsers();
+                } else {
+                    appendLog('[ERROR] 修改失败: ' + result.error);
+                }
+            } catch (e) {
+                appendLog('[ERROR] 修改角色失败: ' + e.message);
+            }
+        }
 
         // === File Management Enhanced (#12-14) ===
         function showNewFileDialog() {

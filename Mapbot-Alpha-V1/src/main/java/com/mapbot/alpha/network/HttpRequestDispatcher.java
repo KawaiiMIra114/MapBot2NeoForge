@@ -102,6 +102,11 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
                 handleBatchDelete(ctx, req);
                 return;
             }
+            // 用户管理 API (需要 ADMIN 权限)
+            if (uri.startsWith("/api/users")) {
+                handleUsersApi(ctx, req, uri, token);
+                return;
+            }
             // 本地文件 API (STEP 8)
             FileApiHandler.handle(ctx, req);
             return;
@@ -427,5 +432,111 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         } catch (Exception e) {
             sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
         }
+    }
+    
+    /**
+     * 用户管理 API
+     */
+    private void handleUsersApi(ChannelHandlerContext ctx, FullHttpRequest req, String uri, String token) {
+        var auth = com.mapbot.alpha.security.AuthManager.INSTANCE;
+        
+        // 检查 ADMIN 权限
+        if (!auth.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.ADMIN)) {
+            sendJson(ctx, "{\"error\":\"Permission denied. ADMIN required.\"}");
+            return;
+        }
+        
+        HttpMethod method = req.method();
+        
+        try {
+            // GET /api/users - 列出所有用户
+            if (uri.equals("/api/users") && method == HttpMethod.GET) {
+                var users = auth.listUsers();
+                sendJson(ctx, com.mapbot.alpha.utils.JsonUtils.toJson(users));
+                return;
+            }
+            
+            // POST /api/users - 创建用户
+            if (uri.equals("/api/users") && method == HttpMethod.POST) {
+                String body = req.content().toString(java.nio.charset.StandardCharsets.UTF_8);
+                CreateUserRequest request = com.mapbot.alpha.utils.JsonUtils.fromJson(body, CreateUserRequest.class);
+                
+                if (request.username == null || request.password == null) {
+                    sendJson(ctx, "{\"error\":\"username and password required\"}");
+                    return;
+                }
+                
+                var role = request.role != null ? 
+                    com.mapbot.alpha.security.AuthManager.Role.valueOf(request.role.toUpperCase()) :
+                    com.mapbot.alpha.security.AuthManager.Role.VIEWER;
+                
+                if (auth.createUser(request.username, request.password, role)) {
+                    sendJson(ctx, "{\"success\":true}");
+                } else {
+                    sendJson(ctx, "{\"error\":\"User already exists\"}");
+                }
+                return;
+            }
+            
+            // DELETE /api/users/{username} - 删除用户
+            if (uri.startsWith("/api/users/") && method == HttpMethod.DELETE) {
+                String username = uri.substring("/api/users/".length());
+                if (auth.deleteUser(username)) {
+                    sendJson(ctx, "{\"success\":true}");
+                } else {
+                    sendJson(ctx, "{\"error\":\"Cannot delete user\"}");
+                }
+                return;
+            }
+            
+            // PUT /api/users/{username}/password - 修改密码
+            if (uri.matches("/api/users/.+/password") && method == HttpMethod.PUT) {
+                String username = uri.split("/")[3];
+                String body = req.content().toString(java.nio.charset.StandardCharsets.UTF_8);
+                PasswordRequest request = com.mapbot.alpha.utils.JsonUtils.fromJson(body, PasswordRequest.class);
+                
+                if (auth.changePassword(username, request.password)) {
+                    sendJson(ctx, "{\"success\":true}");
+                } else {
+                    sendJson(ctx, "{\"error\":\"User not found\"}");
+                }
+                return;
+            }
+            
+            // PUT /api/users/{username}/role - 修改角色
+            if (uri.matches("/api/users/.+/role") && method == HttpMethod.PUT) {
+                String username = uri.split("/")[3];
+                String body = req.content().toString(java.nio.charset.StandardCharsets.UTF_8);
+                RoleRequest request = com.mapbot.alpha.utils.JsonUtils.fromJson(body, RoleRequest.class);
+                
+                var role = com.mapbot.alpha.security.AuthManager.Role.valueOf(request.role.toUpperCase());
+                if (auth.changeRole(username, role)) {
+                    sendJson(ctx, "{\"success\":true}");
+                } else {
+                    sendJson(ctx, "{\"error\":\"User not found\"}");
+                }
+                return;
+            }
+            
+            sendJson(ctx, "{\"error\":\"Unknown users API\"}");
+        } catch (Exception e) {
+            LOGGER.error("用户管理 API 错误", e);
+            sendJson(ctx, "{\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+        }
+    }
+    
+    // 用户 API DTO
+    private static class CreateUserRequest {
+        public String username;
+        public String password;
+        public String role;
+    }
+    
+    private static class PasswordRequest {
+        public String password;
+    }
+    
+    private static class RoleRequest {
+        public String role;
     }
 }

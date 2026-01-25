@@ -41,6 +41,10 @@ public class MapbotAlpha {
         AlphaConfig.INSTANCE.load();
         LOGGER.info("[CONFIG] 配置已加载");
         
+        // 0.5. 初始化认证管理器
+        com.mapbot.alpha.security.AuthManager.INSTANCE.init();
+        LOGGER.info("[AUTH] 认证管理器已初始化");
+        
         // 1. 初始化数据管理器
         DataManager.INSTANCE.init();
         LOGGER.info("[DATA] 数据管理器已初始化");
