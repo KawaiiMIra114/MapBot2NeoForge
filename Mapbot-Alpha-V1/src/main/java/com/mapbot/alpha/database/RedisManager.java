@@ -105,6 +105,18 @@ public enum RedisManager {
     public boolean isEnabled() {
         return pool != null;
     }
+    
+    /**
+     * 检查当前连接是否正常
+     */
+    public boolean isConnected() {
+        if (pool == null || pool.isClosed()) return false;
+        try (Jedis jedis = pool.getResource()) {
+            return "PONG".equals(jedis.ping());
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     public void shutdown() {
         if (pool != null) {

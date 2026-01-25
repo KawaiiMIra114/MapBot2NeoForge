@@ -799,3 +799,42 @@ java.lang.NumberFormatException: For input string: "6379.0"
 	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
 	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
 	at java.base/java.lang.Thread.run(Thread.java:1583)
+2026-01-25 19:37:34 [INFO] Mapbot/Alpha - ==============================================
+2026-01-25 19:37:34 [INFO] Mapbot/Alpha -   Mapbot Alpha V1 - 多服中枢
+2026-01-25 19:37:34 [INFO] Mapbot/Alpha -   STEP 13: Reforged 功能完整移植版
+2026-01-25 19:37:34 [INFO] Mapbot/Alpha - ==============================================
+2026-01-25 19:37:34 [INFO] Mapbot/Config - 配置已加载: playerGroup=875585697, adminGroup=885810515, botQQ=2133782376, redisEnabled=true
+2026-01-25 19:37:34 [INFO] Mapbot/Alpha - [CONFIG] 配置已加载
+2026-01-25 19:37:35 [INFO] Mapbot/Redis - Redis 连接成功: PONG
+2026-01-25 19:37:35 [INFO] c.mapbot.alpha.security.AuthManager - 已加载 1 个用户
+2026-01-25 19:37:35 [INFO] Mapbot/Redis - 已开始订阅频道: mapbot:auth:sync
+2026-01-25 19:37:35 [INFO] c.mapbot.alpha.security.AuthManager - AuthManager Redis 同步已开启
+2026-01-25 19:37:35 [INFO] Mapbot/Alpha - [AUTH] 认证管理器已初始化
+2026-01-25 19:37:35 [INFO] Mapbot/Redis - 已开始订阅频道: mapbot:sync
+2026-01-25 19:37:35 [INFO] Mapbot/Data - Redis 数据同步已开启
+2026-01-25 19:37:35 [INFO] Mapbot/Data - 数据管理器初始化完成: 0 绑定, 0 禁言, 0 管理员
+2026-01-25 19:37:35 [INFO] Mapbot/Alpha - [DATA] 数据管理器已初始化
+2026-01-25 19:37:35 [INFO] Mapbot/Inbound - 命令系统初始化完成: 21 个命令
+2026-01-25 19:37:35 [INFO] Mapbot/Alpha - [COMMAND] 命令系统已初始化
+2026-01-25 19:37:35 [INFO] Mapbot/BotClient - 正在连接 OneBot: ws://127.0.0.1:7000
+2026-01-25 19:37:35 [INFO] Mapbot/Alpha - [ONEBOT] 正在连接: ws://127.0.0.1:7000
+2026-01-25 19:37:35 [INFO] Mapbot/BotClient - OneBot WebSocket 已打开
+2026-01-25 19:37:35 [INFO] Mapbot/Inbound - OneBot 生命周期: connect
+2026-01-25 19:37:35 [INFO] Mapbot/BotClient - OneBot 连接成功
+2026-01-25 19:37:35 [INFO] Mapbot/Bridge - Bridge 服务器已启动，监听端口: 25561
+2026-01-25 19:37:35 [INFO] Mapbot/Alpha - [BRIDGE] Bridge 服务器已启动: 25561
+2026-01-25 19:37:35 [INFO] c.m.alpha.metrics.MetricsStorage - 已加载历史指标数据 (保存于 2 分钟 前)
+2026-01-25 19:37:35 [INFO] c.m.alpha.metrics.MetricsStorage - 指标存储已初始化
+2026-01-25 19:37:35 [INFO] Mapbot/Alpha - [METRICS] 指标存储已加载
+2026-01-25 19:37:35 [INFO] c.m.alpha.metrics.MetricsCollector - 性能指标收集器已启动
+2026-01-25 19:37:35 [INFO] Mapbot/Alpha - [METRICS] 性能指标收集器已启动
+2026-01-25 19:37:35 [INFO] Mapbot/Alpha - [SYSTEM] 核心已就绪，监听端口: 25560
+2026-01-25 19:37:35 [INFO] Mapbot/Alpha - ==============================================
+2026-01-25 19:37:38 [INFO] Mapbot/Bridge/Handler - 新的 Bridge 连接: /127.0.0.1:9558
+2026-01-25 19:37:38 [INFO] Mapbot/Bridge/Registry - 服务器已注册: default (当前连接数: 1)
+2026-01-25 19:37:38 [INFO] Mapbot/Bridge/Handler - 服务器已注册: default (版本: 1.0)
+2026-01-25 19:37:50 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:8768 (当前连接数: 1)
+2026-01-25 19:37:50 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:8768
+2026-01-25 19:37:55 [INFO] c.mapbot.alpha.security.AuthManager - 用户登录成功: admin (角色: ADMIN)
+2026-01-25 19:37:55 [INFO] Mapbot/Network/WS - Web 控制台已连接: /127.0.0.1:4851 (当前连接数: 2)
+2026-01-25 19:37:55 [INFO] Mapbot/Network/Http - WebSocket 握手完成: /127.0.0.1:4851

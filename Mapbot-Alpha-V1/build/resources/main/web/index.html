@@ -805,6 +805,9 @@
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <span class="material-symbols-outlined text-primary">database</span> Redis 跨服同步镜像
+                            <span id="redis-status-dot"
+                                class="w-2.5 h-2.5 rounded-full bg-gray-500 ml-2 shadow-[0_0_8px_rgba(107,114,128,0.5)] transition-all"
+                                title="检测中..."></span>
                         </h3>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="cfg-redisEnabled" class="sr-only peer">
@@ -1490,7 +1493,37 @@
 
         function sendServerCommand() {
             const cmd = prompt('输入要发送给服务器的指令:');
-            if (cmd && currentServerId) {
+            if (!cmd) return; // If prompt is cancelled or empty, do nothing.
+
+            // 处理本地/远程指令切换
+            if (cmd.startsWith('/server ')) {
+                const targetName = cmd.substring(8).trim();
+                // 这里我们简单查找一下匹配的服务器 (仅 ID 匹配或名字匹配)
+                // 由于列表在 DOM 里，我们直接遍历 backend 数据会更准，但这里简化为前台切换
+                // 实际应该从 servers 列表找。这里假设用户输入的是 ID。
+                // 为了更好的体验，我们允许部分匹配名字
+
+                // 重新获取一次服务器列表以匹配
+                apiFetch('/api/servers').then(res => res.json()).then(servers => {
+                    const target = servers.find(s => s.name === targetName || s.id === targetName);
+                    if (target) {
+                        showServerDetail(target.id);
+                        appendLog(`[SYSTEM] 已切换到控制台: ${target.id}`); // Use target.id for consistency
+                    } else {
+                        appendLog(`[ERROR] 未找到服务器: ${targetName}`);
+                    }
+                });
+                return;
+            }
+
+            if (cmd === '/back') {
+                closeServerDetail();
+                appendLog('[SYSTEM] 已返回 Alpha Core 控制台');
+                return;
+            }
+
+            if (currentServerId) {
+                // 发送给远程服务器
                 fetch('/api/servers/' + currentServerId + '/command', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1519,6 +1552,18 @@
                 const res = await apiFetch('/api/status');
                 const status = await res.json();
                 document.getElementById('ws-count').textContent = status.wsConnections;
+
+                // 更新 Redis 指示灯
+                const dot = document.getElementById('redis-status-dot');
+                if (dot) {
+                    if (status.redisConnected) {
+                        dot.className = 'w-2.5 h-2.5 rounded-full bg-green-500 ml-2 shadow-[0_0_8px_rgba(34,197,94,0.5)] transition-all';
+                        dot.title = 'Redis 已连接';
+                    } else {
+                        dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500 ml-2 shadow-[0_0_8px_rgba(239,68,68,0.5)] transition-all';
+                        dot.title = 'Redis 未连接';
+                    }
+                }
             } catch (e) { console.error('获取状态失败', e); }
         }
 
