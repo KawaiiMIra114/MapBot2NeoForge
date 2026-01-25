@@ -73,7 +73,15 @@ public class ConsoleCommandHandler {
         if (message.isEmpty()) {
             return "用法: /broadcast <消息>";
         }
-        ServerRegistry.INSTANCE.broadcast("BROADCAST|" + message);
+        // 修复 #1: 使用正确的 JSON 格式发送给 Reforged
+        String json = String.format("{\"type\":\"broadcast\",\"requestId\":\"%s\",\"arg1\":\"%s\"}",
+                System.currentTimeMillis(), escapeJson(message));
+        ServerRegistry.INSTANCE.broadcast(json);
         return "已广播消息给 " + ServerRegistry.INSTANCE.getServerCount() + " 台服务器";
+    }
+    
+    private static String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 }
