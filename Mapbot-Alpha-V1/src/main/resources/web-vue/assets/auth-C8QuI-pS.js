@@ -1,0 +1,1 @@
+import{x as c,r as u,y as i,q as f,z as k,A as g,B as v}from"./index-DzpftbSv.js";const d=c("auth",()=>{const e=u(i()),t=u(null),a=f(()=>!!e.value);async function s(o,r){const n=await k(o,r);return n.token?(e.value=n.token,t.value=o,g(n.token),!0):!1}function l(){e.value=null,t.value=null,v()}return{token:e,username:t,isAuthenticated:a,login:s,logout:l}});export{d as u};
