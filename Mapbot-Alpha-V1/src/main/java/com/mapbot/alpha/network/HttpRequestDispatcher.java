@@ -255,6 +255,7 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         data.put("botQQ", cfg.getBotQQ());
         data.put("debugMode", cfg.isDebugMode());
         data.put("bridgeIngameMsgFormat", cfg.getBridgeIngameMsgFormat());
+        data.put("adminQQs", com.mapbot.alpha.config.AlphaConfig.INSTANCE.getAdminQQs());
         
         return com.mapbot.alpha.utils.JsonUtils.toJson(data);
     }
@@ -266,6 +267,7 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             
             var cfg = com.mapbot.alpha.config.AlphaConfig.INSTANCE;
             if (data.containsKey("wsUrl")) cfg.setWsUrl(String.valueOf(data.get("wsUrl")));
+            if (data.containsKey("adminQQs")) cfg.setAdminQQs(String.valueOf(data.get("adminQQs")));
             if (data.containsKey("playerGroupId")) {
                 try { cfg.setPlayerGroupId(Long.parseLong(String.valueOf(data.get("playerGroupId")))); } catch (Exception ignored) {}
             }

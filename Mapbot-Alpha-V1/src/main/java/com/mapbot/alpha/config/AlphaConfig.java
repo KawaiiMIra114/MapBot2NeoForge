@@ -24,6 +24,7 @@ public class AlphaConfig {
     // 群配置
     private long playerGroupId = 875585697L;
     private long adminGroupId = 885810515L;
+    private String adminQQs = ""; // 逗号分隔的管理员QQ
     private long botQQ = 2133782376L;
     
     // 消息格式配置
@@ -47,8 +48,12 @@ public class AlphaConfig {
                 reconnectInterval = Integer.parseInt(props.getProperty("connection.reconnectInterval", "5"));
                 playerGroupId = Long.parseLong(props.getProperty("messaging.playerGroupId", String.valueOf(playerGroupId)));
                 adminGroupId = Long.parseLong(props.getProperty("messaging.adminGroupId", String.valueOf(adminGroupId)));
+                adminQQs = props.getProperty("messaging.adminQQs", adminQQs);
                 botQQ = Long.parseLong(props.getProperty("messaging.botQQ", String.valueOf(botQQ)));
                 debugMode = Boolean.parseBoolean(props.getProperty("debug.debugMode", "true"));
+                
+                // 同步管理员到 DataManager
+                syncAdminsToDataManager();
                 
                 LOGGER.info("配置已加载: playerGroup={}, adminGroup={}, botQQ={}", playerGroupId, adminGroupId, botQQ);
             } else {
@@ -60,12 +65,23 @@ public class AlphaConfig {
         }
     }
     
+    private void syncAdminsToDataManager() {
+        if (adminQQs != null && !adminQQs.isEmpty()) {
+            for (String qqStr : adminQQs.split(",")) {
+                try {
+                    com.mapbot.alpha.data.DataManager.INSTANCE.addAdmin(Long.parseLong(qqStr.trim()));
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+    }
+    
     public void save() {
         try {
             props.setProperty("connection.wsUrl", wsUrl);
             props.setProperty("connection.reconnectInterval", String.valueOf(reconnectInterval));
             props.setProperty("messaging.playerGroupId", String.valueOf(playerGroupId));
             props.setProperty("messaging.adminGroupId", String.valueOf(adminGroupId));
+            props.setProperty("messaging.adminQQs", adminQQs);
             props.setProperty("messaging.botQQ", String.valueOf(botQQ));
             props.setProperty("debug.debugMode", String.valueOf(debugMode));
             
@@ -86,12 +102,18 @@ public class AlphaConfig {
     public static long getBotQQ() { return INSTANCE.botQQ; }
     public static boolean isDebugMode() { return INSTANCE.debugMode; }
     public String getBridgeIngameMsgFormat() { return bridgeIngameMsgFormat; }
+    public String getAdminQQs() { return adminQQs; }
     
     // Setters
     public void setPlayerGroupId(long id) { this.playerGroupId = id; save(); }
     public void setAdminGroupId(long id) { this.adminGroupId = id; save(); }
     public void setWsUrl(String url) { this.wsUrl = url; save(); }
     public void setBotQQ(long qq) { this.botQQ = qq; save(); }
+    public void setAdminQQs(String qqs) { 
+        this.adminQQs = qqs; 
+        syncAdminsToDataManager();
+        save(); 
+    }
     
     /**
      * 重新加载配置

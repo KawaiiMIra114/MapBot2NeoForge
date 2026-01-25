@@ -1488,6 +1488,7 @@
                 document.getElementById('cfg-playerGroup').value = cfg.playerGroupId || '';
                 document.getElementById('cfg-adminGroup').value = cfg.adminGroupId || '';
                 document.getElementById('cfg-botQQ').value = cfg.botQQ || '';
+                document.getElementById('cfg-adminQQs').value = cfg.adminQQs || '';
                 document.getElementById('cfg-debug').checked = cfg.debugMode || false;
                 appendLog('[SYSTEM] 配置已加载');
             } catch (e) {
@@ -1502,6 +1503,7 @@
                 playerGroupId: document.getElementById('cfg-playerGroup').value,
                 adminGroupId: document.getElementById('cfg-adminGroup').value,
                 botQQ: document.getElementById('cfg-botQQ').value,
+                adminQQs: document.getElementById('cfg-adminQQs').value,
                 debugMode: document.getElementById('cfg-debug').checked
             };
             try {
