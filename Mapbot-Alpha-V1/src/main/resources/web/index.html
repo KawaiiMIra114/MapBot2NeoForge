@@ -1057,7 +1057,7 @@
             try {
                 // 根据选择的服务器决定 API 端点
                 const apiBase = currentServerId ? '/api/remote/' + currentServerId + '/files' : '/api/files';
-                const res = await fetch(apiBase + '/list?path=' + encodeURIComponent(currentPath));
+                const res = await apiFetch(apiBase + '/list?path=' + encodeURIComponent(currentPath));
                 const files = await res.json();
 
                 const pathPrefix = currentServerId ? '[' + currentServerId + '] /' : '/';
@@ -1111,7 +1111,7 @@
             try {
                 // BUG #1 修复: 根据 currentServerId 选择 API 端点
                 const apiBase = currentServerId ? '/api/remote/' + currentServerId + '/files' : '/api/files';
-                const res = await fetch(apiBase + '/read?path=' + encodeURIComponent(currentFile));
+                const res = await apiFetch(apiBase + '/read?path=' + encodeURIComponent(currentFile));
                 const data = await res.json();
                 if (data.error) {
                     document.getElementById('file-editor').value = '错误: ' + data.error;
@@ -1128,7 +1128,7 @@
             try {
                 // BUG #2 修复: 根据 currentServerId 选择 API 端点
                 const apiBase = currentServerId ? '/api/remote/' + currentServerId + '/files' : '/api/files';
-                const res = await fetch(apiBase + '/write', {
+                const res = await apiFetch(apiBase + '/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ path: currentFile, content: document.getElementById('file-editor').value })
@@ -1205,7 +1205,7 @@
 
         // 显示服务器详情面板 (优化: 类似 MCSM, 带动画)
         function showServerDetail(serverId) {
-            fetch('/api/servers').then(r => r.json()).then(servers => {
+            apiFetch('/api/servers').then(r => r.json()).then(servers => {
                 const s = servers.find(x => x.id === serverId);
                 if (!s) return;
 
@@ -1368,7 +1368,7 @@
             const path = currentPath ? currentPath + '/' + name : name;
             const apiBase = currentServerId ? '/api/remote/' + currentServerId + '/files' : '/api/files';
             try {
-                await fetch(apiBase + '/write', {
+                await apiFetch(apiBase + '/write', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ path: path, content: '' })
@@ -1384,7 +1384,7 @@
             const path = currentPath ? currentPath + '/' + name : name;
             const apiBase = currentServerId ? '/api/remote/' + currentServerId + '/files' : '/api/files';
             try {
-                await fetch(apiBase.replace('/files', '/files') + '/mkdir', {
+                await apiFetch(apiBase.replace('/files', '/files') + '/mkdir', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ path: path })
@@ -1407,7 +1407,7 @@
                     const path = currentPath ? currentPath + '/' + file.name : file.name;
                     const apiBase = currentServerId ? '/api/remote/' + currentServerId + '/files' : '/api/files';
                     try {
-                        await fetch(apiBase + '/upload', {
+                        await apiFetch(apiBase + '/upload', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ path: path, content: btoa(content), encoding: 'base64' })
@@ -1429,7 +1429,7 @@
 
             const apiBase = currentServerId ? '/api/remote/' + currentServerId + '/files' : '/api/files';
             try {
-                await fetch(apiBase + '/delete?path=' + encodeURIComponent(currentFile), { method: 'DELETE' });
+                await apiFetch(apiBase + '/delete?path=' + encodeURIComponent(currentFile), { method: 'DELETE' });
                 appendLog('[SYSTEM] 已删除: ' + currentFile);
                 currentFile = '';
                 document.getElementById('file-name').textContent = '选择文件';
@@ -1513,7 +1513,7 @@
         // 加载子服务器卡片到文件选择页
         async function loadFileServerCards() {
             try {
-                const res = await fetch('/api/servers');
+                const res = await apiFetch('/api/servers');
                 const servers = await res.json();
                 const container = document.getElementById('file-server-cards');
 
@@ -1647,7 +1647,7 @@
                 return;
             }
             showModal('发送指令到 ' + currentServerId, '输入命令...', cmd => {
-                fetch('/api/servers/' + currentServerId + '/command', {
+                apiFetch('/api/servers/' + currentServerId + '/command', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ command: cmd })
