@@ -26,6 +26,12 @@ public class MapbotAlpha {
     private static final int LISTEN_PORT = 25560;
 
     public static void main(String[] args) {
+        // 修复中文乱码 (问题 #1)
+        try {
+            System.setOut(new java.io.PrintStream(System.out, true, "UTF-8"));
+            System.setErr(new java.io.PrintStream(System.err, true, "UTF-8"));
+        } catch (Exception ignored) {}
+        
         LOGGER.info("==============================================");
         LOGGER.info("  Mapbot Alpha V1 - 多服中枢");
         LOGGER.info("  STEP 13: Reforged 功能完整移植版");

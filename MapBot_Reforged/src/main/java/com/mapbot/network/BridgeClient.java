@@ -671,7 +671,8 @@ public class BridgeClient {
         }
         json.append("]");
         
-        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"%s\"}", requestId, escapeJson(json.toString()));
+        // 修复: 使用 files 字段直接嵌入 JSON 数组，而非转义后的字符串
+        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"files\":%s}", requestId, json.toString());
     }
     
     private String handleFileRead(String requestId, String path) throws IOException {

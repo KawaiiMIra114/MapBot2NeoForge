@@ -57,12 +57,8 @@ public class RemoteFileApiHandler {
     private static void handleList(ChannelHandlerContext ctx, String serverId, String path) {
         BridgeFileProxy.FileResponse resp = BridgeFileProxy.listDir(serverId, path);
         if (resp.isSuccess()) {
-            // 修复 #3: 远程返回的 content 是转义后的 JSON 字符串，需要反转义
-            String content = resp.content;
-            if (content != null) {
-                content = content.replace("\\\"", "\"").replace("\\n", "\n").replace("\\\\", "\\");
-            }
-            sendJson(ctx, HttpResponseStatus.OK, content != null ? content : "[]");
+            // 现在 content 直接是 JSON 数组格式
+            sendJson(ctx, HttpResponseStatus.OK, resp.content != null ? resp.content : "[]");
         } else {
             sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"" + resp.error + "\"}");
         }

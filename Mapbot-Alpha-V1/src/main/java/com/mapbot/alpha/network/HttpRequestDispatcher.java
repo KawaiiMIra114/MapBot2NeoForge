@@ -49,6 +49,11 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
                 sendJson(ctx, com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.toJson());
                 return;
             }
+            // 服务器命令 API (问题 #4)
+            if (uri.matches("/api/servers/.+/command") && req.method() == HttpMethod.POST) {
+                handleServerCommand(ctx, req, uri);
+                return;
+            }
             // 跨服文件 API (STEP 9)
             if (uri.startsWith("/api/remote/")) {
                 RemoteFileApiHandler.handle(ctx, req);
@@ -210,5 +215,42 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
     private static String escapeJson(String s) {
         if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+    
+    /**
+     * 发送命令到子服务器 (问题 #4)
+     */
+    private void handleServerCommand(ChannelHandlerContext ctx, FullHttpRequest req, String uri) {
+        try {
+            // 解析 serverId: /api/servers/{serverId}/command
+            String path = uri.substring("/api/servers/".length());
+            String serverId = path.substring(0, path.indexOf("/"));
+            
+            String body = req.content().toString(StandardCharsets.UTF_8);
+            String command = extractJsonString(body, "command");
+            
+            if (command.isEmpty()) {
+                sendJson(ctx, "{\"success\":false,\"error\":\"Command is empty\"}");
+                return;
+            }
+            
+            // 获取服务器连接
+            var server = com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.getServer(serverId);
+            if (server == null || !server.isOnline()) {
+                sendJson(ctx, "{\"success\":false,\"error\":\"Server not connected\"}");
+                return;
+            }
+            
+            // 发送 execute_command 请求到子服务器
+            String json = String.format(
+                "{\"type\":\"execute_command\",\"requestId\":\"%s\",\"arg1\":\"%s\"}",
+                System.currentTimeMillis(), escapeJson(command));
+            server.channel.writeAndFlush(json + "\n");
+            
+            sendJson(ctx, "{\"success\":true}");
+            LOGGER.info("[命令] 发送到 {}: {}", serverId, command);
+        } catch (Exception e) {
+            sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+        }
     }
 }

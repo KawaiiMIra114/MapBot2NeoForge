@@ -105,9 +105,42 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
     
     private void handleFileResponse(String msg) {
         String requestId = extractJsonValue(msg, "requestId");
-        String content = extractJsonValue(msg, "content");
         String error = extractJsonValue(msg, "error");
-        BridgeFileProxy.completeRequest(requestId, content, error);
+        
+        // 文件列表使用 files 字段 (JSON 数组), 文件内容使用 content 字段
+        String content = extractJsonValue(msg, "content");
+        String files = extractJsonArray(msg, "files");
+        
+        // 优先使用 files 字段
+        String result = (files != null && !files.isEmpty()) ? files : content;
+        BridgeFileProxy.completeRequest(requestId, result, error);
+    }
+    
+    /**
+     * 提取 JSON 数组字段 (不带引号的值)
+     */
+    private String extractJsonArray(String json, String key) {
+        String search = "\"" + key + "\":";
+        int start = json.indexOf(search);
+        if (start == -1) return null;
+        start += search.length();
+        
+        // 跳过空白
+        while (start < json.length() && Character.isWhitespace(json.charAt(start))) start++;
+        
+        if (start >= json.length() || json.charAt(start) != '[') return null;
+        
+        // 找到匹配的 ]
+        int depth = 1;
+        int end = start + 1;
+        while (end < json.length() && depth > 0) {
+            char c = json.charAt(end);
+            if (c == '[') depth++;
+            else if (c == ']') depth--;
+            end++;
+        }
+        
+        return json.substring(start, end);
     }
     
     private void handleStatusUpdate(String msg) {
