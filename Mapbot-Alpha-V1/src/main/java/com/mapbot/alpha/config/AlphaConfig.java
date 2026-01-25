@@ -21,6 +21,13 @@ public class AlphaConfig {
     private String wsUrl = "ws://127.0.0.1:7000";
     private int reconnectInterval = 5;
     
+    // Redis 配置
+    private String redisHost = "127.0.0.1";
+    private int redisPort = 6379;
+    private String redisPassword = "";
+    private int redisDatabase = 0;
+    private boolean redisEnabled = false;
+    
     // 群配置
     private long playerGroupId = 875585697L;
     private long adminGroupId = 885810515L;
@@ -46,6 +53,13 @@ public class AlphaConfig {
                 
                 wsUrl = props.getProperty("connection.wsUrl", wsUrl);
                 reconnectInterval = Integer.parseInt(props.getProperty("connection.reconnectInterval", "5"));
+                
+                redisHost = props.getProperty("redis.host", redisHost);
+                redisPort = Integer.parseInt(props.getProperty("redis.port", String.valueOf(redisPort)));
+                redisPassword = props.getProperty("redis.password", redisPassword);
+                redisDatabase = Integer.parseInt(props.getProperty("redis.database", String.valueOf(redisDatabase)));
+                redisEnabled = Boolean.parseBoolean(props.getProperty("redis.enabled", String.valueOf(redisEnabled)));
+                
                 playerGroupId = Long.parseLong(props.getProperty("messaging.playerGroupId", String.valueOf(playerGroupId)));
                 adminGroupId = Long.parseLong(props.getProperty("messaging.adminGroupId", String.valueOf(adminGroupId)));
                 adminQQs = props.getProperty("messaging.adminQQs", adminQQs);
@@ -55,7 +69,8 @@ public class AlphaConfig {
                 // 同步管理员到 DataManager
                 syncAdminsToDataManager();
                 
-                LOGGER.info("配置已加载: playerGroup={}, adminGroup={}, botQQ={}", playerGroupId, adminGroupId, botQQ);
+                LOGGER.info("配置已加载: playerGroup={}, adminGroup={}, botQQ={}, redisEnabled={}", 
+                    playerGroupId, adminGroupId, botQQ, redisEnabled);
             } else {
                 save();
                 LOGGER.info("已创建默认配置文件: {}", configPath);
@@ -79,6 +94,13 @@ public class AlphaConfig {
         try {
             props.setProperty("connection.wsUrl", wsUrl);
             props.setProperty("connection.reconnectInterval", String.valueOf(reconnectInterval));
+            
+            props.setProperty("redis.host", redisHost);
+            props.setProperty("redis.port", String.valueOf(redisPort));
+            props.setProperty("redis.password", redisPassword);
+            props.setProperty("redis.database", String.valueOf(redisDatabase));
+            props.setProperty("redis.enabled", String.valueOf(redisEnabled));
+            
             props.setProperty("messaging.playerGroupId", String.valueOf(playerGroupId));
             props.setProperty("messaging.adminGroupId", String.valueOf(adminGroupId));
             props.setProperty("messaging.adminQQs", adminQQs);
@@ -104,6 +126,13 @@ public class AlphaConfig {
     public String getBridgeIngameMsgFormat() { return bridgeIngameMsgFormat; }
     public String getAdminQQs() { return adminQQs; }
     
+    // Redis Getters
+    public String getRedisHost() { return redisHost; }
+    public int getRedisPort() { return redisPort; }
+    public String getRedisPassword() { return redisPassword; }
+    public int getRedisDatabase() { return redisDatabase; }
+    public boolean isRedisEnabled() { return redisEnabled; }
+    
     // Setters
     public void setPlayerGroupId(long id) { this.playerGroupId = id; save(); }
     public void setAdminGroupId(long id) { this.adminGroupId = id; save(); }
@@ -113,6 +142,14 @@ public class AlphaConfig {
         this.adminQQs = qqs; 
         syncAdminsToDataManager();
         save(); 
+    }
+    public void setRedisEnabled(boolean enabled) { this.redisEnabled = enabled; save(); }
+    public void setRedisConfig(String host, int port, String pass, int db) {
+        this.redisHost = host;
+        this.redisPort = port;
+        this.redisPassword = pass;
+        this.redisDatabase = db;
+        save();
     }
     
     /**

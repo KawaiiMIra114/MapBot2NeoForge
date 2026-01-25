@@ -255,7 +255,12 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         data.put("botQQ", cfg.getBotQQ());
         data.put("debugMode", cfg.isDebugMode());
         data.put("bridgeIngameMsgFormat", cfg.getBridgeIngameMsgFormat());
-        data.put("adminQQs", com.mapbot.alpha.config.AlphaConfig.INSTANCE.getAdminQQs());
+        data.put("adminQQs", cfg.getAdminQQs());
+        data.put("redisEnabled", cfg.isRedisEnabled());
+        data.put("redisHost", cfg.getRedisHost());
+        data.put("redisPort", cfg.getRedisPort());
+        data.put("redisPassword", cfg.getRedisPassword());
+        data.put("redisDatabase", cfg.getRedisDatabase());
         
         return com.mapbot.alpha.utils.JsonUtils.toJson(data);
     }
@@ -268,6 +273,16 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             var cfg = com.mapbot.alpha.config.AlphaConfig.INSTANCE;
             if (data.containsKey("wsUrl")) cfg.setWsUrl(String.valueOf(data.get("wsUrl")));
             if (data.containsKey("adminQQs")) cfg.setAdminQQs(String.valueOf(data.get("adminQQs")));
+            
+            if (data.containsKey("redisEnabled")) cfg.setRedisEnabled(Boolean.parseBoolean(String.valueOf(data.get("redisEnabled"))));
+            if (data.containsKey("redisHost")) {
+                String host = String.valueOf(data.get("redisHost"));
+                int port = data.containsKey("redisPort") ? Integer.parseInt(String.valueOf(data.get("redisPort"))) : 6379;
+                String pass = data.containsKey("redisPassword") ? String.valueOf(data.get("redisPassword")) : "";
+                int db = data.containsKey("redisDatabase") ? Integer.parseInt(String.valueOf(data.get("redisDatabase"))) : 0;
+                cfg.setRedisConfig(host, port, pass, db);
+            }
+            
             if (data.containsKey("playerGroupId")) {
                 try { cfg.setPlayerGroupId(Long.parseLong(String.valueOf(data.get("playerGroupId")))); } catch (Exception ignored) {}
             }

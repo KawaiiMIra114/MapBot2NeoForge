@@ -33,16 +33,50 @@ public enum AuthManager {
     
     // 已颁发的有效 Token
     private final Map<String, TokenInfo> validTokens = new ConcurrentHashMap<>();
+
+    private static final String REDIS_SYNC_CHANNEL = "mapbot:auth:sync";
+    private static final String REDIS_KEY_USERS = "mapbot:web:users";
+    private static final String REDIS_KEY_TOKENS = "mapbot:web:tokens";
     
     /**
      * 初始化
      */
     public void init() {
         loadUsers();
+
+        // Redis 同步
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            syncFromRedis();
+            redis.subscribe(REDIS_SYNC_CHANNEL, msg -> syncFromRedis());
+            LOGGER.info("AuthManager Redis 同步已开启");
+        }
+
         if (users.isEmpty()) {
             // 创建默认管理员
             createUser("admin", "admin123", Role.ADMIN);
             LOGGER.info("已创建默认管理员账户: admin / admin123");
+        }
+    }
+
+    private void syncFromRedis() {
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        redis.execute(jedis -> {
+            Map<String, String> u = jedis.hgetAll(REDIS_KEY_USERS);
+            u.forEach((name, json) -> {
+                User user = GSON.fromJson(json, User.class);
+                if (user != null) users.put(name, user);
+            });
+            
+            // Token 我们选择实时查 Redis 而不是缓存到本地 Map，以保证绝对的一致性
+            return null;
+        });
+    }
+
+    private void broadcastSync() {
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.publish(REDIS_SYNC_CHANNEL, "refresh");
         }
     }
     
@@ -62,7 +96,16 @@ public enum AuthManager {
         }
         
         String token = generateToken(username);
-        validTokens.put(token, new TokenInfo(username, user.role, System.currentTimeMillis() + TOKEN_EXPIRE_MS));
+        TokenInfo info = new TokenInfo(username, user.role, System.currentTimeMillis() + TOKEN_EXPIRE_MS);
+        
+        validTokens.put(token, info);
+        
+        // 同步到 Redis
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hset(REDIS_KEY_TOKENS, token, GSON.toJson(info)));
+        }
+        
         LOGGER.info("用户登录成功: {} (角色: {})", username, user.role);
         return token;
     }
@@ -74,10 +117,24 @@ public enum AuthManager {
         if (token == null || token.isEmpty()) return false;
         
         TokenInfo info = validTokens.get(token);
+        
+        // 如果本地没有，尝试从 Redis 获取 (跨实例)
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (info == null && redis.isEnabled()) {
+            String json = redis.execute(jedis -> jedis.hget(REDIS_KEY_TOKENS, token));
+            if (json != null) {
+                info = GSON.fromJson(json, TokenInfo.class);
+                if (info != null) validTokens.put(token, info); // 缓存到本地
+            }
+        }
+        
         if (info == null) return false;
         
         if (System.currentTimeMillis() > info.expireAt) {
             validTokens.remove(token);
+            if (redis.isEnabled()) {
+                redis.execute(jedis -> jedis.hdel(REDIS_KEY_TOKENS, token));
+            }
             return false;
         }
         
@@ -98,6 +155,10 @@ public enum AuthManager {
      */
     public void logout(String token) {
         validTokens.remove(token);
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hdel(REDIS_KEY_TOKENS, token));
+        }
     }
     
     /**
@@ -125,8 +186,16 @@ public enum AuthManager {
         if (users.containsKey(username)) {
             return false;
         }
-        users.put(username, new User(username, hashPassword(password), role));
+        User user = new User(username, hashPassword(password), role);
+        users.put(username, user);
         saveUsers();
+        
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hset(REDIS_KEY_USERS, username, GSON.toJson(user)));
+            broadcastSync();
+        }
+        
         LOGGER.info("用户已创建: {} (角色: {})", username, role);
         return true;
     }
@@ -141,6 +210,13 @@ public enum AuthManager {
         User removed = users.remove(username);
         if (removed != null) {
             saveUsers();
+            
+            var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+            if (redis.isEnabled()) {
+                redis.execute(jedis -> jedis.hdel(REDIS_KEY_USERS, username));
+                broadcastSync();
+            }
+            
             LOGGER.info("用户已删除: {}", username);
             return true;
         }
@@ -156,6 +232,13 @@ public enum AuthManager {
         
         user.passwordHash = hashPassword(newPassword);
         saveUsers();
+        
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hset(REDIS_KEY_USERS, username, GSON.toJson(user)));
+            broadcastSync();
+        }
+        
         LOGGER.info("用户密码已修改: {}", username);
         return true;
     }
@@ -169,6 +252,13 @@ public enum AuthManager {
         
         user.role = newRole;
         saveUsers();
+        
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hset(REDIS_KEY_USERS, username, GSON.toJson(user)));
+            broadcastSync();
+        }
+        
         LOGGER.info("用户角色已修改: {} -> {}", username, newRole);
         return true;
     }

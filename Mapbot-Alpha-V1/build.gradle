@@ -23,6 +23,9 @@ dependencies {
     
     // TOML 解析
     implementation 'com.moandjiezana.toml:toml4j:0.7.2'
+
+    // Redis 客户端
+    implementation 'redis.clients:jedis:5.1.0'
 }
 
 application {

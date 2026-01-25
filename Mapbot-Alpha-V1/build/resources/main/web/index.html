@@ -796,6 +796,44 @@
                 </div>
 
                 <div class="glass-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">database</span> Redis 跨服同步镜像
+                        </h3>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="cfg-redisEnabled" class="sr-only peer">
+                            <div
+                                class="w-11 h-6 bg-surface peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                            </div>
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="text-sm text-txt-sub block mb-1">Redis 主机</label>
+                            <input type="text" id="cfg-redisHost"
+                                class="w-full bg-bg-dark rounded-lg px-4 py-2 text-white border border-white/10 focus:border-primary focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-sm text-txt-sub block mb-1">Redis 端口</label>
+                            <input type="number" id="cfg-redisPort"
+                                class="w-full bg-bg-dark rounded-lg px-4 py-2 text-white border border-white/10 focus:border-primary focus:outline-none">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-sm text-txt-sub block mb-1">Redis 密码</label>
+                            <input type="password" id="cfg-redisPass"
+                                class="w-full bg-bg-dark rounded-lg px-4 py-2 text-white border border-white/10 focus:border-primary focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-sm text-txt-sub block mb-1">数据库 DB</label>
+                            <input type="number" id="cfg-redisDb"
+                                class="w-full bg-bg-dark rounded-lg px-4 py-2 text-white border border-white/10 focus:border-primary focus:outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
                     <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
                         <span class="material-symbols-outlined text-primary">bug_report</span> 调试
                     </h3>
@@ -1489,6 +1527,11 @@
                 document.getElementById('cfg-adminGroup').value = cfg.adminGroupId || '';
                 document.getElementById('cfg-botQQ').value = cfg.botQQ || '';
                 document.getElementById('cfg-adminQQs').value = cfg.adminQQs || '';
+                document.getElementById('cfg-redisEnabled').checked = cfg.redisEnabled || false;
+                document.getElementById('cfg-redisHost').value = cfg.redisHost || '127.0.0.1';
+                document.getElementById('cfg-redisPort').value = cfg.redisPort || 6379;
+                document.getElementById('cfg-redisPass').value = cfg.redisPassword || '';
+                document.getElementById('cfg-redisDb').value = cfg.redisDatabase || 0;
                 document.getElementById('cfg-debug').checked = cfg.debugMode || false;
                 appendLog('[SYSTEM] 配置已加载');
             } catch (e) {
@@ -1504,6 +1547,11 @@
                 adminGroupId: document.getElementById('cfg-adminGroup').value,
                 botQQ: document.getElementById('cfg-botQQ').value,
                 adminQQs: document.getElementById('cfg-adminQQs').value,
+                redisEnabled: document.getElementById('cfg-redisEnabled').checked,
+                redisHost: document.getElementById('cfg-redisHost').value,
+                redisPort: parseInt(document.getElementById('cfg-redisPort').value),
+                redisPassword: document.getElementById('cfg-redisPass').value,
+                redisDatabase: parseInt(document.getElementById('cfg-redisDb').value),
                 debugMode: document.getElementById('cfg-debug').checked
             };
             try {

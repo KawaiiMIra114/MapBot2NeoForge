@@ -33,19 +33,73 @@ public class DataManager {
     // 管理员 QQ 列表
     private final Set<Long> admins = ConcurrentHashMap.newKeySet();
     
+    private static final String REDIS_SYNC_CHANNEL = "mapbot:sync";
+    private static final String REDIS_KEY_BINDINGS = "mapbot:bindings";
+    private static final String REDIS_KEY_MUTES = "mapbot:mutes";
+    private static final String REDIS_KEY_PERMS = "mapbot:permissions";
+    private static final String REDIS_KEY_ADMINS = "mapbot:admins";
+
     private DataManager() {}
     
     public void init() {
         try {
             Files.createDirectories(dataDir);
+            
+            // 1. 先从本地加载 (作为备用或初始状态)
             loadBindings();
             loadMutes();
             loadPermissions();
             loadAdmins();
+
+            // 2. 如果开启了 Redis，则从 Redis 同步并启动订阅
+            var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+            if (redis.isEnabled()) {
+                syncFromRedis();
+                redis.subscribe(REDIS_SYNC_CHANNEL, this::handleRedisSync);
+                LOGGER.info("Redis 数据同步已开启");
+            }
+
             LOGGER.info("数据管理器初始化完成: {} 绑定, {} 禁言, {} 管理员", 
                 bindings.size(), mutes.size(), admins.size());
         } catch (Exception e) {
             LOGGER.error("数据管理器初始化失败", e);
+        }
+    }
+
+    private void syncFromRedis() {
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        redis.execute(jedis -> {
+            // 同步绑定
+            Map<String, String> b = jedis.hgetAll(REDIS_KEY_BINDINGS);
+            b.forEach((k, v) -> bindings.put(Long.parseLong(k), v));
+
+            // 同步禁言
+            Map<String, String> m = jedis.hgetAll(REDIS_KEY_MUTES);
+            m.forEach((k, v) -> mutes.put(k, Long.parseLong(v)));
+
+            // 同步权限
+            Map<String, String> p = jedis.hgetAll(REDIS_KEY_PERMS);
+            p.forEach((k, v) -> permissions.put(Long.parseLong(k), Integer.parseInt(v)));
+
+            // 同步管理员
+            Set<String> a = jedis.smembers(REDIS_KEY_ADMINS);
+            a.forEach(k -> admins.add(Long.parseLong(k)));
+            
+            return null;
+        });
+    }
+
+    private void handleRedisSync(String message) {
+        // 收到同步指令，重新从 Redis 加载数据 (简单实现：全量刷新)
+        // 或者是解析消息只更新变动项
+        LOGGER.debug("收到 Redis 同步请求: {}", message);
+        syncFromRedis();
+    }
+
+    private void broadcastSync() {
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.publish(REDIS_SYNC_CHANNEL, "refresh");
         }
     }
     
@@ -55,12 +109,24 @@ public class DataManager {
         if (bindings.containsKey(qq)) return false;
         bindings.put(qq, uuid);
         saveBindings();
+        
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hset(REDIS_KEY_BINDINGS, String.valueOf(qq), uuid));
+            broadcastSync();
+        }
         return true;
     }
     
     public boolean unbind(long qq) {
         if (bindings.remove(qq) != null) {
             saveBindings();
+            
+            var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+            if (redis.isEnabled()) {
+                redis.execute(jedis -> jedis.hdel(REDIS_KEY_BINDINGS, String.valueOf(qq)));
+                broadcastSync();
+            }
             return true;
         }
         return false;
@@ -86,11 +152,23 @@ public class DataManager {
     public void mute(String uuid, long expiryMs) {
         mutes.put(uuid, expiryMs);
         saveMutes();
+        
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hset(REDIS_KEY_MUTES, uuid, String.valueOf(expiryMs)));
+            broadcastSync();
+        }
     }
     
     public void unmute(String uuid) {
         mutes.remove(uuid);
         saveMutes();
+        
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hdel(REDIS_KEY_MUTES, uuid));
+            broadcastSync();
+        }
     }
     
     public boolean isMuted(String uuid) {
@@ -114,6 +192,12 @@ public class DataManager {
     public void setPermission(long qq, int level) {
         permissions.put(qq, level);
         savePermissions();
+        
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hset(REDIS_KEY_PERMS, String.valueOf(qq), String.valueOf(level)));
+            broadcastSync();
+        }
     }
     
     public int getPermission(long qq) {
@@ -125,11 +209,23 @@ public class DataManager {
     public void addAdmin(long qq) {
         admins.add(qq);
         saveAdmins();
+        
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.sadd(REDIS_KEY_ADMINS, String.valueOf(qq)));
+            broadcastSync();
+        }
     }
     
     public void removeAdmin(long qq) {
         admins.remove(qq);
         saveAdmins();
+        
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.srem(REDIS_KEY_ADMINS, String.valueOf(qq)));
+            broadcastSync();
+        }
     }
     
     public boolean isAdmin(long qq) {

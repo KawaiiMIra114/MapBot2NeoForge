@@ -40,6 +40,9 @@ public class MapbotAlpha {
         // 0. 加载配置
         AlphaConfig.INSTANCE.load();
         LOGGER.info("[CONFIG] 配置已加载");
+
+        // 0.2. 初始化 Redis
+        com.mapbot.alpha.database.RedisManager.INSTANCE.init();
         
         // 0.5. 初始化认证管理器
         com.mapbot.alpha.security.AuthManager.INSTANCE.init();
@@ -82,6 +85,7 @@ public class MapbotAlpha {
             LOGGER.info("[SYSTEM] 正在关闭，保存数据...");
             com.mapbot.alpha.metrics.MetricsStorage.INSTANCE.save();
             com.mapbot.alpha.security.AuthManager.INSTANCE.saveUsers();
+            com.mapbot.alpha.database.RedisManager.INSTANCE.shutdown();
         }));
 
         // 6. 启动 Netty 分流服务器 (主线程阻塞)
