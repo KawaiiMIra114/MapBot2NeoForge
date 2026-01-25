@@ -236,10 +236,13 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         int wsCount = LogWebSocketHandler.getConnectionCount();
         int bridgeCount = com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.getServerCount();
         
+        boolean redisConnected = com.mapbot.alpha.database.RedisManager.INSTANCE.isConnected();
+        
         return "{\"mcRunning\":" + running + 
                ",\"mcUptime\":" + uptime +
                ",\"wsConnections\":" + wsCount +
-               ",\"bridgeConnections\":" + bridgeCount + "}";
+               ",\"bridgeConnections\":" + bridgeCount + 
+               ",\"redisConnected\":" + redisConnected + "}";
     }
     
     /**

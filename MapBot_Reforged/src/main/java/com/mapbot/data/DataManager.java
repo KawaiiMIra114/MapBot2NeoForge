@@ -507,6 +507,9 @@ public class DataManager {
         
         /** 签到记录 (QQ -> yyyy-MM-dd) */
         Map<Long, String> lastSignIn = new HashMap<>();
+        
+        /** 累计签到天数 (QQ -> 天数) */
+        Map<Long, Integer> signInStreak = new HashMap<>();
     }
     
     // ================== 签到管理 ==================
@@ -528,16 +531,31 @@ public class DataManager {
     }
     
     /**
-     * 记录签到
+     * 记录签到 (同时累加签到天数)
      */
     public void recordSignIn(long qq) {
         lock.writeLock().lock();
         try {
             String today = java.time.LocalDate.now().toString();
             data.lastSignIn.put(qq, today);
+            // 累加签到天数
+            int current = data.signInStreak.getOrDefault(qq, 0);
+            data.signInStreak.put(qq, current + 1);
             save();
         } finally {
             lock.writeLock().unlock();
+        }
+    }
+    
+    /**
+     * 获取累计签到天数
+     */
+    public int getSignInDays(long qq) {
+        lock.readLock().lock();
+        try {
+            return data.signInStreak.getOrDefault(qq, 0);
+        } finally {
+            lock.readLock().unlock();
         }
     }
     

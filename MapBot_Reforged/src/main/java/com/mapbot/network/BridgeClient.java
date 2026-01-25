@@ -405,21 +405,68 @@ public class BridgeClient {
         
         try {
             long qq = Long.parseLong(qqStr);
-            var item = com.mapbot.logic.SignManager.INSTANCE.rollSignReward(qq);
+            var dm = com.mapbot.data.DataManager.INSTANCE;
             
+            // 获取玩家名 (从绑定的 UUID 反查)
+            String uuid = dm.getBinding(qq);
+            String playerName = "未知玩家";
+            boolean isOnline = false;
+            
+            net.minecraft.server.MinecraftServer server = 
+                net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+            if (server != null && uuid != null) {
+                var player = server.getPlayerList().getPlayer(java.util.UUID.fromString(uuid));
+                if (player != null) {
+                    playerName = player.getName().getString();
+                    isOnline = true;
+                } else {
+                    // 离线时尝试从缓存获取名字
+                    var profile = server.getProfileCache().get(java.util.UUID.fromString(uuid));
+                    if (profile.isPresent()) {
+                        playerName = profile.get().getName();
+                    }
+                }
+            }
+            
+            // 检查今日是否已签到
+            if (dm.hasSignedInToday(qq)) {
+                int days = dm.getSignInDays(qq);
+                String result = String.format(
+                    "%s 今日已签到\n您累计已签到 %d 天\n[提示] 今日已领取，明天再来吧",
+                    playerName, days
+                );
+                sendProxyResponse(requestId, result);
+                return;
+            }
+            
+            // 执行抽奖
+            var item = com.mapbot.logic.SignManager.INSTANCE.rollSignReward(qq);
             if (item == null) {
                 sendProxyResponse(requestId, "[错误] 奖池配置异常");
                 return;
             }
             
-            String result = String.format(
-                "[签到成功]\n物品: [%s] %s x%d\n%s\n请输入 #accept 领取",
-                item.rarity, item.name, item.count,
-                com.mapbot.data.loot.LootConfig.INSTANCE.getRarityMessage(item.rarity)
-            );
-            sendProxyResponse(requestId, result);
+            int days = dm.getSignInDays(qq);
+            String rarityMsg = com.mapbot.data.loot.LootConfig.INSTANCE.getRarityMessage(item.rarity);
+            
+            StringBuilder result = new StringBuilder();
+            result.append(playerName).append(" 今日已签到\n");
+            result.append("您累计已签到 ").append(days).append(" 天\n");
+            result.append("获得物品: [").append(item.rarity).append("] ").append(item.name).append(" x").append(item.count).append("\n");
+            result.append(rarityMsg);
+            
+            if (isOnline) {
+                result.append("\n若确认背包有空间，请输入 #accept 指令来确认物品发放");
+            } else {
+                result.append("\n您当前未在线");
+                result.append("\n请私聊机器人输入 #cdk 来获取兑换码");
+                result.append("\n上线后使用 /mapbot cdk [your-cdkey] 来兑换物品");
+            }
+            
+            sendProxyResponse(requestId, result.toString());
             
         } catch (Exception e) {
+            LOGGER.error("签到失败", e);
             sendProxyResponse(requestId, "[错误] 签到失败: " + e.getMessage());
         }
     }
@@ -430,11 +477,43 @@ public class BridgeClient {
         
         try {
             long qq = Long.parseLong(qqStr);
-            boolean success = com.mapbot.logic.SignManager.INSTANCE.claimOnline(qq);
+            var signManager = com.mapbot.logic.SignManager.INSTANCE;
+            var dm = com.mapbot.data.DataManager.INSTANCE;
             
-            sendProxyResponse(requestId, success ? "[领取成功] 物品已发放到背包" : "[领取失败] 无待领取奖励或玩家离线");
+            // 检查是否有待领取奖励
+            if (!signManager.hasPendingReward(qq)) {
+                sendProxyResponse(requestId, "[领取失败] 无待领取奖励\n[提示] 请先使用 #sign 签到");
+                return;
+            }
+            
+            // 检查玩家是否在线
+            String uuid = dm.getBinding(qq);
+            if (uuid == null) {
+                sendProxyResponse(requestId, "[领取失败] 账号未绑定\n[提示] 请使用 #id 绑定游戏账号");
+                return;
+            }
+            
+            net.minecraft.server.MinecraftServer server = 
+                net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+            if (server != null) {
+                var player = server.getPlayerList().getPlayer(java.util.UUID.fromString(uuid));
+                if (player == null) {
+                    // 玩家离线
+                    sendProxyResponse(requestId, "[领取失败] 玩家不在线\n[提示] 请使用 #cdk 获取兑换码");
+                    return;
+                }
+            }
+            
+            // 尝试发放
+            boolean success = signManager.claimOnline(qq);
+            if (success) {
+                sendProxyResponse(requestId, "[领取成功] 物品已发放到背包");
+            } else {
+                sendProxyResponse(requestId, "[领取失败] 背包空间不足\n[提示] 请清理背包后重试");
+            }
             
         } catch (Exception e) {
+            LOGGER.error("领取失败", e);
             sendProxyResponse(requestId, "[错误] 领取失败: " + e.getMessage());
         }
     }

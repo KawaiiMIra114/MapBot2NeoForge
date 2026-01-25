@@ -84,9 +84,18 @@ public class SignManager {
         if (item == null) return false;
 
         String uuidStr = DataManager.INSTANCE.getBinding(qq);
-        if (uuidStr == null) return false;
+        if (uuidStr == null) {
+            // 未绑定：放回暂存区
+            pendingRewards.put(qq, item);
+            return false;
+        }
 
-        return distributeItem(uuidStr, item);
+        boolean success = distributeItem(uuidStr, item);
+        if (!success) {
+            // 发放失败（离线/背包满）：放回暂存区
+            pendingRewards.put(qq, item);
+        }
+        return success;
     }
 
     /**

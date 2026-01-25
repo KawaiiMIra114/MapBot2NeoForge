@@ -106,7 +106,11 @@ public class DataManager {
     // ==================== 绑定 ====================
     
     public boolean bind(long qq, String uuid) {
+        // 检查 QQ 是否已绑定
         if (bindings.containsKey(qq)) return false;
+        // 检查 UUID 是否已被其他 QQ 绑定
+        if (isUUIDBound(uuid)) return false;
+        
         bindings.put(qq, uuid);
         saveBindings();
         
@@ -145,6 +149,10 @@ public class DataManager {
     
     public boolean isBound(long qq) {
         return bindings.containsKey(qq);
+    }
+    
+    public boolean isUUIDBound(String uuid) {
+        return bindings.containsValue(uuid);
     }
     
     // ==================== 禁言 ====================
