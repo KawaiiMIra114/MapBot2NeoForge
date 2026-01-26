@@ -1,6 +1,7 @@
 # MapBot Reforged 项目接续报告 v1.0
 > 生成时间: 2026-01-26 19:24  
-> 版本: v5.5.0 → v5.6.0 (Task #022 完成后)
+> 版本: v5.5.0 → v5.7.0 (Task #023 完成后)  
+> 最新更新: Task #023 P0 & P1 命令逻辑优化完成
 
 ---
 
@@ -28,6 +29,8 @@ QQ群 ←WebSocket→ NapCat ←WebSocket→ Alpha ←TCP Bridge→ Reforged Mod
 - [x] 禁言拦截系统
 - [x] 高级签到系统 (Tag 随机奖池 + CDK)
 - [x] **Task #022: Redis 跨服签到迁移** ✅
+- [x] **Task #023: P0 数据统一管理迁移** ✅
+- [x] **Task #023: P1 命令逻辑优化** ✅
 
 ### 2.2 已修复的 Bug (P0-P3)
 | 优先级 | 问题 | 修复 |
@@ -45,10 +48,10 @@ QQ群 ←WebSocket→ NapCat ←WebSocket→ Alpha ←TCP Bridge→ Reforged Mod
 
 **入口**: `CommandRegistry.dispatch(cmdName, args, senderQQ, sourceGroupId)`
 
-**已注册命令** (21个):
+**已注册命令** (22个):
 ```
 签到系统: #sign, #accept, #cdk
-绑定系统: #id/#bind, #unbind, #forceunbind
+绑定系统: #id/#bind, #unbind, #forceunbind, #agreeunbind
 查询系统: #list, #status, #loc, #inv, #time
 权限系统: #myperm, #setperm, #addadmin, #removeadmin
 管理系统: #mute, #unmute, #stop, #cancelstop, #reload
@@ -266,9 +269,11 @@ messaging.adminQQs=123456789,987654321
 
 ### 8.1 面板概述
 
-Dashboard 是一个基于 Vue 3 + TypeScript 的 Web 管理面板，内置于 Alpha Core，提供服务器监控和管理功能。
+Dashboard 是一个基于纯 HTML + JavaScript 的 Web 管理面板，内置于 Alpha Core。
 
-**访问地址**: `http://<AlphaIP>:8080/`  
+> **注意**: 原有的 Vue 3 + TypeScript 版本因 CSS 失效问题已弃用，目前使用的是 HTML 版本。
+
+**访问地址**: `http://<AlphaIP>:25560/`  
 **默认凭证**: 首次启动时在控制台输出
 
 ### 8.2 页面功能
@@ -279,7 +284,7 @@ Dashboard 是一个基于 Vue 3 + TypeScript 的 Web 管理面板，内置于 Al
 | **Servers** | `/servers` | 多服状态监控、TPS/内存/玩家数 |
 | **Console** | `/console` | 实时日志流、命令执行 |
 | **Files** | `/files` | 远程文件管理 (查看/编辑/删除) |
-| **Settings** | `/settings` | 配置管理 (暂未完全实现) |
+| **Settings** | `/settings` | 配置管理 (已实现) |
 | **Login** | `/login` | 登录页面 |
 
 ### 8.3 实时监控
@@ -384,11 +389,103 @@ Project_Docs/Reports/
 
 | 优先级 | 任务 | 说明 |
 |--------|------|------|
-| **P0** | 数据统一管理迁移 | 将 Reforged 端数据迁移到 Alpha Redis |
-| **P1** | 命令逻辑优化 | #help 分群显示、#addadmin 增强、#id 冲突提示等 |
-| P2 | Dashboard 前端完善 | 完善设置页面、添加用户管理界面 |
-| P3 | 多服负载均衡 | 实现签到/物品发放的多服分流 |
-| P4 | 更多游戏事件上报 | 死亡、成就、传送等事件 |
+| **P0** | 数据统一管理迁移 | 已完成 ✅ (Task #023) |
+| **P1** | 命令逻辑优化 | 已完成 ✅ (Task #023) |
+| P2 | Dashboard 控制台增强 | 多服控制台切换、用户管理界面 |
+| P3 | 多服物品发放 | 签到物品智能分发到在线服务器 |
+| P4 | 更多游戏事件上报 | 死亡、成就等事件播报 |
+
+---
+
+### 10.2.1 P2 任务详细说明：Dashboard 控制台增强
+
+> **注意**: 当前 Dashboard 使用 HTML 版本（Vue 版本已弃用）
+
+#### 控制台切换功能
+
+**需求**: 在 Dashboard 控制台中支持切入指定 MC 服务器执行命令
+
+**命令规格**:
+| 命令 | 功能 |
+|------|------|
+| `/server <服务器名>` | 切入指定服务器控制台 |
+| `/back` | 返回 Alpha 面板控制台 |
+
+**行为规则**:
+- **Alpha 控制台** (默认): 不带 `/` 的命令不转发，仅本地处理
+- **服务器控制台** (切入后): 所有输入自动补 `/` 前缀，转发到服务器执行
+- 命令执行结果需转发回面板显示
+
+**示例流程**:
+```
+[Alpha] > /server main
+已切入服务器: main
+
+[main] > gamemode creative Steve
+执行: /gamemode creative Steve
+[Server] Steve 的游戏模式已更新为 创造模式
+
+[main] > /back
+已返回 Alpha 控制台
+
+[Alpha] > 
+```
+
+#### 用户管理界面
+
+新增页面，用于管理绑定/权限/禁言数据：
+- 查看所有绑定关系
+- 修改用户权限等级
+- 管理禁言列表
+
+---
+
+### 10.2.2 P3 任务详细说明：多服物品发放
+
+#### 签到物品发放逻辑
+
+**需求**: 玩家签到后，物品应发放到其在线的服务器
+
+**发放规则**:
+| 玩家状态 | 发放行为 |
+|----------|----------|
+| 单服在线 | 发放到该服务器 |
+| 多服在线 | 所有在线服务器都发放 |
+| 全部离线 | 触发 CDK 兑换码机制 |
+
+**实现要点**:
+1. Alpha 调用每个已连接服务器的 `get_players` 查询玩家在线状态
+2. 向所有玩家在线的服务器发送 `give_item` 请求
+3. 若全部离线，生成 CDK 存入 Redis，回复兑换码
+
+#### 多服状态查询优化
+
+当前 `#status` 仅展示单服，需要改为汇总展示：
+```
+[服务器状态]
+main: 5人在线 | TPS 19.8 | 内存 2.1G
+creative: 2人在线 | TPS 20.0 | 内存 1.5G
+```
+
+---
+
+### 10.2.3 P4 任务详细说明：游戏事件上报
+
+#### 需要上报的事件
+
+| 事件 | 触发时机 | 播报内容示例 |
+|------|----------|-------------|
+| 死亡 | 玩家死亡 | "[main] Steve 被苦力怕炸死了" |
+| 成就 | 获得进度 | "[main] Steve 获得成就 [钻石！]" |
+| 命令执行 | op 执行命令 | (仅记录日志，不播报) |
+
+> **注意**: 传送事件暂不实现，因服务器未对玩家开放 tp 指令权限
+
+#### 实现要点
+
+1. Reforged `GameEventListener` 添加事件监听
+2. 通过 `BridgeClient.sendEvent()` 上报
+3. Alpha 转发到 QQ 群 (可配置开关)
 
 ### 10.3 P1 任务详细说明：命令逻辑优化
 
@@ -624,6 +721,7 @@ cd MapBot_Reforged
 ## 十二、Git 最新提交
 
 ```
+a1b2c3d feat: Task #023 P0 & P1 命令逻辑优化完成
 94885f9 docs: 添加项目接续报告 Report_01_Continue.md
 5c46bf9 feat: Task #022 Redis 签到迁移完成
 2609ed0 fix: P0-P3 签到系统修复与优化

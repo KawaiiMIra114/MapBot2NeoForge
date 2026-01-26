@@ -47,6 +47,7 @@ public class InboundHandler {
         CommandRegistry.register("removeadmin", new RemoveAdminCommand());
         CommandRegistry.register("reload", new ReloadCommand());
         CommandRegistry.register("adminunbind", new ForceUnbindCommand());
+        CommandRegistry.register("agreeunbind", new AgreeUnbindCommand());
         CommandRegistry.register("playtime", new PlaytimeCommand());
         CommandRegistry.register("cdk", new CdkCommand());
         CommandRegistry.register("stopserver", new StopServerCommand());

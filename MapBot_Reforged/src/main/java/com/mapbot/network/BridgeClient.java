@@ -413,7 +413,16 @@ public class BridgeClient {
             String uuid = profile.get().getId().toString();
             
             if (com.mapbot.data.DataManager.INSTANCE.isUUIDBound(uuid)) {
-                sendProxyResponse(requestId, "FAIL:[绑定失败] 该游戏ID已被其他QQ绑定");
+                // 查找占用者 QQ
+                Long occupierQQ = null;
+                for (var entry : com.mapbot.data.DataManager.INSTANCE.getAllBindings().entrySet()) {
+                    if (uuid.equals(entry.getValue())) {
+                        occupierQQ = entry.getKey();
+                        break;
+                    }
+                }
+                String occupierInfo = (occupierQQ != null) ? String.valueOf(occupierQQ) : "未知";
+                sendProxyResponse(requestId, "FAIL:OCCUPIED:" + occupierInfo);
                 return;
             }
             

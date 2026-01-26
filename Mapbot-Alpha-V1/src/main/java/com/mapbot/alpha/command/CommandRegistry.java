@@ -51,6 +51,20 @@ public class CommandRegistry {
             return false;
         }
         
+        // 特殊处理：addadmin 命令在无管理员时允许任何人执行
+        if ("addadmin".equals(name) && DataManager.INSTANCE.getAdmins().isEmpty()) {
+            try {
+                String result = cmd.execute(args, senderQQ, sourceGroupId);
+                if (result != null && !result.isEmpty()) {
+                    sendReply(sourceGroupId, result);
+                }
+            } catch (Exception e) {
+                LOGGER.error("命令执行异常: #{} {}", name, args, e);
+                sendReply(sourceGroupId, "[错误] 命令执行失败: " + e.getMessage());
+            }
+            return true;
+        }
+        
         // 权限检查: 管理群专属
         if (cmd.adminGroupOnly() && sourceGroupId != AlphaConfig.getAdminGroupId()) {
             sendReply(sourceGroupId, "[权限] 此命令仅限管理群使用");
