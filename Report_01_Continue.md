@@ -214,9 +214,155 @@ src/main/java/com/mapbot/
     └── BridgeClient.java         # Alpha TCP 客户端 ★
 ```
 
+## 七、权限系统详解
+
+### 7.1 双轨权限体系
+
+系统采用 **权限等级 (Level)** + **管理员标记 (Admin)** 双轨制：
+
+| 权限 | 等级值 | 说明 | 可用命令示例 |
+|------|--------|------|-------------|
+| **普通用户** | Level 0 | 默认权限 | `#sign`, `#bind`, `#list`, `#help` |
+| **受信用户** | Level 1 | 可查询他人信息 | `#loc`, `#inv`, `#time` |
+| **管理员** | Level 2 | 可执行管理命令 | `#mute`, `#unmute`, `#setperm` |
+| **超级管理员** | Admin 标记 | 最高权限 | `#stop`, `#reload`, `#addadmin`, `#forceunbind` |
+
+### 7.2 权限管理命令
+
+```bash
+# 查看自己权限
+#myperm
+
+# 设置用户权限等级 (需 Admin)
+#setperm @QQ用户 <0|1|2>
+
+# 添加管理员 (需 Admin)
+#addadmin @QQ用户
+
+# 移除管理员 (需 Admin)
+#removeadmin @QQ用户
+```
+
+### 7.3 权限数据存储
+
+**本地存储**: `config/permissions.json`, `config/admins.json`  
+**Redis 存储** (启用时):
+```
+mapbot:permissions   → Hash (QQ号 → Level)
+mapbot:admins        → Set (管理员QQ号列表)
+```
+
+### 7.4 初始管理员配置
+
+在 `config/alpha.properties` 中设置：
+```properties
+messaging.adminQQs=123456789,987654321
+```
+逗号分隔多个 QQ 号，启动时自动同步到管理员列表。
+
 ---
 
-## 七、待完成任务
+## 八、Dashboard 面板使用
+
+### 8.1 面板概述
+
+Dashboard 是一个基于 Vue 3 + TypeScript 的 Web 管理面板，内置于 Alpha Core，提供服务器监控和管理功能。
+
+**访问地址**: `http://<AlphaIP>:8080/`  
+**默认凭证**: 首次启动时在控制台输出
+
+### 8.2 页面功能
+
+| 页面 | 路由 | 功能 |
+|------|------|------|
+| **Dashboard** | `/` | 服务器概览、实时日志 |
+| **Servers** | `/servers` | 多服状态监控、TPS/内存/玩家数 |
+| **Console** | `/console` | 实时日志流、命令执行 |
+| **Files** | `/files` | 远程文件管理 (查看/编辑/删除) |
+| **Settings** | `/settings` | 配置管理 (暂未完全实现) |
+| **Login** | `/login` | 登录页面 |
+
+### 8.3 实时监控
+
+Dashboard 页面通过 WebSocket 连接获取实时数据：
+```
+ws://<AlphaIP>:8080/ws
+```
+自动推送：
+- MC 服务器事件日志
+- 玩家上下线
+- 命令执行结果
+
+### 8.4 服务器状态卡片
+
+显示当前连接的所有 MC 服务器：
+- **Server ID**: 服务器标识
+- **Players**: 在线玩家数
+- **TPS**: 实时 TPS (绿色≥18, 黄色<18)
+- **Memory**: 内存使用
+
+### 8.5 文件管理
+
+支持远程操作 MC 服务器文件：
+- 浏览目录结构
+- 查看/编辑配置文件
+- 删除文件 (需确认)
+
+**安全**: 操作通过 Alpha-Mod Bridge 代理，无法访问 Alpha 本机文件。
+
+---
+
+## 九、配置文件说明
+
+### 9.1 Alpha Core 配置 (`config/alpha.properties`)
+
+```properties
+# NapCat WebSocket 地址
+connection.wsUrl=ws://127.0.0.1:7000
+
+# 重连间隔 (秒)
+connection.reconnectInterval=5
+
+# Redis 配置
+redis.enabled=true
+redis.host=127.0.0.1
+redis.port=6379
+redis.password=
+redis.database=0
+
+# QQ 群配置
+messaging.playerGroupId=875585697      # 玩家群
+messaging.adminGroupId=885810515       # 管理群
+messaging.botQQ=2133782376             # 机器人QQ
+
+# 初始管理员 (逗号分隔)
+messaging.adminQQs=123456789
+
+# 调试模式
+debug.debugMode=true
+```
+
+### 9.2 Reforged Mod 配置 (`config/mapbot.toml`)
+
+```toml
+[connection]
+alphaHost = "127.0.0.1"
+alphaPort = 9000
+serverId = "main"
+
+[messaging]
+playerGroupId = 875585697
+```
+
+### 9.3 如何修改配置
+
+1. 停止服务
+2. 编辑对应配置文件
+3. 重启服务 或 使用 `#reload` 命令 (仅重载部分配置)
+
+---
+
+## 十、待完成任务
 
 目前没有紧急待办任务。可考虑的后续工作：
 1. Dashboard 前端完善
@@ -226,7 +372,7 @@ src/main/java/com/mapbot/
 
 ---
 
-## 八、构建与验证
+## 十一、构建与验证
 
 ```powershell
 # Alpha
@@ -242,9 +388,11 @@ cd MapBot_Reforged
 
 ---
 
-## 九、Git 最新提交
+## 十二、Git 最新提交
 
 ```
+94885f9 docs: 添加项目接续报告 Report_01_Continue.md
 5c46bf9 feat: Task #022 Redis 签到迁移完成
 2609ed0 fix: P0-P3 签到系统修复与优化
 ```
+
