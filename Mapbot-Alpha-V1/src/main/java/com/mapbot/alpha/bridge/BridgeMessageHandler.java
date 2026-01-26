@@ -55,6 +55,9 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
                 case "proxy_response":
                     handleProxyResponse(data);
                     break;
+                case "redeem_cdk":
+                    handleRedeemCdk(ctx, data);
+                    break;
                 default:
                     LOGGER.warn("未知消息类型: {}", type);
             }
@@ -168,5 +171,30 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         LOGGER.error("Bridge 连接异常: " + serverId, cause);
         ctx.close();
+    }
+    
+    /**
+     * Task #022: 处理来自 Mod 的 CDK 兑换验证请求
+     */
+    private void handleRedeemCdk(ChannelHandlerContext ctx, java.util.Map<String, Object> data) {
+        String requestId = String.valueOf(data.get("requestId"));
+        String code = String.valueOf(data.get("code"));
+        String uuid = String.valueOf(data.get("uuid"));
+        
+        String result = BridgeProxy.INSTANCE.redeemCdk(code, uuid);
+        
+        // 发送响应
+        String response = String.format(
+            "{\"type\":\"proxy_response\",\"requestId\":\"%s\",\"result\":\"%s\"}\n",
+            requestId, escapeJson(result)
+        );
+        ctx.writeAndFlush(response);
+    }
+    
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n");
     }
 }

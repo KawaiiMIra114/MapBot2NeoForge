@@ -14,6 +14,7 @@ import com.mapbot.config.BotConfig;
 import com.mapbot.data.DataManager;
 import com.mapbot.logic.ServerStatusManager;
 import com.mapbot.network.BotClient;
+import com.mapbot.network.BridgeClient;
 import com.mojang.logging.LogUtils;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -61,7 +62,7 @@ public class MapBot {
     }
 
     /**
-     * 注册游戏内命令
+     * 注册游戏内命令 (Task #022: CDK 验证走 Alpha Redis)
      */
     @SubscribeEvent
     public void onRegisterCommands(RegisterCommandsEvent event) {
@@ -74,14 +75,26 @@ public class MapBot {
                             ServerPlayer player = ctx.getSource().getPlayerOrException();
                             String uuidStr = player.getUUID().toString();
                             
-                            // 执行兑换
-                            String result = SignManager.INSTANCE.redeemCdk(uuidStr, code);
+                            // 向 Alpha 发送 CDK 验证请求
+                            String result = BridgeClient.INSTANCE.redeemCdk(code, uuidStr);
                             
-                            // 反馈结果
-                            if (result.startsWith("兑换成功")) {
-                                ctx.getSource().sendSuccess(() -> Component.literal("§a[MapBot] " + result), false);
+                            if (result == null) {
+                                ctx.getSource().sendFailure(Component.literal("§c[MapBot] 服务器无响应"));
+                                return 0;
+                            }
+                            
+                            if (result.startsWith("VALID:")) {
+                                // 解析物品并发放
+                                String itemJson = result.substring(6);
+                                boolean success = giveItemToPlayer(player, itemJson);
+                                if (success) {
+                                    ctx.getSource().sendSuccess(() -> Component.literal("§a[MapBot] 兑换成功！物品已发放"), false);
+                                } else {
+                                    ctx.getSource().sendFailure(Component.literal("§c[MapBot] 发放物品失败"));
+                                }
                             } else {
-                                ctx.getSource().sendFailure(Component.literal("§c[MapBot] " + result));
+                                String error = result.replace("INVALID:", "");
+                                ctx.getSource().sendFailure(Component.literal("§c[MapBot] " + error));
                             }
                             return 1;
                         })
@@ -89,6 +102,36 @@ public class MapBot {
                 )
         );
         LOGGER.info("已注册游戏命令: /mapbot cdk");
+    }
+    
+    /**
+     * 发放物品给玩家 (Task #022)
+     */
+    private boolean giveItemToPlayer(ServerPlayer player, String itemJson) {
+        try {
+            var json = com.google.gson.JsonParser.parseString(itemJson).getAsJsonObject();
+            String itemId = json.get("id").getAsString();
+            int count = json.get("count").getAsInt();
+            
+            net.minecraft.resources.ResourceLocation id = net.minecraft.resources.ResourceLocation.parse(itemId);
+            net.minecraft.world.item.Item mcItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
+            
+            if (mcItem == null || mcItem == net.minecraft.world.item.Items.AIR) {
+                return false;
+            }
+            
+            net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(mcItem, count);
+            
+            if (player.getInventory().add(stack)) {
+                return true;
+            } else {
+                player.drop(stack, false);
+                return true;
+            }
+        } catch (Exception e) {
+            LOGGER.error("发放物品失败", e);
+            return false;
+        }
     }
 
     /**

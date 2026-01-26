@@ -50,6 +50,31 @@ public class BridgeClient {
     private BridgeClient() {}
     
     /**
+     * Task #022: 向 Alpha 发送 CDK 兑换验证请求
+     * @return "VALID:{itemJson}" 或 "INVALID:原因"
+     */
+    public String redeemCdk(String code, String uuid) {
+        if (!connected.get()) return null;
+        
+        try {
+            String requestId = "redeem_cdk_" + System.currentTimeMillis();
+            java.util.concurrent.CompletableFuture<String> future = new java.util.concurrent.CompletableFuture<>();
+            pendingRequests.put(requestId, future);
+            
+            String json = String.format(
+                "{\"type\":\"redeem_cdk\",\"requestId\":\"%s\",\"code\":\"%s\",\"uuid\":\"%s\"}",
+                requestId, code, uuid
+            );
+            send(json);
+            
+            return future.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (Exception e) {
+            LOGGER.error("CDK 验证请求失败", e);
+            return null;
+        }
+    }
+    
+    /**
      * 连接到 Alpha Core
      */
     public void connect() {
@@ -204,6 +229,9 @@ public class BridgeClient {
                     break;
                 case "heartbeat_ack":
                     break;
+                case "proxy_response":
+                    handleProxyResponseFromAlpha(msg);
+                    break;
                 case "command":
                     handleCommand(msg);
                     break;
@@ -255,6 +283,13 @@ public class BridgeClient {
                 case "file_write":
                 case "file_delete":
                     handleFileRequest(msg);
+                    break;
+                // Task #022: Redis 迁移新接口
+                case "roll_loot":
+                    handleRollLoot(msg);
+                    break;
+                case "give_item":
+                    handleGiveItem(msg);
                     break;
                 default:
                     LOGGER.debug("[Bridge] 收到消息: {}", msg);
@@ -666,6 +701,100 @@ public class BridgeClient {
         }
     }
     
+    // ==================== Task #022: Redis 迁移新接口 ====================
+    
+    private void handleRollLoot(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        
+        try {
+            var item = com.mapbot.data.loot.LootConfig.INSTANCE.roll();
+            if (item == null) {
+                sendProxyResponse(requestId, "");
+                return;
+            }
+            
+            // 构建 Item JSON
+            String rarityMsg = com.mapbot.data.loot.LootConfig.INSTANCE.getRarityMessage(item.rarity);
+            String json = String.format(
+                "{\"id\":\"%s\",\"count\":%d,\"name\":\"%s\",\"rarity\":\"%s\",\"rarityMsg\":\"%s\"}",
+                item.id, item.count, item.name, item.rarity, escapeJson(rarityMsg)
+            );
+            sendProxyResponse(requestId, json);
+            
+        } catch (Exception e) {
+            LOGGER.error("抽奖失败", e);
+            sendProxyResponse(requestId, "");
+        }
+    }
+    
+    private void handleGiveItem(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String uuid = extractJsonValue(msg, "arg1");
+        String itemJson = extractJsonValue(msg, "arg2");
+        
+        try {
+            net.minecraft.server.MinecraftServer server = 
+                net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+            if (server == null) {
+                sendProxyResponse(requestId, "FAIL:服务器未就绪");
+                return;
+            }
+            
+            var player = server.getPlayerList().getPlayer(java.util.UUID.fromString(uuid));
+            if (player == null) {
+                sendProxyResponse(requestId, "FAIL:OFFLINE");
+                return;
+            }
+            
+            // 解析物品 JSON
+            var json = com.google.gson.JsonParser.parseString(itemJson).getAsJsonObject();
+            String itemId = json.get("id").getAsString();
+            int count = json.get("count").getAsInt();
+            
+            net.minecraft.resources.ResourceLocation id = net.minecraft.resources.ResourceLocation.parse(itemId);
+            net.minecraft.world.item.Item mcItem = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
+            
+            if (mcItem == null || mcItem == net.minecraft.world.item.Items.AIR) {
+                sendProxyResponse(requestId, "FAIL:未知物品");
+                return;
+            }
+            
+            net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(mcItem, count);
+            
+            if (player.getInventory().add(stack)) {
+                sendProxyResponse(requestId, "SUCCESS");
+            } else {
+                // 背包满，尝试掉落
+                player.drop(stack, false);
+                sendProxyResponse(requestId, "SUCCESS");
+            }
+            
+        } catch (Exception e) {
+            LOGGER.error("发放物品失败", e);
+            sendProxyResponse(requestId, "FAIL:" + e.getMessage());
+        }
+    }
+    
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n");
+    }
+    
+    /**
+     * Task #022: 处理来自 Alpha 的响应 (完成 CompletableFuture)
+     */
+    private void handleProxyResponseFromAlpha(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String result = extractJsonValue(msg, "result");
+        
+        var future = pendingRequests.remove(requestId);
+        if (future != null) {
+            future.complete(result);
+        }
+    }
+    
     private void handleStopServer(String msg) {
         String requestId = extractJsonValue(msg, "requestId");
         String countdownStr = extractJsonValue(msg, "arg1");
@@ -946,13 +1075,5 @@ public class BridgeClient {
             }
         } catch (Exception ignored) {}
         return "";
-    }
-    
-    private String escapeJson(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r");
     }
 }

@@ -155,7 +155,7 @@ public class BridgeProxy {
     }
     
     /**
-     * 获取 CDK 兑换码
+     * 获取 CDK 兑换码 (旧版，转发到 Mod)
      */
     public String getCdk(long senderQQ) {
         String result = sendRequest("get_cdk", String.valueOf(senderQQ), null);
@@ -163,6 +163,70 @@ public class BridgeProxy {
             return "[错误] 获取兑换码失败";
         }
         return result;
+    }
+    
+    // ==================== Task #022: Redis 迁移新接口 ====================
+    
+    /**
+     * 请求 Mod 端抽奖
+     * @return Item JSON (如 {"id":"minecraft:diamond","count":5,"name":"钻石","rarity":"SR"})
+     */
+    public String rollLoot() {
+        return sendRequest("roll_loot", null, null);
+    }
+    
+    /**
+     * 请求 Mod 端发放物品
+     * @param uuid 玩家 UUID
+     * @param itemJson 物品 JSON
+     * @return "SUCCESS" 或 "FAIL:原因"
+     */
+    public String giveItem(String uuid, String itemJson) {
+        return sendRequest("give_item", uuid, itemJson);
+    }
+    
+    /**
+     * 请求 Alpha 验证并兑换 CDK (由 Mod 端调用)
+     * @param code 兑换码
+     * @param uuid 玩家 UUID
+     * @return "VALID:{itemJson}" 或 "INVALID:原因"
+     */
+    public String redeemCdk(String code, String uuid) {
+        var signManager = com.mapbot.alpha.logic.SignManager.INSTANCE;
+        var dataManager = DataManager.INSTANCE;
+        
+        String cdkJson = signManager.getCdkInfo(code);
+        if (cdkJson == null) {
+            return "INVALID:无效的兑换码";
+        }
+        
+        // 解析 CDK JSON
+        try {
+            var json = com.google.gson.JsonParser.parseString(cdkJson).getAsJsonObject();
+            long cdkQQ = json.get("qq").getAsLong();
+            long expiry = json.get("expiry").getAsLong();
+            String itemJson = json.get("item").toString();
+            
+            // 检查过期
+            if (System.currentTimeMillis() > expiry) {
+                signManager.removeCdk(code);
+                return "INVALID:兑换码已过期";
+            }
+            
+            // 检查归属
+            Long boundQQ = dataManager.getQQByUUID(uuid);
+            if (boundQQ == null || boundQQ != cdkQQ) {
+                return "INVALID:此兑换码不属于您绑定的账号";
+            }
+            
+            // 有效，删除 CDK 并返回物品
+            signManager.removeCdk(code);
+            return "VALID:" + itemJson;
+            
+        } catch (Exception e) {
+            LOGGER.error("CDK 解析失败", e);
+            return "INVALID:CDK 数据损坏";
+        }
     }
     
     /**
