@@ -1,0 +1,226 @@
+{
+  "entries": [
+    {
+      "rarity": "Common",
+      "weight": 60,
+      "items": [
+        {
+          "type": "TAG",
+          "id": "minecraft:planks",
+          "count": 32,
+          "name": "随机木板"
+        },
+        {
+          "type": "TAG",
+          "id": "minecraft:logs",
+          "count": 16,
+          "name": "随机原木"
+        },
+        {
+          "type": "TAG",
+          "id": "minecraft:wool",
+          "count": 16,
+          "name": "随机羊毛"
+        },
+        {
+          "type": "TAG",
+          "id": "minecraft:leaves",
+          "count": 16,
+          "name": "随机树叶"
+        },
+        {
+          "type": "TAG",
+          "id": "minecraft:saplings",
+          "count": 4,
+          "name": "随机树苗"
+        },
+        {
+          "type": "TAG",
+          "id": "minecraft:flowers",
+          "count": 4,
+          "name": "随机花朵"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:sand",
+          "count": 32,
+          "name": "沙子"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:gravel",
+          "count": 32,
+          "name": "沙砾"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:glass",
+          "count": 16,
+          "name": "玻璃"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:coal",
+          "count": 16,
+          "name": "煤炭"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:bread",
+          "count": 8,
+          "name": "面包"
+        }
+      ]
+    },
+    {
+      "rarity": "Rare",
+      "weight": 30,
+      "items": [
+        {
+          "type": "ITEM",
+          "id": "minecraft:iron_ingot",
+          "count": 8,
+          "name": "铁锭"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:gold_ingot",
+          "count": 8,
+          "name": "金锭"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:redstone",
+          "count": 16,
+          "name": "红石粉"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:lapis_lazuli",
+          "count": 16,
+          "name": "青金石"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:quartz",
+          "count": 16,
+          "name": "下界石英"
+        },
+        {
+          "type": "TAG",
+          "id": "minecraft:candles",
+          "count": 8,
+          "name": "随机蜡烛"
+        },
+        {
+          "type": "TAG",
+          "id": "minecraft:banners",
+          "count": 1,
+          "name": "随机旗帜"
+        },
+        {
+          "type": "TAG",
+          "id": "minecraft:beds",
+          "count": 1,
+          "name": "随机床"
+        },
+        {
+          "type": "TAG",
+          "id": "minecraft:music_discs",
+          "count": 1,
+          "name": "随机唱片"
+        }
+      ]
+    },
+    {
+      "rarity": "Epic",
+      "weight": 9,
+      "items": [
+        {
+          "type": "ITEM",
+          "id": "minecraft:diamond",
+          "count": 4,
+          "name": "钻石"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:emerald",
+          "count": 8,
+          "name": "绿宝石"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:ender_pearl",
+          "count": 4,
+          "name": "末影珍珠"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:blaze_rod",
+          "count": 4,
+          "name": "烈焰棒"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:ghast_tear",
+          "count": 2,
+          "name": "恶魂之泪"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:shulker_shell",
+          "count": 2,
+          "name": "潜影壳"
+        }
+      ]
+    },
+    {
+      "rarity": "Legendary",
+      "weight": 1,
+      "items": [
+        {
+          "type": "ITEM",
+          "id": "minecraft:netherite_ingot",
+          "count": 1,
+          "name": "下界合金锭"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:golden_apple",
+          "count": 4,
+          "name": "金苹果"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:enchanted_golden_apple",
+          "count": 1,
+          "name": "附魔金苹果"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:totem_of_undying",
+          "count": 1,
+          "name": "不死图腾"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:beacon",
+          "count": 1,
+          "name": "信标"
+        },
+        {
+          "type": "ITEM",
+          "id": "minecraft:nether_star",
+          "count": 1,
+          "name": "下界之星"
+        }
+      ]
+    }
+  ],
+  "messages": {
+    "Rare": "[提示] 运气不错，获得了稀有资源。",
+    "Epic": "[提示] 欧气爆发，这是史诗级的奖励！",
+    "Legendary": "[警告] 传说降临！天选之子。",
+    "Common": "[提示] 签到成功，获得基础建材或资源。"
+  }
+}
