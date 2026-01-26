@@ -58,6 +58,16 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
                 case "redeem_cdk":
                     handleRedeemCdk(ctx, data);
                     break;
+                // P0: Reforged 端数据查询/上报（统一走 Alpha Redis）
+                case "check_mute":
+                    handleCheckMute(ctx, data);
+                    break;
+                case "get_qq_by_uuid":
+                    handleGetQqByUuid(ctx, data);
+                    break;
+                case "playtime_add":
+                    handlePlaytimeAdd(data);
+                    break;
                 default:
                     LOGGER.warn("未知消息类型: {}", type);
             }
@@ -196,5 +206,63 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         return s.replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n");
+    }
+
+    /**
+     * P0: 检查禁言状态（同时触发 Alpha 侧的过期清理）
+     * 返回值：0=未禁言，-1=永久禁言，其他=到期时间戳(ms)
+     */
+    private void handleCheckMute(ChannelHandlerContext ctx, java.util.Map<String, Object> data) {
+        String requestId = String.valueOf(data.get("requestId"));
+        String uuid = String.valueOf(data.get("uuid"));
+
+        long expiry = 0L;
+        if (uuid != null && !uuid.isEmpty()) {
+            var dm = com.mapbot.alpha.data.DataManager.INSTANCE;
+            if (dm.isMuted(uuid)) {
+                expiry = dm.getMuteExpiry(uuid);
+            }
+        }
+
+        String response = String.format(
+            "{\"type\":\"proxy_response\",\"requestId\":\"%s\",\"result\":\"%s\"}\n",
+            requestId, String.valueOf(expiry)
+        );
+        ctx.writeAndFlush(response);
+    }
+
+    /**
+     * P0: UUID -> QQ 反查
+     */
+    private void handleGetQqByUuid(ChannelHandlerContext ctx, java.util.Map<String, Object> data) {
+        String requestId = String.valueOf(data.get("requestId"));
+        String uuid = String.valueOf(data.get("uuid"));
+
+        long qq = -1L;
+        if (uuid != null && !uuid.isEmpty()) {
+            Long v = com.mapbot.alpha.data.DataManager.INSTANCE.getQQByUUID(uuid);
+            if (v != null) qq = v;
+        }
+
+        String response = String.format(
+            "{\"type\":\"proxy_response\",\"requestId\":\"%s\",\"result\":\"%s\"}\n",
+            requestId, String.valueOf(qq)
+        );
+        ctx.writeAndFlush(response);
+    }
+
+    /**
+     * P0: 上报在线时长增量（由 Reforged 端触发）
+     */
+    private void handlePlaytimeAdd(java.util.Map<String, Object> data) {
+        try {
+            String uuid = String.valueOf(data.get("uuid"));
+            long deltaMs = Long.parseLong(String.valueOf(data.getOrDefault("deltaMs", "0")));
+            if (uuid != null && !uuid.isEmpty() && deltaMs > 0) {
+                com.mapbot.alpha.logic.PlaytimeStore.INSTANCE.addPlaytime(uuid, deltaMs);
+            }
+        } catch (Exception e) {
+            LOGGER.error("在线时长上报处理失败", e);
+        }
     }
 }

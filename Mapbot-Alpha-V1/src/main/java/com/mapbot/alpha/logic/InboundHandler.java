@@ -49,6 +49,7 @@ public class InboundHandler {
         CommandRegistry.register("adminunbind", new ForceUnbindCommand());
         CommandRegistry.register("agreeunbind", new AgreeUnbindCommand());
         CommandRegistry.register("playtime", new PlaytimeCommand());
+        CommandRegistry.register("time", new TimeCommand());
         CommandRegistry.register("cdk", new CdkCommand());
         CommandRegistry.register("stopserver", new StopServerCommand());
         CommandRegistry.register("cancelstop", new CancelStopCommand());
@@ -68,6 +69,7 @@ public class InboundHandler {
         CommandRegistry.registerAlias("解禁", "unmute");
         CommandRegistry.registerAlias("强制解绑", "adminunbind");
         CommandRegistry.registerAlias("在线时长", "playtime");
+        CommandRegistry.registerAlias("时间", "time");
         CommandRegistry.registerAlias("兑换码", "cdk");
         CommandRegistry.registerAlias("关服", "stopserver");
         CommandRegistry.registerAlias("取消关服", "cancelstop");

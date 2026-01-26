@@ -243,6 +243,27 @@ public class DataManager {
     public Set<Long> getAdmins() {
         return Collections.unmodifiableSet(admins);
     }
+
+    /**
+     * 获取全部绑定数据快照 (QQ -> UUID)
+     */
+    public Map<Long, String> getAllBindings() {
+        return Map.copyOf(bindings);
+    }
+
+    /**
+     * 获取全部权限数据快照 (QQ -> Level)
+     */
+    public Map<Long, Integer> getAllPermissions() {
+        return Map.copyOf(permissions);
+    }
+
+    /**
+     * 获取全部禁言数据快照 (UUID -> expiry)
+     */
+    public Map<String, Long> getAllMutes() {
+        return Map.copyOf(mutes);
+    }
     
     // ==================== 持久化 ====================
     

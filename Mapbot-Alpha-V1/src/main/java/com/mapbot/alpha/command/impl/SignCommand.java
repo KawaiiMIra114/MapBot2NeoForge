@@ -1,7 +1,6 @@
 package com.mapbot.alpha.command.impl;
 
 import com.mapbot.alpha.bridge.BridgeProxy;
-import com.mapbot.alpha.bridge.ServerRegistry;
 import com.mapbot.alpha.command.ICommand;
 import com.mapbot.alpha.data.DataManager;
 import com.mapbot.alpha.logic.SignManager;
@@ -54,7 +53,7 @@ public class SignCommand implements ICommand {
             int days = signMgr.getSignInDays(senderQQ);
             
             // 检查在线状态
-            boolean isOnline = isPlayerOnline(uuid);
+            boolean isOnline = BridgeProxy.INSTANCE.isPlayerOnline(uuid);
             
             StringBuilder result = new StringBuilder();
             result.append(playerName).append(" 今日已签到\n");
@@ -84,11 +83,6 @@ public class SignCommand implements ICommand {
         
         // 向 Mod 请求玩家名 (简化：直接返回 UUID 前缀)
         return uuid.substring(0, 8);
-    }
-    
-    private boolean isPlayerOnline(String uuid) {
-        // 检查是否有服务器报告该玩家在线
-        return ServerRegistry.INSTANCE.getServerCount() > 0;
     }
     
     @Override

@@ -42,6 +42,27 @@ public class BridgeClient {
     
     // 文件请求回调
     private final ConcurrentHashMap<String, CompletableFuture<String>> pendingRequests = new ConcurrentHashMap<>();
+
+    // ===== P0: 数据统一管理 (缓存读取 Alpha 数据) =====
+
+    private static final long CACHE_TTL_MS = 3000;
+
+    private static final class CacheLong {
+        final long value;
+        final long fetchedAtMs;
+
+        CacheLong(long value, long fetchedAtMs) {
+            this.value = value;
+            this.fetchedAtMs = fetchedAtMs;
+        }
+
+        boolean isFresh() {
+            return System.currentTimeMillis() - fetchedAtMs <= CACHE_TTL_MS;
+        }
+    }
+
+    private final ConcurrentHashMap<String, CacheLong> muteExpiryCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CacheLong> qqByUuidCache = new ConcurrentHashMap<>();
     
     private String serverId;
     private String alphaHost;
@@ -242,11 +263,17 @@ public class BridgeClient {
                 case "get_players":
                     handleGetPlayers(msg);
                     break;
+                case "has_player":
+                    handleHasPlayer(msg);
+                    break;
                 case "get_status":
                     handleGetStatus(msg);
                     break;
                 case "bind_player":
                     handleBindPlayer(msg);
+                    break;
+                case "resolve_uuid":
+                    handleResolveUuid(msg);
                     break;
                 case "sign_in":
                     handleSignIn(msg);
@@ -342,6 +369,32 @@ public class BridgeClient {
         }
         sendProxyResponse(requestId, sb.toString().trim());
     }
+
+    /**
+     * P3: 查询玩家是否在本服在线 (UUID)
+     * Alpha 用于决定多服物品发放目标
+     */
+    private void handleHasPlayer(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String uuidStr = extractJsonValue(msg, "arg1");
+
+        net.minecraft.server.MinecraftServer server =
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+
+        if (server == null || uuidStr == null || uuidStr.isEmpty()) {
+            sendProxyResponse(requestId, "NO");
+            return;
+        }
+
+        server.execute(() -> {
+            try {
+                var player = server.getPlayerList().getPlayer(java.util.UUID.fromString(uuidStr));
+                sendProxyResponse(requestId, player != null ? "YES" : "NO");
+            } catch (Exception e) {
+                sendProxyResponse(requestId, "NO");
+            }
+        });
+    }
     
     private void handleGetStatus(String msg) {
         String requestId = extractJsonValue(msg, "requestId");
@@ -383,8 +436,6 @@ public class BridgeClient {
         }
         
         try {
-            long qq = Long.parseLong(qqStr);
-            
             // 解析玩家 UUID
             java.util.Optional<com.mojang.authlib.GameProfile> profile = 
                 server.getProfileCache().get(playerName);
@@ -393,7 +444,6 @@ public class BridgeClient {
                 // 离线模式
                 if (!server.usesAuthentication()) {
                     var uuid = net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(playerName);
-                    com.mapbot.data.DataManager.INSTANCE.bind(qq, uuid.toString());
                     
                     // 添加白名单
                     var whitelist = server.getPlayerList().getWhiteList();
@@ -411,23 +461,7 @@ public class BridgeClient {
             }
             
             String uuid = profile.get().getId().toString();
-            
-            if (com.mapbot.data.DataManager.INSTANCE.isUUIDBound(uuid)) {
-                // 查找占用者 QQ
-                Long occupierQQ = null;
-                for (var entry : com.mapbot.data.DataManager.INSTANCE.getAllBindings().entrySet()) {
-                    if (uuid.equals(entry.getValue())) {
-                        occupierQQ = entry.getKey();
-                        break;
-                    }
-                }
-                String occupierInfo = (occupierQQ != null) ? String.valueOf(occupierQQ) : "未知";
-                sendProxyResponse(requestId, "FAIL:OCCUPIED:" + occupierInfo);
-                return;
-            }
-            
-            com.mapbot.data.DataManager.INSTANCE.bind(qq, uuid);
-            
+
             // 添加白名单
             var whitelist = server.getPlayerList().getWhiteList();
             if (!whitelist.isWhiteListed(profile.get())) {
@@ -440,6 +474,44 @@ public class BridgeClient {
         } catch (Exception e) {
             LOGGER.error("绑定失败", e);
             sendProxyResponse(requestId, "[错误] 绑定失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * P0: 解析玩家名 -> UUID（不写入任何本地数据）
+     * 用于 Alpha 侧的在线时长查询等功能
+     */
+    private void handleResolveUuid(String msg) {
+        String requestId = extractJsonValue(msg, "requestId");
+        String playerName = extractJsonValue(msg, "arg1");
+
+        net.minecraft.server.MinecraftServer server =
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+
+        if (server == null || playerName == null || playerName.isEmpty()) {
+            sendProxyResponse(requestId, "");
+            return;
+        }
+
+        try {
+            java.util.Optional<com.mojang.authlib.GameProfile> profile =
+                server.getProfileCache().get(playerName);
+
+            if (profile.isPresent()) {
+                sendProxyResponse(requestId, profile.get().getId().toString());
+                return;
+            }
+
+            // 离线模式：回退到离线 UUID
+            if (!server.usesAuthentication()) {
+                var uuid = net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(playerName);
+                sendProxyResponse(requestId, uuid.toString());
+                return;
+            }
+
+            sendProxyResponse(requestId, "");
+        } catch (Exception e) {
+            sendProxyResponse(requestId, "");
         }
     }
     
@@ -1072,6 +1144,101 @@ public class BridgeClient {
     
     public boolean isConnected() {
         return connected.get();
+    }
+
+    /**
+     * P0: 查询玩家 UUID 当前禁言到期时间
+     * @return 0=未禁言，-1=永久禁言，其他=到期时间戳(ms)
+     */
+    public long checkMuteExpiry(String uuid) {
+        if (uuid == null || uuid.isEmpty()) return 0L;
+
+        CacheLong cached = muteExpiryCache.get(uuid);
+        if (cached != null && cached.isFresh()) {
+            return cached.value;
+        }
+
+        long expiry = 0L;
+        try {
+            JsonObject payload = new JsonObject();
+            payload.addProperty("uuid", uuid);
+            String result = requestAlpha("check_mute", payload, 500);
+            if (result != null && !result.isEmpty()) {
+                expiry = Long.parseLong(result);
+            }
+        } catch (Exception ignored) {}
+
+        muteExpiryCache.put(uuid, new CacheLong(expiry, System.currentTimeMillis()));
+        return expiry;
+    }
+
+    /**
+     * P0: 通过 UUID 反查绑定的 QQ
+     * @return -1 表示未绑定
+     */
+    public long getQQByUUID(String uuid) {
+        if (uuid == null || uuid.isEmpty()) return -1L;
+
+        CacheLong cached = qqByUuidCache.get(uuid);
+        if (cached != null && cached.isFresh()) {
+            return cached.value;
+        }
+
+        long qq = -1L;
+        try {
+            JsonObject payload = new JsonObject();
+            payload.addProperty("uuid", uuid);
+            String result = requestAlpha("get_qq_by_uuid", payload, 500);
+            if (result != null && !result.isEmpty()) {
+                qq = Long.parseLong(result);
+            }
+        } catch (Exception ignored) {}
+
+        qqByUuidCache.put(uuid, new CacheLong(qq, System.currentTimeMillis()));
+        return qq;
+    }
+
+    /**
+     * P0: 上报在线时长增量到 Alpha（跨服统一存储）
+     */
+    public void sendPlaytimeAdd(String uuid, long deltaMs) {
+        if (!connected.get()) return;
+        if (uuid == null || uuid.isEmpty() || deltaMs <= 0) return;
+
+        try {
+            String json = String.format(
+                "{\"type\":\"playtime_add\",\"uuid\":\"%s\",\"deltaMs\":%d}",
+                escapeJson(uuid), deltaMs
+            );
+            send(json);
+        } catch (Exception e) {
+            LOGGER.error("[Bridge] 上报在线时长失败", e);
+        }
+    }
+
+    private String requestAlpha(String type, JsonObject payload, long timeoutMs) throws Exception {
+        if (!connected.get()) return null;
+
+        String requestId = type + "_" + System.currentTimeMillis();
+        CompletableFuture<String> future = new CompletableFuture<>();
+        pendingRequests.put(requestId, future);
+
+        JsonObject req = new JsonObject();
+        req.addProperty("type", type);
+        req.addProperty("requestId", requestId);
+        if (payload != null) {
+            for (var e : payload.entrySet()) {
+                req.add(e.getKey(), e.getValue());
+            }
+        }
+
+        send(req.toString());
+
+        try {
+            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } finally {
+            pendingRequests.remove(requestId);
+        }
     }
     
     private String extractJsonValue(String json, String key) {

@@ -22,6 +22,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.player.AdvancementEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
@@ -29,7 +30,6 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.mapbot.data.DataManager;
 
 /**
  * 游戏事件监听器
@@ -108,22 +108,15 @@ public class GameEventListener {
         ServerPlayer player = event.getPlayer();
         String uuid = player.getUUID().toString();
         
-        // Task #018-STEP4: 禁言拦截
-        if (DataManager.INSTANCE.isMuted(uuid)) {
-            // 检查是否过期 (双重检查，尽管 isMuted 内部可能已处理，但为了获取 expiry 显示)
-            long expiry = DataManager.INSTANCE.getMuteExpiry(uuid);
-            
-            if (expiry != -1 && System.currentTimeMillis() > expiry) {
-                // 已过期: 自动解禁
-                DataManager.INSTANCE.unmute(uuid);
-                player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§a你的禁言已自动解除。"));
-            } else {
-                // 未过期: 拦截
+        // Task #018-STEP4: 禁言拦截 (数据源迁移到 Alpha Redis)
+        long expiry = BridgeClient.INSTANCE.checkMuteExpiry(uuid);
+        if (expiry != 0L) {
+            if (expiry == -1L || System.currentTimeMillis() <= expiry) {
                 event.setCanceled(true);
-                
-                String timeStr = (expiry == -1) ? "永久" : 
+
+                String timeStr = (expiry == -1L) ? "永久" :
                     new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(expiry));
-                
+
                 player.sendSystemMessage(net.minecraft.network.chat.Component.literal(
                     "§c你已被禁言！解除时间: " + timeStr
                 ));
@@ -155,7 +148,7 @@ public class GameEventListener {
                 
                 if (profile.isPresent()) {
                     String targetUuid = profile.get().getId().toString();
-                    long targetQQ = DataManager.INSTANCE.getQQByUUID(targetUuid);
+                    long targetQQ = BridgeClient.INSTANCE.getQQByUUID(targetUuid);
                     
                     if (targetQQ != -1L && targetQQ != 0L) {
                         // 构建 CQ 码消息
@@ -252,11 +245,54 @@ public class GameEventListener {
                 .getLocalizedDeathMessage(player)
                 .getString();
         
-        // 格式: [☠️] 死亡消息
-        String formattedMessage = String.format("[☠️] %s", deathMessage);
+        // 坐标与维度
+        String dim = player.level().dimension().location().toString();
+        int x = player.getBlockX();
+        int y = player.getBlockY();
+        int z = player.getBlockZ();
+
+        // 格式: [☠️] 死亡消息 (世界 坐标)
+        String formattedMessage = String.format("[☠️] %s (世界: %s, 坐标: %d %d %d)", deathMessage, dim, x, y, z);
         
         LOGGER.info("玩家死亡: {}", deathMessage);
         // STEP 12: 通过 Bridge 发送到 Alpha Core
         BridgeClient.INSTANCE.sendChat("系统", formattedMessage);
+    }
+
+    /**
+     * P4: 进度播报
+     */
+    @SubscribeEvent
+    public static void onAdvancementEarn(AdvancementEvent.AdvancementEarnEvent event) {
+        long groupId = BotConfig.getTargetGroupId();
+        if (groupId == 0L) {
+            return;
+        }
+
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        try {
+            var holder = event.getAdvancement();
+            var advancement = holder.value();
+            var displayOpt = advancement.display();
+            if (displayOpt.isEmpty()) {
+                return;
+            }
+
+            var display = displayOpt.get();
+            if (!display.shouldAnnounceChat()) {
+                return;
+            }
+
+            String title = display.getTitle().getString();
+            String playerName = player.getName().getString();
+
+            String msg = String.format("[进度] %s 获得进度: %s", playerName, title);
+            BridgeClient.INSTANCE.sendChat("系统", msg);
+        } catch (Exception e) {
+            LOGGER.debug("进度播报解析失败", e);
+        }
     }
 }

@@ -29,7 +29,7 @@ public class AcceptCommand implements ICommand {
         }
         
         // 请求 Mod 端发放物品
-        String result = BridgeProxy.INSTANCE.giveItem(uuid, itemJson);
+        String result = BridgeProxy.INSTANCE.giveItemToOnlineServers(uuid, itemJson);
         
         if (result == null) {
             return "[领取失败] 服务器无响应\n[提示] 请使用 #cdk 获取兑换码";
@@ -38,7 +38,9 @@ public class AcceptCommand implements ICommand {
         if (result.startsWith("SUCCESS")) {
             // 发放成功，删除待领取
             signMgr.removePendingReward(senderQQ);
-            return "[领取成功] 物品已发放到背包";
+            return result.contains(":") ?
+                ("[领取成功] 物品已发放到背包 (" + result.substring(result.indexOf(':') + 1) + ")") :
+                "[领取成功] 物品已发放到背包";
         } else if (result.startsWith("FAIL:OFFLINE")) {
             return "[领取失败] 玩家不在线\n[提示] 请使用 #cdk 获取兑换码";
         } else if (result.startsWith("FAIL:INVENTORY_FULL")) {

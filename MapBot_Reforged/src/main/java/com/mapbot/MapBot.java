@@ -11,7 +11,6 @@
 package com.mapbot;
 
 import com.mapbot.config.BotConfig;
-import com.mapbot.data.DataManager;
 import com.mapbot.logic.ServerStatusManager;
 import com.mapbot.network.BotClient;
 import com.mapbot.network.BridgeClient;
@@ -142,10 +141,6 @@ public class MapBot {
     public void onServerStarting(ServerStartingEvent event) {
         LOGGER.info("服务器正在启动，准备连接到 NapCat...");
 
-        // 初始化数据管理器
-        DataManager.INSTANCE.init();
-        LOGGER.info("数据管理器已初始化");
-        
         // 初始化奖池配置
         com.mapbot.data.loot.LootConfig.INSTANCE.init();
         LOGGER.info("奖池配置已初始化");

@@ -12,13 +12,10 @@
 
 package com.mapbot.data;
 
+import com.mapbot.network.BridgeClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
-import java.time.ZoneId;
-import java.time.temporal.TemporalAdjusters;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,10 +46,7 @@ public class PlaytimeManager {
     public void onPlayerLogin(UUID uuid) {
         long now = System.currentTimeMillis();
         loginTimes.put(uuid, now);
-        
-        // 检查并执行周期重置
-        checkAndResetPeriods(uuid);
-        
+
         LOGGER.debug("玩家 {} 登录，时间: {}", uuid, now);
     }
     
@@ -72,8 +66,8 @@ public class PlaytimeManager {
         long now = System.currentTimeMillis();
         long sessionMs = now - loginTime;
         
-        // 累加到持久化存储
-        addPlaytime(uuid, sessionMs);
+        // P0: 在线时长统一存储到 Alpha Redis（Mod 端不做本地持久化）
+        BridgeClient.INSTANCE.sendPlaytimeAdd(uuid.toString(), sessionMs);
         
         LOGGER.debug("玩家 {} 登出，本次在线: {} 分钟", uuid, sessionMs / 60000);
     }
@@ -88,84 +82,11 @@ public class PlaytimeManager {
         for (Map.Entry<UUID, Long> entry : loginTimes.entrySet()) {
             UUID uuid = entry.getKey();
             long sessionMs = now - entry.getValue();
-            addPlaytime(uuid, sessionMs);
+            BridgeClient.INSTANCE.sendPlaytimeAdd(uuid.toString(), sessionMs);
             LOGGER.info("服务器关闭，保存玩家 {} 在线时长: {} 分钟", uuid, sessionMs / 60000);
         }
         
         loginTimes.clear();
-    }
-    
-    // ================== 时长管理 ==================
-    
-    /**
-     * 累加玩家在线时长
-     * 
-     * @param uuid 玩家 UUID
-     * @param milliseconds 要添加的毫秒数
-     */
-    private void addPlaytime(UUID uuid, long milliseconds) {
-        DataManager.PlaytimeRecord record = DataManager.INSTANCE.getPlaytimeRecord(uuid.toString());
-        
-        if (record == null) {
-            record = new DataManager.PlaytimeRecord();
-        }
-        
-        // 累加到所有时段
-        record.dailyMs += milliseconds;
-        record.weeklyMs += milliseconds;
-        record.monthlyMs += milliseconds;
-        record.totalMs += milliseconds;
-        
-        // 更新最后活动日期
-        record.lastReset = LocalDate.now(ZoneId.systemDefault()).toString();
-        
-        // 保存
-        DataManager.INSTANCE.savePlaytimeRecord(uuid.toString(), record);
-    }
-    
-    /**
-     * 检查并重置周期数据
-     * 
-     * @param uuid 玩家 UUID
-     */
-    private void checkAndResetPeriods(UUID uuid) {
-        DataManager.PlaytimeRecord record = DataManager.INSTANCE.getPlaytimeRecord(uuid.toString());
-        
-        if (record == null || record.lastReset == null) {
-            return;
-        }
-        
-        LocalDate lastReset = LocalDate.parse(record.lastReset);
-        LocalDate today = LocalDate.now(ZoneId.systemDefault());
-        
-        boolean needsSave = false;
-        
-        // 检查日期变更 -> 重置每日
-        if (!lastReset.equals(today)) {
-            LOGGER.debug("玩家 {} 每日时长重置 (上次: {})", uuid, lastReset);
-            record.dailyMs = 0;
-            needsSave = true;
-        }
-        
-        // 检查是否跨周 (周一重置)
-        LocalDate lastMonday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        if (lastReset.isBefore(lastMonday)) {
-            LOGGER.debug("玩家 {} 每周时长重置", uuid);
-            record.weeklyMs = 0;
-            needsSave = true;
-        }
-        
-        // 检查是否跨月 (每月1号重置)
-        if (lastReset.getMonth() != today.getMonth() || lastReset.getYear() != today.getYear()) {
-            LOGGER.debug("玩家 {} 每月时长重置", uuid);
-            record.monthlyMs = 0;
-            needsSave = true;
-        }
-        
-        if (needsSave) {
-            record.lastReset = today.toString();
-            DataManager.INSTANCE.savePlaytimeRecord(uuid.toString(), record);
-        }
     }
     
     // ================== 查询接口 ==================
@@ -178,28 +99,14 @@ public class PlaytimeManager {
      * @return 在线时长 (分钟)，未找到记录返回 0
      */
     public long getPlaytimeMinutes(UUID uuid, int mode) {
-        DataManager.PlaytimeRecord record = DataManager.INSTANCE.getPlaytimeRecord(uuid.toString());
-        
-        if (record == null) {
-            return 0;
-        }
-        
-        // 如果玩家当前在线，加上当前会话时间
         long currentSessionMs = 0;
         Long loginTime = loginTimes.get(uuid);
         if (loginTime != null) {
             currentSessionMs = System.currentTimeMillis() - loginTime;
         }
-        
-        long baseMs = switch (mode) {
-            case 0 -> record.dailyMs;
-            case 1 -> record.weeklyMs;
-            case 2 -> record.monthlyMs;
-            case 3 -> record.totalMs;
-            default -> 0;
-        };
-        
-        return (baseMs + currentSessionMs) / 60000;
+
+        // P0: 在线时长已迁移到 Alpha Redis，本地仅返回当前会话时长，避免误用
+        return currentSessionMs / 60000;
     }
     
     /**

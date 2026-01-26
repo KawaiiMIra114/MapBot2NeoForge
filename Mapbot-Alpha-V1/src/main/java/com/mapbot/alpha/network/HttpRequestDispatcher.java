@@ -107,6 +107,11 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
                 handleUsersApi(ctx, req, uri, token);
                 return;
             }
+            // MapBot 数据管理 API (需要 ADMIN 权限)
+            if (uri.startsWith("/api/mapbot")) {
+                handleMapbotDataApi(ctx, req, uri, token);
+                return;
+            }
             // 本地文件 API (STEP 8)
             FileApiHandler.handle(ctx, req);
             return;
@@ -147,6 +152,9 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         // 路由映射 (暂时默认使用原 HTML，Vue 前端需调试)
         if ("/".equals(uri) || "/index.html".equals(uri)) {
             resourcePath = "/web/index.html";
+            contentType = "text/html; charset=UTF-8";
+        } else if ("/users.html".equals(uri)) {
+            resourcePath = "/web/users.html";
             contentType = "text/html; charset=UTF-8";
         } else if (uri.startsWith("/vue") || uri.startsWith("/assets/")) {
             // Vue 构建的静态资源 (/vue 或 /assets/*)
@@ -593,6 +601,94 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             sendJson(ctx, "{\"error\":\"Unknown users API\"}");
         } catch (Exception e) {
             LOGGER.error("用户管理 API 错误", e);
+            sendJson(ctx, "{\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
+        }
+    }
+
+    /**
+     * MapBot 数据管理 API
+     * 用于可视化管理 Redis 中的 bindings/permissions/admins/mutes 等数据
+     */
+    private void handleMapbotDataApi(ChannelHandlerContext ctx, FullHttpRequest req, String uri, String token) {
+        var auth = com.mapbot.alpha.security.AuthManager.INSTANCE;
+
+        // 检查 ADMIN 权限
+        if (!auth.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.ADMIN)) {
+            sendJson(ctx, "{\"error\":\"Permission denied. ADMIN required.\"}");
+            return;
+        }
+
+        HttpMethod method = req.method();
+        try {
+            // GET /api/mapbot/data
+            if (uri.equals("/api/mapbot/data") && method == HttpMethod.GET) {
+                var dm = com.mapbot.alpha.data.DataManager.INSTANCE;
+                java.util.Map<String, Object> data = new java.util.HashMap<>();
+                data.put("admins", dm.getAdmins());
+                data.put("bindings", dm.getAllBindings());
+                data.put("permissions", dm.getAllPermissions());
+                data.put("mutes", dm.getAllMutes());
+                sendJson(ctx, com.mapbot.alpha.utils.JsonUtils.toJson(data));
+                return;
+            }
+
+            String body = req.content().toString(java.nio.charset.StandardCharsets.UTF_8);
+            java.util.Map<String, Object> payload = com.mapbot.alpha.utils.JsonUtils.fromJson(body, java.util.Map.class);
+            if (payload == null) payload = java.util.Collections.emptyMap();
+
+            // POST /api/mapbot/permission {qq, level}
+            if (uri.equals("/api/mapbot/permission") && method == HttpMethod.POST) {
+                long qq = Long.parseLong(String.valueOf(payload.get("qq")));
+                int level = Integer.parseInt(String.valueOf(payload.get("level")));
+                com.mapbot.alpha.data.DataManager.INSTANCE.setPermission(qq, level);
+                sendJson(ctx, "{\"success\":true}");
+                return;
+            }
+
+            // POST /api/mapbot/unbind {qq}
+            if (uri.equals("/api/mapbot/unbind") && method == HttpMethod.POST) {
+                long qq = Long.parseLong(String.valueOf(payload.get("qq")));
+                boolean ok = com.mapbot.alpha.data.DataManager.INSTANCE.unbind(qq);
+                sendJson(ctx, "{\"success\":" + ok + "}");
+                return;
+            }
+
+            // POST /api/mapbot/admin/add {qq}
+            if (uri.equals("/api/mapbot/admin/add") && method == HttpMethod.POST) {
+                long qq = Long.parseLong(String.valueOf(payload.get("qq")));
+                com.mapbot.alpha.data.DataManager.INSTANCE.addAdmin(qq);
+                sendJson(ctx, "{\"success\":true}");
+                return;
+            }
+
+            // POST /api/mapbot/admin/remove {qq}
+            if (uri.equals("/api/mapbot/admin/remove") && method == HttpMethod.POST) {
+                long qq = Long.parseLong(String.valueOf(payload.get("qq")));
+                com.mapbot.alpha.data.DataManager.INSTANCE.removeAdmin(qq);
+                sendJson(ctx, "{\"success\":true}");
+                return;
+            }
+
+            // POST /api/mapbot/mute {uuid, expiryMs}
+            if (uri.equals("/api/mapbot/mute") && method == HttpMethod.POST) {
+                String uuid = String.valueOf(payload.get("uuid"));
+                long expiryMs = payload.containsKey("expiryMs") ? Long.parseLong(String.valueOf(payload.get("expiryMs"))) : -1L;
+                com.mapbot.alpha.data.DataManager.INSTANCE.mute(uuid, expiryMs);
+                sendJson(ctx, "{\"success\":true}");
+                return;
+            }
+
+            // POST /api/mapbot/unmute {uuid}
+            if (uri.equals("/api/mapbot/unmute") && method == HttpMethod.POST) {
+                String uuid = String.valueOf(payload.get("uuid"));
+                com.mapbot.alpha.data.DataManager.INSTANCE.unmute(uuid);
+                sendJson(ctx, "{\"success\":true}");
+                return;
+            }
+
+            sendJson(ctx, "{\"error\":\"Unknown mapbot API\"}");
+        } catch (Exception e) {
+            LOGGER.error("MapBot 数据管理 API 错误", e);
             sendJson(ctx, "{\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
         }
     }

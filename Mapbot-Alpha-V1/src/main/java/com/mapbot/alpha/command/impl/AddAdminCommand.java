@@ -76,11 +76,13 @@ public class AddAdminCommand implements ICommand {
     
     @Override
     public boolean requiresAdmin() {
-        return false; // 首次自动成功，不需要管理员权限检查
+        // 注意：首次自动成功由 CommandRegistry 在“无管理员”场景下特殊放行。
+        // 系统已有管理员后，本命令必须由超级管理员执行。
+        return true;
     }
     
     @Override
     public int requiredPermLevel() {
-        return 0; // 允许任何人在无管理员时执行
+        return 0;
     }
 }
