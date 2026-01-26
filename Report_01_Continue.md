@@ -412,6 +412,113 @@ Reforged (执行器)
 3. `admins` (管理员列表)
 4. `mutes` (禁言列表)
 5. `signDays` (累计签到天数) - 已迁移到 Redis ✅
+6. `playtime` (在线时长统计)
+
+### 10.4 Reforged 端配置文件详解
+
+路径：`MapBot_Reforged/run/config/`
+
+| 文件 | 用途 | 迁移建议 |
+|------|------|----------|
+| `mapbot-common.toml` | 连接配置 (WebSocket/Bridge) | **保留在 Mod 端**，服务器特定配置 |
+| `mapbot_data.json` | 用户数据 | **需迁移到 Alpha Redis** |
+| `mapbot_loot.json` | 签到奖池配置 | **保留在 Mod 端**，游戏相关配置 |
+
+#### 10.4.1 mapbot-common.toml (保留)
+
+**用途**: Mod 连接参数配置
+
+```toml
+[connection]
+wsUrl = "ws://127.0.0.1:7000"      # NapCat 地址 (迁移后可删除，仅 Alpha 连接)
+reconnectInterval = 5
+
+[messaging]
+playerGroupId = 875585697          # 玩家群 (迁移后可删除)
+adminGroupId = 885810515           # 管理群 (迁移后可删除)
+botQQ = 2133782376                 # 机器人QQ (迁移后可删除)
+
+[alpha]
+serverId = "default"               # 保留：服务器标识
+alphaHost = "127.0.0.1"            # 保留：Alpha 地址
+alphaPort = 25561                  # 保留：Bridge 端口
+
+[debug]
+debugMode = true
+```
+
+**迁移后仅保留**: `[alpha]` 和 `[debug]` 部分
+
+#### 10.4.2 mapbot_data.json (需迁移)
+
+**用途**: 用户持久化数据
+
+```json
+{
+  "admins": [],                    // → mapbot:admins (Redis Set)
+  "userPermissions": {             // → mapbot:permissions (Redis Hash)
+    "QQ号": 权限等级
+  },
+  "mutedPlayers": {},              // → mapbot:mutes (Redis Hash)
+  "playerBindings": {              // → mapbot:bindings (Redis Hash)
+    "QQ号": "UUID"
+  },
+  "playerPlaytime": {              // → mapbot:playtime:<uuid> (Redis Hash)
+    "UUID": { dailyMs, weeklyMs, monthlyMs, totalMs, lastReset }
+  },
+  "lastSignIn": {}                 // 已迁移 ✅
+}
+```
+
+**迁移步骤**:
+1. Alpha 启动时读取此 JSON 并写入 Redis
+2. Mod 端删除本地读写逻辑，所有查询走 Bridge
+3. 删除 Mod 端的 `mapbot_data.json` 文件
+
+#### 10.4.3 mapbot_loot.json (保留)
+
+**用途**: 签到奖池配置 (分级抽奖系统)
+
+```json
+{
+  "entries": [
+    { "rarity": "Common", "weight": 60, "items": [...] },    // 60% 普通
+    { "rarity": "Rare", "weight": 30, "items": [...] },      // 30% 稀有
+    { "rarity": "Epic", "weight": 9, "items": [...] },       // 9% 史诗
+    { "rarity": "Legendary", "weight": 1, "items": [...] }   // 1% 传说
+  ],
+  "messages": {
+    "Common": "签到成功...",
+    "Rare": "运气不错...",
+    "Epic": "欧气爆发...",
+    "Legendary": "传说降临..."
+  }
+}
+```
+
+**保留原因**: 奖池需要访问游戏物品注册表 (TAG 解析)，必须在 Mod 端执行
+
+### 10.5 迁移实施计划
+
+```mermaid
+graph LR
+    subgraph 迁移前
+        M[Mod: mapbot_data.json] --> G[游戏]
+    end
+    
+    subgraph 迁移后
+        A[Alpha Redis] --> B[Bridge]
+        B --> M2[Mod: 无状态执行]
+        M2 --> G2[游戏]
+    end
+```
+
+**实施步骤**:
+1. ✅ 签到数据已迁移 (Task #022)
+2. 🔲 绑定/权限/禁言数据迁移
+3. 🔲 在线时长数据迁移
+4. 🔲 移除 Mod 端本地持久化
+5. 🔲 精简 mapbot-common.toml
 
 ---
 
