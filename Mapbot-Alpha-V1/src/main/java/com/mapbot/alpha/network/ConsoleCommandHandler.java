@@ -48,8 +48,10 @@ public class ConsoleCommandHandler {
             /help      - 显示帮助
             /servers   - 列出已连接服务器
             /broadcast <消息> - 向所有服务器广播
+            /server <服务器名> - 切换到指定服务器控制台
+            /back      - 返回 Alpha 控制台
             
-            提示: 不以 / 开头的命令将发送给 MC 服务器""";
+            提示: Alpha 控制台不会转发普通文本；切换到服务器控制台后会自动补全 / 并转发""";
     }
     
     private static String getServers() {
