@@ -962,12 +962,18 @@ public class BridgeClient {
         String formattedMsg = String.format("[QQ] %s: %s", sender, content);
         LOGGER.info("[QQ->MC] {}", formattedMsg);
         
-        // 在主服务器线程中广播消息
-        net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer().execute(() -> {
-            net.minecraft.server.MinecraftServer server = 
+        // 在主服务器线程中广播消息 (Fix #3: null check 防止 NPE)
+        net.minecraft.server.MinecraftServer server = 
+            net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            LOGGER.warn("收到 QQ 消息但服务器未就绪，丢弃: {}", formattedMsg);
+            return;
+        }
+        server.execute(() -> {
+            net.minecraft.server.MinecraftServer s = 
                 net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
-            if (server != null) {
-                server.getPlayerList().broadcastSystemMessage(
+            if (s != null) {
+                s.getPlayerList().broadcastSystemMessage(
                     net.minecraft.network.chat.Component.literal(formattedMsg), 
                     false
                 );
@@ -975,10 +981,31 @@ public class BridgeClient {
         });
     }
     
+    /**
+     * 校验文件路径安全性，防止路径遍历攻击
+     * 所有文件操作必须限制在服务器根目录内
+     */
+    private boolean isPathSafe(String path) {
+        try {
+            File serverRoot = new File(".").getCanonicalFile();
+            File target = new File(path).getCanonicalFile();
+            return target.getPath().startsWith(serverRoot.getPath());
+        } catch (IOException e) {
+            return false;
+        }
+    }
+    
     private void handleFileRequest(String msg) {
         String type = extractJsonValue(msg, "type");
         String requestId = extractJsonValue(msg, "requestId");
         String path = extractJsonValue(msg, "path");
+        
+        // Fix #1: 路径安全校验，防止路径遍历攻击
+        if (!path.isEmpty() && !isPathSafe(path)) {
+            send(String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Access denied: path outside server directory\"}", requestId));
+            LOGGER.warn("拒绝不安全的文件操作路径: {}", path);
+            return;
+        }
         
         try {
             String response;

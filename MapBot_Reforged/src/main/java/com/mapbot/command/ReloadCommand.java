@@ -1,6 +1,7 @@
 package com.mapbot.command;
 
 import com.mapbot.data.DataManager;
+import com.mapbot.data.loot.LootConfig;
 import com.mapbot.logic.InboundHandler;
 
 /**
@@ -21,8 +22,10 @@ public class ReloadCommand implements ICommand {
     @Override
     public void execute(String args, long senderQQ, long sourceGroupId) {
         try {
+            // Fix #11: 同时重载所有可重载的配置
             DataManager.INSTANCE.init();
-            InboundHandler.sendReplyToQQ(sourceGroupId, "[系统] 配置和数据已重载");
+            LootConfig.INSTANCE.init();
+            InboundHandler.sendReplyToQQ(sourceGroupId, "[系统] 配置和数据已重载 (DataManager + LootConfig)");
         } catch (Exception e) {
             InboundHandler.sendReplyToQQ(sourceGroupId, "[错误] 重载失败: " + e.getMessage());
         }

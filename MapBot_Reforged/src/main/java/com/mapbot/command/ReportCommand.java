@@ -5,7 +5,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
  * 性能报告命令
@@ -20,7 +19,8 @@ public class ReportCommand implements ICommand {
     @Override
     public void execute(String args, long senderQQ, long sourceGroupId) {
         try {
-            Path path = Paths.get("./duolingo_super_report.json");
+            // Fix #15: 使用 FMLPaths 替代相对路径
+            Path path = net.neoforged.fml.loading.FMLPaths.GAMEDIR.get().resolve("duolingo_super_report.json");
             if (!Files.exists(path)) {
                 InboundHandler.sendReplyToQQ(sourceGroupId, "[提示] 暂无报告，请在游戏内执行 /duo report");
                 return;
@@ -42,3 +42,4 @@ public class ReportCommand implements ICommand {
         }
     }
 }
+

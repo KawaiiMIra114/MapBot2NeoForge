@@ -253,9 +253,29 @@ public class InboundHandler {
         BotClient.INSTANCE.sendPacket(packet);
     }
 
+    /**
+     * 发送私聊消息 (Fix #2: 用于发送敏感信息如兑换码)
+     */
+    public static void sendPrivateMessage(long targetQQ, String message) {
+        if (targetQQ == 0) return;
+        JsonObject params = new JsonObject();
+        params.addProperty("user_id", targetQQ);
+        params.addProperty("message", message);
+        
+        JsonObject packet = new JsonObject();
+        packet.addProperty("action", "send_private_msg");
+        packet.add("params", params);
+        packet.addProperty("echo", "private_" + System.currentTimeMillis());
+        BotClient.INSTANCE.sendPacket(packet);
+    }
+
     private static void requestOriginalMessage(String mid, String nick, String raw, List<Long> at, long gid) {
+        // Fix #7: 清理超过 30 秒的过期回复上下文，防止内存泄漏
+        long now = System.currentTimeMillis();
+        PENDING_REPLY_CONTEXTS.entrySet().removeIf(e -> (now - e.getValue().timestamp()) > 30_000);
+        
         String echo = "reply_" + UUID.randomUUID();
-        PENDING_REPLY_CONTEXTS.put(echo, new ReplyContext(nick, raw, at, gid, System.currentTimeMillis()));
+        PENDING_REPLY_CONTEXTS.put(echo, new ReplyContext(nick, raw, at, gid, now));
         
         JsonObject packet = new JsonObject();
         packet.addProperty("action", "get_msg");

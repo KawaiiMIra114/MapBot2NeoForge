@@ -48,6 +48,9 @@ public class ForceUnbindCommand implements ICommand {
                     } catch (Exception ignored) {}
                     InboundHandler.sendReplyToQQ(sourceGroupId, "[成功] 已强制解绑 QQ " + targetQQ);
                 });
+            } else {
+                // Fix #10: 服务器未就绪时反馈错误，不再静默返回
+                InboundHandler.sendReplyToQQ(sourceGroupId, "[错误] 服务器未就绪，无法执行解绑操作");
             }
         } catch (NumberFormatException e) {
             InboundHandler.sendReplyToQQ(sourceGroupId, "[错误] QQ号格式错误");

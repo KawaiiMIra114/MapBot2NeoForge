@@ -99,6 +99,14 @@ public class MuteCommand implements ICommand {
             char unit = str.charAt(str.length() - 1);
             long val = Long.parseLong(str.substring(0, str.length() - 1));
             
+            // Fix #14: 防止数值溢出，限制最大 365 天
+            if (val <= 0 || val > 365 * 24 * 60) {
+                return switch (Character.toLowerCase(unit)) {
+                    case 's', 'm', 'h', 'd' -> val <= 0 ? 0 : -1; // 超大值视为永久
+                    default -> 0;
+                };
+            }
+            
             return switch (Character.toLowerCase(unit)) {
                 case 's' -> val * 1000;
                 case 'm' -> val * 60 * 1000;

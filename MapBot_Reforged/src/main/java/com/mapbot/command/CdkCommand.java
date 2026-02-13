@@ -22,12 +22,11 @@ public class CdkCommand implements ICommand {
 
         String code = SignManager.INSTANCE.generateCdk(senderQQ);
         if (code != null) {
-            // 注意: 这里应该尝试私聊发送，但 InboundHandler 暂无 sendPrivateMessage 封装
-            // 这里为了简单，先发群临时消息 (go-cqhttp 支持群里发At)
-            // 或者直接明文发群里 (如果是私聊触发的命令)
-            // 改进: 提示用户这是兑换码
+            // Fix #2: 兑换码通过私聊发送，避免在群聊中泄露
+            InboundHandler.sendPrivateMessage(senderQQ, 
+                String.format("您的兑换码: %s\n请进服输入: /mapbot cdk %s", code, code));
             InboundHandler.sendReplyToQQ(sourceGroupId, 
-                String.format("[CQ:at,qq=%d] 您的兑换码: %s\n请进服输入: /mapbot cdk %s", senderQQ, code, code));
+                String.format("[CQ:at,qq=%d] 兑换码已通过私聊发送，请查看私信。", senderQQ));
         } else {
             InboundHandler.sendReplyToQQ(sourceGroupId, "[错误] 生成失败");
         }

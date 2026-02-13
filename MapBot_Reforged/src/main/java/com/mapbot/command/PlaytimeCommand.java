@@ -27,11 +27,20 @@ public class PlaytimeCommand implements ICommand {
         }
 
         String targetName = parts[0];
-        int mode = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+        int mode = 0;
+        if (parts.length > 1) {
+            try {
+                mode = Integer.parseInt(parts[1]);
+            } catch (NumberFormatException e) {
+                InboundHandler.sendReplyToQQ(sourceGroupId, "[错误] 时段参数必须为数字 (0=天, 1=周, 2=月, 3=总)");
+                return;
+            }
+        }
 
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) return;
 
+        final int queryMode = mode; // effectively final for lambda
         server.execute(() -> {
             UUID uuid = server.getProfileCache().get(targetName)
                     .map(com.mojang.authlib.GameProfile::getId)
@@ -42,7 +51,7 @@ public class PlaytimeCommand implements ICommand {
                 return;
             }
 
-            long mins = PlaytimeManager.INSTANCE.getPlaytimeMinutes(uuid, mode);
+            long mins = PlaytimeManager.INSTANCE.getPlaytimeMinutes(uuid, queryMode);
             String time = PlaytimeManager.formatDuration(mins);
             InboundHandler.sendReplyToQQ(sourceGroupId, String.format("[在线时长] %s\n时长: %s", targetName, time));
         });

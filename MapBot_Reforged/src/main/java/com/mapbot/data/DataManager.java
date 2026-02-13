@@ -126,7 +126,8 @@ public class DataManager {
      * 保存数据到文件
      */
     public void save() {
-        lock.readLock().lock();
+        // Fix #4: 使用 writeLock 代替 readLock，因为文件写入是写操作
+        lock.writeLock().lock();
         try {
             String json = GSON.toJson(data);
             Files.writeString(dataPath, json);
@@ -134,7 +135,7 @@ public class DataManager {
         } catch (IOException e) {
             LOGGER.error("保存数据文件失败: {}", e.getMessage());
         } finally {
-            lock.readLock().unlock();
+            lock.writeLock().unlock();
         }
     }
     
@@ -289,9 +290,8 @@ public class DataManager {
             
             // 检查是否过期
             if (System.currentTimeMillis() > expiry) {
-                // 已过期，但在读取锁中不能修改数据
-                // 应该在写操作中清理，或者返回 false 稍后清理
-                // 这里简单返回 false，依赖外部逻辑或定时任务清理
+                // Fix #5: 已过期，异步清理过期数据
+                cleanExpiredMute(uuid);
                 return false;
             }
             
@@ -299,6 +299,26 @@ public class DataManager {
         } finally {
             lock.readLock().unlock();
         }
+    }
+    
+    /**
+     * 异步清理过期禁言 (Fix #5)
+     * 在读锁中发现过期后，使用写锁异步清理
+     */
+    private void cleanExpiredMute(String uuid) {
+        new Thread(() -> {
+            lock.writeLock().lock();
+            try {
+                Long expiry = data.mutedPlayers.get(uuid);
+                if (expiry != null && expiry != -1 && System.currentTimeMillis() > expiry) {
+                    data.mutedPlayers.remove(uuid);
+                    save();
+                    LOGGER.debug("已自动清理过期禁言: {}", uuid);
+                }
+            } finally {
+                lock.writeLock().unlock();
+            }
+        }, "MapBot-MuteCleanup").start();
     }
     
     /**

@@ -8,12 +8,26 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * 关闭服务器命令
  * #stopserver [秒数]
  */
 public class StopServerCommand implements ICommand {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/Command/Stop");
+    
+    // Fix #9: 使用 ScheduledExecutorService 替代裸线程，支持优雅取消
+    private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "MapBot-StopCountdown");
+        t.setDaemon(true);
+        return t;
+    });
+    private static volatile ScheduledFuture<?> currentCountdown = null;
 
     @Override
     public int getRequiredLevel() {
@@ -52,42 +66,43 @@ public class StopServerCommand implements ICommand {
             LOGGER.warn("管理员 {} 执行了立即停服命令", senderQQ);
             server.execute(() -> server.halt(false));
         } else {
+            // Fix #9: 防止重复创建倒计时
+            if (currentCountdown != null && !currentCountdown.isDone()) {
+                InboundHandler.sendReplyToQQ(sourceGroupId, "[提示] 已有倒计时正在进行，请先 #cancelstop");
+                return;
+            }
+            
             final int seconds = countdown;
             ServerStatusManager.setStopCancelled(false);
             InboundHandler.sendReplyToQQ(sourceGroupId, String.format("[系统] 服务器将在 %d 秒后关闭", seconds));
             LOGGER.warn("管理员 {} 启动了关服倒计时: {}s", senderQQ, seconds);
 
-            new Thread(() -> {
-                try {
-                    int remaining = seconds;
-                    while (remaining > 0) {
-                        if (ServerStatusManager.isStopCancelled()) {
-                            InboundHandler.sendReplyToQQ(sourceGroupId, "[系统] 关服倒计时已取消");
-                            return;
-                        }
-
-                        if (remaining <= 10 || remaining == 30 || remaining == 60) {
-                            final int r = remaining;
-                            server.execute(() -> {
-                                server.getPlayerList().getPlayers().forEach(p -> 
-                                    p.sendSystemMessage(net.minecraft.network.chat.Component.literal("§c[警告] 服务器将在 " + r + " 秒后关闭"))
-                                );
-                            });
-                            InboundHandler.sendReplyToQQ(sourceGroupId, "[倒计时] " + r + " 秒");
-                        }
-                        
-                        Thread.sleep(1000);
-                        remaining--;
-                    }
-                    
-                    if (!ServerStatusManager.isStopCancelled()) {
-                        InboundHandler.sendReplyToQQ(sourceGroupId, "[系统] 正在关闭服务器...");
-                        server.execute(() -> server.halt(false));
-                    }
-                } catch (InterruptedException e) {
-                    LOGGER.error("关服线程中断", e);
+            AtomicInteger remaining = new AtomicInteger(seconds);
+            currentCountdown = SCHEDULER.scheduleAtFixedRate(() -> {
+                if (ServerStatusManager.isStopCancelled()) {
+                    InboundHandler.sendReplyToQQ(sourceGroupId, "[系统] 关服倒计时已取消");
+                    currentCountdown.cancel(false);
+                    return;
                 }
-            }, "MapBot-StopCountdown").start();
+
+                int r = remaining.getAndDecrement();
+                if (r <= 0) {
+                    InboundHandler.sendReplyToQQ(sourceGroupId, "[系统] 正在关闭服务器...");
+                    server.execute(() -> server.halt(false));
+                    currentCountdown.cancel(false);
+                    return;
+                }
+
+                if (r <= 10 || r == 30 || r == 60) {
+                    final int rem = r;
+                    server.execute(() -> {
+                        server.getPlayerList().getPlayers().forEach(p -> 
+                            p.sendSystemMessage(net.minecraft.network.chat.Component.literal("§c[警告] 服务器将在 " + rem + " 秒后关闭"))
+                        );
+                    });
+                    InboundHandler.sendReplyToQQ(sourceGroupId, "[倒计时] " + rem + " 秒");
+                }
+            }, 0, 1, TimeUnit.SECONDS);
         }
     }
 }
