@@ -113,8 +113,12 @@ public enum MetricsStorage {
             loadHistoryMap(data, "players", collector::restorePlayersHistory);
             
             Object savedAt = data.get("savedAt");
-            LOGGER.info("已加载历史指标数据 (保存于 {} 前)", 
-                formatDuration(System.currentTimeMillis() - ((Number)savedAt).longValue()));
+            if (savedAt instanceof Number) {
+                LOGGER.info("已加载历史指标数据 (保存于 {} 前)",
+                    formatDuration(System.currentTimeMillis() - ((Number) savedAt).longValue()));
+            } else {
+                LOGGER.info("已加载历史指标数据 (savedAt 缺失或格式错误)");
+            }
             
         } catch (Exception e) {
             LOGGER.error("加载指标数据失败", e);
@@ -133,8 +137,13 @@ public enum MetricsStorage {
             List<MetricsCollector.MetricPoint> points = new ArrayList<>();
             
             for (var point : entry.getValue()) {
-                long ts = ((Number) point.get("timestamp")).longValue();
-                double val = ((Number) point.get("value")).doubleValue();
+                Object tsObj = point.get("timestamp");
+                Object valueObj = point.get("value");
+                if (!(tsObj instanceof Number) || !(valueObj instanceof Number)) {
+                    continue;
+                }
+                long ts = ((Number) tsObj).longValue();
+                double val = ((Number) valueObj).doubleValue();
                 points.add(new MetricsCollector.MetricPoint(ts, val));
             }
             

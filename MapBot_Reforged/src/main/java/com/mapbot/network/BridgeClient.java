@@ -19,6 +19,8 @@ import org.slf4j.Logger;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import com.google.gson.*;
@@ -31,6 +33,9 @@ public class BridgeClient {
     private static final Logger LOGGER = LogUtils.getLogger();
     public static final BridgeClient INSTANCE = new BridgeClient();
     private static final Gson GSON = new GsonBuilder().create();
+    private static final long RECONNECT_DELAY_MS = 3000L;
+    private static final long BRIDGE_FILE_MAX_BYTES = 256 * 1024L;
+    private static final Set<String> BRIDGE_FILE_MUTATION_WHITELIST = Set.of("config", "world/serverconfig");
     
     private Socket socket;
     private BufferedReader reader;
@@ -64,10 +69,12 @@ public class BridgeClient {
 
     private final ConcurrentHashMap<String, CacheLong> muteExpiryCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, CacheLong> qqByUuidCache = new ConcurrentHashMap<>();
+    private final Set<String> muteRefreshInFlight = ConcurrentHashMap.newKeySet();
     
     private String serverId;
     private String alphaHost;
     private int alphaPort;
+    private String alphaToken;
     
     /**
      * Task #022: 向 Alpha 发送 CDK 兑换验证请求
@@ -103,9 +110,14 @@ public class BridgeClient {
         serverId = BotConfig.getServerId();
         alphaHost = BotConfig.getAlphaHost();
         alphaPort = BotConfig.getAlphaPort();
+        alphaToken = BotConfig.getAlphaToken();
         
         if (alphaHost == null || alphaHost.isEmpty()) {
             LOGGER.warn("[Bridge] Alpha Core 地址未配置，跳过连接");
+            return;
+        }
+        if (alphaToken == null || alphaToken.isBlank()) {
+            LOGGER.error("[Bridge] alphaToken 未配置，已停止 Bridge 连接。请在 config/mapbot-common.toml 的 alpha.alphaToken 填入 Alpha 端 auth.bridge.token");
             return;
         }
         
@@ -134,23 +146,37 @@ public class BridgeClient {
                 readLoop();
                 
             } catch (Exception e) {
-                LOGGER.error("[Bridge] 连接失败: {}", e.getMessage());
-                connected.set(false);
-                
                 if (running.get()) {
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
+                    LOGGER.error("[Bridge] 连接/会话异常: {}", e.getMessage());
+                }
+            } finally {
+                handleDisconnect();
+            }
+
+            if (running.get()) {
+                LOGGER.info("[Bridge] {}秒后尝试重连...", RECONNECT_DELAY_MS / 1000L);
+                try {
+                    Thread.sleep(RECONNECT_DELAY_MS);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return;
                 }
             }
         }
     }
     
     private void sendRegister() {
-        String msg = String.format("{\"type\":\"register\",\"serverId\":\"%s\"}", serverId);
+        String escapedServerId = escapeJson(serverId == null ? "" : serverId);
+        String token = alphaToken == null ? "" : alphaToken.trim();
+        String msg;
+        if (token.isEmpty()) {
+            msg = String.format("{\"type\":\"register\",\"serverId\":\"%s\"}", escapedServerId);
+        } else {
+            msg = String.format(
+                    "{\"type\":\"register\",\"serverId\":\"%s\",\"token\":\"%s\"}",
+                    escapedServerId, escapeJson(token)
+            );
+        }
         send(msg);
     }
     
@@ -238,8 +264,6 @@ public class BridgeClient {
             if (running.get()) {
                 LOGGER.error("[Bridge] 读取消息失败: {}", e.getMessage());
             }
-        } finally {
-            handleDisconnect();
         }
     }
     
@@ -253,7 +277,7 @@ public class BridgeClient {
             String type = json.has("type") ? json.get("type").getAsString() : "";
             
             switch (type) {
-                case "register_ack":   LOGGER.info("[Bridge] 注册确认收到"); break;
+                case "register_ack":   handleRegisterAck(json); break;
                 case "heartbeat_ack":  break;
                 case "proxy_response": BridgeHandlers.handleProxyResponseFromAlpha(json, this); break;
                 case "command":        BridgeHandlers.handleCommand(json, this); break;
@@ -274,6 +298,7 @@ public class BridgeClient {
                 case "stop_server":    BridgeHandlers.handleStopServer(json, this); break;
                 case "cancel_stop":    BridgeHandlers.handleCancelStop(json, this); break;
                 case "file_list": case "file_read": case "file_write": case "file_delete":
+                case "file_mkdir": case "file_upload":
                     BridgeHandlers.handleFileRequest(json, this); break;
                 case "roll_loot":      BridgeHandlers.handleRollLoot(json, this); break;
                 case "give_item":      BridgeHandlers.handleGiveItem(json, this); break;
@@ -299,12 +324,83 @@ public class BridgeClient {
      */
     boolean isPathSafe(String path) {
         try {
-            File serverRoot = new File(".").getCanonicalFile();
-            File target = new File(path).getCanonicalFile();
-            return target.getPath().startsWith(serverRoot.getPath());
+            resolveSafePath(path);
+            return true;
         } catch (IOException e) {
             return false;
         }
+    }
+
+    private void handleRegisterAck(JsonObject json) {
+        boolean success = false;
+        try {
+            if (json.has("success") && !json.get("success").isJsonNull()) {
+                success = json.get("success").getAsBoolean();
+            }
+        } catch (Exception ignored) {
+            success = false;
+        }
+
+        if (success) {
+            LOGGER.info("[Bridge] 注册成功: serverId={}", serverId);
+            return;
+        }
+
+        String reason = "unknown";
+        try {
+            if (json.has("error") && !json.get("error").isJsonNull()) {
+                reason = json.get("error").getAsString();
+            }
+        } catch (Exception ignored) {
+        }
+
+        LOGGER.error("[Bridge] 注册被 Alpha 拒绝: reason={}, serverId={}. 请检查 config/mapbot-common.toml 的 alpha.alphaToken 是否与 Alpha 端 auth.bridge.token 一致",
+                reason, serverId);
+        running.set(false);
+        connected.set(false);
+        handleDisconnect();
+    }
+
+    /**
+     * 获取 Bridge 文件操作单次最大字节数
+     */
+    long getBridgeFileMaxBytes() {
+        return BRIDGE_FILE_MAX_BYTES;
+    }
+
+    /**
+     * 校验文件写入/删除是否在白名单目录中
+     */
+    boolean isMutationPathAllowed(String path) {
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        try {
+            Path targetPath = resolveSafePath(path).toPath();
+            File serverRoot = new File(".").getCanonicalFile();
+            for (String allowed : BRIDGE_FILE_MUTATION_WHITELIST) {
+                File allowedRoot = new File(serverRoot, allowed).getCanonicalFile();
+                if (targetPath.startsWith(allowedRoot.toPath())) {
+                    return true;
+                }
+            }
+        } catch (IOException ignored) {
+        }
+        return false;
+    }
+
+    /**
+     * 解析并返回安全路径（必须位于服务器目录内）
+     */
+    File resolveSafePath(String path) throws IOException {
+        File serverRoot = new File(".").getCanonicalFile();
+        File target = (path == null || path.isBlank())
+                ? serverRoot
+                : new File(path).getCanonicalFile();
+        if (!target.toPath().startsWith(serverRoot.toPath())) {
+            throw new IOException("Access denied: path outside server directory");
+        }
+        return target;
     }
     
     /**
@@ -333,26 +429,27 @@ public class BridgeClient {
     private void handleDisconnect() {
         connected.set(false);
         
-        // 清理资源
         if (heartbeatExecutor != null) {
             heartbeatExecutor.shutdownNow();
+            heartbeatExecutor = null;
         }
-        
+
+        try {
+            if (reader != null) reader.close();
+        } catch (Exception ignored) {
+        }
+        try {
+            if (writer != null) writer.close();
+        } catch (Exception ignored) {
+        }
         try {
             if (socket != null) socket.close();
-        } catch (Exception ignored) {}
-        
-        // 如果还在运行则尝试重连
-        if (running.get()) {
-            LOGGER.info("[Bridge] 3秒后尝试重连...");
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-            doConnect();
+        } catch (Exception ignored) {
         }
+
+        reader = null;
+        writer = null;
+        socket = null;
     }
     
     /**
@@ -402,18 +499,19 @@ public class BridgeClient {
      */
     public void disconnect() {
         running.set(false);
-        connected.set(false);
-        
+
         if (heartbeatExecutor != null) {
             heartbeatExecutor.shutdownNow();
+            heartbeatExecutor = null;
         }
         if (messageExecutor != null) {
             messageExecutor.shutdownNow();
+            messageExecutor = null;
         }
-        
-        try {
-            if (socket != null) socket.close();
-        } catch (Exception ignored) {}
+
+        pendingRequests.forEach((id, future) -> future.complete(""));
+        pendingRequests.clear();
+        handleDisconnect();
         
         LOGGER.info("[Bridge] 已断开与 Alpha Core 的连接");
     }
@@ -426,28 +524,50 @@ public class BridgeClient {
 
     /**
      * P0: 查询玩家 UUID 当前禁言到期时间
+     * 非阻塞：优先返回缓存，缓存过期时异步刷新
      * @return 0=未禁言，-1=永久禁言，其他=到期时间戳(ms)
      */
     public long checkMuteExpiry(String uuid) {
         if (uuid == null || uuid.isEmpty()) return 0L;
 
         CacheLong cached = muteExpiryCache.get(uuid);
-        if (cached != null && cached.isFresh()) {
-            return cached.value;
+        if (cached == null || !cached.isFresh()) {
+            refreshMuteExpiryAsync(uuid);
+        }
+        return cached != null ? cached.value : 0L;
+    }
+
+    /**
+     * 预热禁言缓存（玩家上线时调用）
+     */
+    public void prefetchMuteExpiry(String uuid) {
+        if (uuid == null || uuid.isEmpty()) return;
+        refreshMuteExpiryAsync(uuid);
+    }
+
+    private void refreshMuteExpiryAsync(String uuid) {
+        if (!connected.get()) {
+            return;
+        }
+        if (!muteRefreshInFlight.add(uuid)) {
+            return;
         }
 
-        long expiry = 0L;
-        try {
-            JsonObject payload = new JsonObject();
-            payload.addProperty("uuid", uuid);
-            String result = requestAlpha("check_mute", payload, 500);
-            if (result != null && !result.isEmpty()) {
-                expiry = Long.parseLong(result);
+        CompletableFuture.runAsync(() -> {
+            long expiry = 0L;
+            try {
+                JsonObject payload = new JsonObject();
+                payload.addProperty("uuid", uuid);
+                String result = requestAlpha("check_mute", payload, 500);
+                if (result != null && !result.isEmpty()) {
+                    expiry = Long.parseLong(result);
+                }
+            } catch (Exception ignored) {
+            } finally {
+                muteExpiryCache.put(uuid, new CacheLong(expiry, System.currentTimeMillis()));
+                muteRefreshInFlight.remove(uuid);
             }
-        } catch (Exception ignored) {}
-
-        muteExpiryCache.put(uuid, new CacheLong(expiry, System.currentTimeMillis()));
-        return expiry;
+        });
     }
 
     /**
@@ -497,7 +617,7 @@ public class BridgeClient {
     private String requestAlpha(String type, JsonObject payload, long timeoutMs) throws Exception {
         if (!connected.get()) return null;
 
-        String requestId = type + "_" + System.currentTimeMillis();
+        String requestId = type + "_" + System.currentTimeMillis() + "_" + ThreadLocalRandom.current().nextInt(1000, 10000);
         CompletableFuture<String> future = new CompletableFuture<>();
         pendingRequests.put(requestId, future);
 

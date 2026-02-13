@@ -2,6 +2,7 @@ package com.mapbot.alpha.config;
 
 import java.io.*;
 import java.nio.file.*;
+import java.util.Locale;
 import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,24 +48,25 @@ public class AlphaConfig {
             Files.createDirectories(configPath.getParent());
             
             if (Files.exists(configPath)) {
+                props.clear();
                 try (InputStream in = Files.newInputStream(configPath)) {
                     props.load(in);
                 }
                 
                 wsUrl = props.getProperty("connection.wsUrl", wsUrl);
-                reconnectInterval = Integer.parseInt(props.getProperty("connection.reconnectInterval", "5"));
+                reconnectInterval = parseIntProperty("connection.reconnectInterval", reconnectInterval);
                 
                 redisHost = props.getProperty("redis.host", redisHost);
-                redisPort = Integer.parseInt(props.getProperty("redis.port", String.valueOf(redisPort)));
+                redisPort = parseIntProperty("redis.port", redisPort);
                 redisPassword = props.getProperty("redis.password", redisPassword);
-                redisDatabase = Integer.parseInt(props.getProperty("redis.database", String.valueOf(redisDatabase)));
-                redisEnabled = Boolean.parseBoolean(props.getProperty("redis.enabled", String.valueOf(redisEnabled)));
+                redisDatabase = parseIntProperty("redis.database", redisDatabase);
+                redisEnabled = parseBooleanProperty("redis.enabled", redisEnabled);
                 
-                playerGroupId = Long.parseLong(props.getProperty("messaging.playerGroupId", String.valueOf(playerGroupId)));
-                adminGroupId = Long.parseLong(props.getProperty("messaging.adminGroupId", String.valueOf(adminGroupId)));
+                playerGroupId = parseLongProperty("messaging.playerGroupId", playerGroupId);
+                adminGroupId = parseLongProperty("messaging.adminGroupId", adminGroupId);
                 adminQQs = props.getProperty("messaging.adminQQs", adminQQs);
-                botQQ = Long.parseLong(props.getProperty("messaging.botQQ", String.valueOf(botQQ)));
-                debugMode = Boolean.parseBoolean(props.getProperty("debug.debugMode", "true"));
+                botQQ = parseLongProperty("messaging.botQQ", botQQ);
+                debugMode = parseBooleanProperty("debug.debugMode", debugMode);
                 
                 // 同步管理员到 DataManager
                 syncAdminsToDataManager();
@@ -92,24 +94,36 @@ public class AlphaConfig {
     
     public void save() {
         try {
-            props.setProperty("connection.wsUrl", wsUrl);
-            props.setProperty("connection.reconnectInterval", String.valueOf(reconnectInterval));
-            
-            props.setProperty("redis.host", redisHost);
-            props.setProperty("redis.port", String.valueOf(redisPort));
-            props.setProperty("redis.password", redisPassword);
-            props.setProperty("redis.database", String.valueOf(redisDatabase));
-            props.setProperty("redis.enabled", String.valueOf(redisEnabled));
-            
-            props.setProperty("messaging.playerGroupId", String.valueOf(playerGroupId));
-            props.setProperty("messaging.adminGroupId", String.valueOf(adminGroupId));
-            props.setProperty("messaging.adminQQs", adminQQs);
-            props.setProperty("messaging.botQQ", String.valueOf(botQQ));
-            props.setProperty("debug.debugMode", String.valueOf(debugMode));
-            
-            try (OutputStream out = Files.newOutputStream(configPath)) {
-                props.store(out, "MapBot Alpha Core Configuration");
+            Files.createDirectories(configPath.getParent());
+
+            Properties merged = new Properties();
+            if (Files.exists(configPath)) {
+                try (InputStream in = Files.newInputStream(configPath)) {
+                    merged.load(in);
+                }
             }
+
+            merged.setProperty("connection.wsUrl", wsUrl);
+            merged.setProperty("connection.reconnectInterval", String.valueOf(reconnectInterval));
+
+            merged.setProperty("redis.host", redisHost);
+            merged.setProperty("redis.port", String.valueOf(redisPort));
+            merged.setProperty("redis.password", redisPassword);
+            merged.setProperty("redis.database", String.valueOf(redisDatabase));
+            merged.setProperty("redis.enabled", String.valueOf(redisEnabled));
+
+            merged.setProperty("messaging.playerGroupId", String.valueOf(playerGroupId));
+            merged.setProperty("messaging.adminGroupId", String.valueOf(adminGroupId));
+            merged.setProperty("messaging.adminQQs", adminQQs);
+            merged.setProperty("messaging.botQQ", String.valueOf(botQQ));
+            merged.setProperty("debug.debugMode", String.valueOf(debugMode));
+
+            try (OutputStream out = Files.newOutputStream(configPath)) {
+                merged.store(out, "MapBot Alpha Core Configuration");
+            }
+
+            props.clear();
+            props.putAll(merged);
         } catch (Exception e) {
             LOGGER.error("保存配置失败", e);
         }
@@ -158,5 +172,37 @@ public class AlphaConfig {
     public void reload() {
         load();
         LOGGER.info("配置已重新加载");
+    }
+
+    private int parseIntProperty(String key, int fallback) {
+        String value = props.getProperty(key);
+        if (value == null || value.isBlank()) return fallback;
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            LOGGER.warn("配置项 {} 值非法: {}, 使用默认值 {}", key, value, fallback);
+            return fallback;
+        }
+    }
+
+    private long parseLongProperty(String key, long fallback) {
+        String value = props.getProperty(key);
+        if (value == null || value.isBlank()) return fallback;
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException e) {
+            LOGGER.warn("配置项 {} 值非法: {}, 使用默认值 {}", key, value, fallback);
+            return fallback;
+        }
+    }
+
+    private boolean parseBooleanProperty(String key, boolean fallback) {
+        String value = props.getProperty(key);
+        if (value == null || value.isBlank()) return fallback;
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        if ("true".equals(normalized)) return true;
+        if ("false".equals(normalized)) return false;
+        LOGGER.warn("配置项 {} 值非法: {}, 使用默认值 {}", key, value, fallback);
+        return fallback;
     }
 }

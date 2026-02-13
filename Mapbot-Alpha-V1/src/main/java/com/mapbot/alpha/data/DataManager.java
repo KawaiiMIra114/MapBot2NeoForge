@@ -69,21 +69,59 @@ public class DataManager {
     private void syncFromRedis() {
         var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
         redis.execute(jedis -> {
-            // 同步绑定
+            // 先构造快照，再整体替换，避免“只 put 不 clear”导致脏数据残留
+            Map<Long, String> newBindings = new HashMap<>();
+            Map<String, Long> newMutes = new HashMap<>();
+            Map<Long, Integer> newPermissions = new HashMap<>();
+            Set<Long> newAdmins = new HashSet<>();
+
             Map<String, String> b = jedis.hgetAll(REDIS_KEY_BINDINGS);
-            b.forEach((k, v) -> bindings.put(Long.parseLong(k), v));
+            b.forEach((k, v) -> {
+                try {
+                    newBindings.put(Long.parseLong(k), v);
+                } catch (Exception e) {
+                    LOGGER.warn("Redis 绑定数据解析失败: {}={}", k, v);
+                }
+            });
 
-            // 同步禁言
             Map<String, String> m = jedis.hgetAll(REDIS_KEY_MUTES);
-            m.forEach((k, v) -> mutes.put(k, Long.parseLong(v)));
+            m.forEach((k, v) -> {
+                try {
+                    newMutes.put(k, Long.parseLong(v));
+                } catch (Exception e) {
+                    LOGGER.warn("Redis 禁言数据解析失败: {}={}", k, v);
+                }
+            });
 
-            // 同步权限
             Map<String, String> p = jedis.hgetAll(REDIS_KEY_PERMS);
-            p.forEach((k, v) -> permissions.put(Long.parseLong(k), Integer.parseInt(v)));
+            p.forEach((k, v) -> {
+                try {
+                    newPermissions.put(Long.parseLong(k), Integer.parseInt(v));
+                } catch (Exception e) {
+                    LOGGER.warn("Redis 权限数据解析失败: {}={}", k, v);
+                }
+            });
 
-            // 同步管理员
             Set<String> a = jedis.smembers(REDIS_KEY_ADMINS);
-            a.forEach(k -> admins.add(Long.parseLong(k)));
+            a.forEach(k -> {
+                try {
+                    newAdmins.add(Long.parseLong(k));
+                } catch (Exception e) {
+                    LOGGER.warn("Redis 管理员数据解析失败: {}", k);
+                }
+            });
+
+            bindings.clear();
+            bindings.putAll(newBindings);
+            mutes.clear();
+            mutes.putAll(newMutes);
+            permissions.clear();
+            permissions.putAll(newPermissions);
+            admins.clear();
+            admins.addAll(newAdmins);
+
+            LOGGER.info("Redis 全量同步完成: bindings={}, mutes={}, perms={}, admins={}",
+                bindings.size(), mutes.size(), permissions.size(), admins.size());
             
             return null;
         });
@@ -273,7 +311,11 @@ public class DataManager {
         for (String line : Files.readAllLines(file)) {
             String[] parts = line.split("=", 2);
             if (parts.length == 2) {
-                bindings.put(Long.parseLong(parts[0]), parts[1]);
+                try {
+                    bindings.put(Long.parseLong(parts[0].trim()), parts[1]);
+                } catch (NumberFormatException e) {
+                    LOGGER.warn("忽略无效绑定数据: {}", line);
+                }
             }
         }
     }
@@ -294,7 +336,11 @@ public class DataManager {
         for (String line : Files.readAllLines(file)) {
             String[] parts = line.split("=", 2);
             if (parts.length == 2) {
-                mutes.put(parts[0], Long.parseLong(parts[1]));
+                try {
+                    mutes.put(parts[0], Long.parseLong(parts[1].trim()));
+                } catch (NumberFormatException e) {
+                    LOGGER.warn("忽略无效禁言数据: {}", line);
+                }
             }
         }
     }
@@ -315,7 +361,11 @@ public class DataManager {
         for (String line : Files.readAllLines(file)) {
             String[] parts = line.split("=", 2);
             if (parts.length == 2) {
-                permissions.put(Long.parseLong(parts[0]), Integer.parseInt(parts[1]));
+                try {
+                    permissions.put(Long.parseLong(parts[0].trim()), Integer.parseInt(parts[1].trim()));
+                } catch (NumberFormatException e) {
+                    LOGGER.warn("忽略无效权限数据: {}", line);
+                }
             }
         }
     }
@@ -335,7 +385,11 @@ public class DataManager {
         if (!Files.exists(file)) return;
         for (String line : Files.readAllLines(file)) {
             if (!line.trim().isEmpty()) {
-                admins.add(Long.parseLong(line.trim()));
+                try {
+                    admins.add(Long.parseLong(line.trim()));
+                } catch (NumberFormatException e) {
+                    LOGGER.warn("忽略无效管理员数据: {}", line);
+                }
             }
         }
     }
