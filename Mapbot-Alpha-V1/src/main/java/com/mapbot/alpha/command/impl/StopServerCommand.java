@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 关闭服务器命令
- * #stopserver [秒数]
+ * #stopserver [秒数] [serverId]
  */
 public class StopServerCommand implements ICommand {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/Command/Stop");
@@ -21,29 +21,52 @@ public class StopServerCommand implements ICommand {
 
     @Override
     public String getHelp() {
-        return "倒计时关闭服务器: #stopserver [秒数]";
+        return "倒计时关闭服务器: #stopserver [秒数] [serverId]（或 #stopserver [serverId] [秒数]）";
     }
 
     @Override
     public String execute(String args, long senderQQ, long sourceGroupId) {
+        String serverId = null;
         int countdown = 0;
-        if (!args.trim().isEmpty()) {
-            try {
-                countdown = Integer.parseInt(args.trim());
-                if (countdown < 0 || countdown > 3600) {
-                    OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[错误] 倒计时范围: 0-3600 秒");
+        String trimmed = args == null ? "" : args.trim();
+        if (!trimmed.isEmpty()) {
+            String[] tokens = trimmed.split("\\s+");
+            if (tokens.length == 1) {
+                if (isInteger(tokens[0])) {
+                    countdown = Integer.parseInt(tokens[0]);
+                } else {
+                    serverId = tokens[0];
+                }
+            } else if (tokens.length == 2) {
+                boolean firstIsInt = isInteger(tokens[0]);
+                boolean secondIsInt = isInteger(tokens[1]);
+                if (firstIsInt == secondIsInt) {
+                    OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[错误] 参数格式: #stopserver [秒数] [serverId]");
                     return null;
                 }
-            } catch (NumberFormatException e) {
-                OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[错误] 倒计时必须为数字");
+                if (firstIsInt) {
+                    countdown = Integer.parseInt(tokens[0]);
+                    serverId = tokens[1];
+                } else {
+                    serverId = tokens[0];
+                    countdown = Integer.parseInt(tokens[1]);
+                }
+            } else {
+                OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[错误] 参数过多，格式: #stopserver [秒数] [serverId]");
                 return null;
             }
         }
 
-        LOGGER.warn("管理员 {} 执行关服命令, 倒计时: {}s", senderQQ, countdown);
+        if (countdown < 0 || countdown > 3600) {
+            OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[错误] 倒计时范围: 0-3600 秒");
+            return null;
+        }
+
+        LOGGER.warn("管理员 {} 执行关服命令, 倒计时: {}s, target={}",
+            senderQQ, countdown, serverId == null ? "<auto>" : serverId);
         
         final int seconds = countdown;
-        BridgeProxy.stopServer(seconds).thenAccept(result -> {
+        BridgeProxy.stopServer(seconds, serverId).thenAccept(result -> {
             if (result.startsWith("[错误]")) {
                 OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, result);
             } else if (seconds == 0) {
@@ -54,5 +77,15 @@ public class StopServerCommand implements ICommand {
             }
         });
         return null;
+    }
+
+    private static boolean isInteger(String text) {
+        if (text == null || text.isEmpty()) return false;
+        try {
+            Integer.parseInt(text);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 }

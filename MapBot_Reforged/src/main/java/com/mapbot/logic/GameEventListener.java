@@ -108,7 +108,7 @@ public class GameEventListener {
         ServerPlayer player = event.getPlayer();
         String uuid = player.getUUID().toString();
         
-        // Task #018-STEP4: 禁言拦截 (数据源迁移到 Alpha Redis)
+        // Task #018-STEP4: 禁言拦截 (非阻塞缓存策略)
         long expiry = BridgeClient.INSTANCE.checkMuteExpiry(uuid);
         if (expiry != 0L) {
             if (expiry == -1L || System.currentTimeMillis() <= expiry) {
@@ -172,13 +172,16 @@ public class GameEventListener {
      */
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        long groupId = BotConfig.getTargetGroupId();
-        if (groupId == 0L) {
-            return;
-        }
-        
         // 确保是服务端玩家
         if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        // 预热禁言缓存，避免首次聊天触发同步等待
+        BridgeClient.INSTANCE.prefetchMuteExpiry(player.getUUID().toString());
+
+        long groupId = BotConfig.getTargetGroupId();
+        if (groupId == 0L) {
             return;
         }
         

@@ -27,6 +27,65 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     })
 }
 
+function resolveAppBasePath(): string {
+    const pathname = window.location.pathname || '/'
+    const vueIndex = pathname.indexOf('/vue')
+    if (vueIndex >= 0) {
+        return '/vue/'
+    }
+    return '/'
+}
+
+function redirectToLogin() {
+    clearToken()
+    const loginUrl = `${resolveAppBasePath()}#/login`
+    if (`${window.location.pathname}${window.location.hash}` !== loginUrl) {
+        window.location.replace(loginUrl)
+    }
+}
+
+async function parseResponseData(res: Response): Promise<unknown> {
+    const text = await res.text()
+    if (!text) return null
+    try {
+        return JSON.parse(text)
+    } catch {
+        return text
+    }
+}
+
+function extractErrorMessage(data: unknown, fallback: string): string {
+    if (typeof data === 'string' && data.trim()) return data
+    if (data && typeof data === 'object' && 'error' in data) {
+        const error = (data as { error?: unknown }).error
+        if (typeof error === 'string' && error.trim()) return error
+    }
+    return fallback
+}
+
+async function requestJson(url: string, options: RequestInit = {}, requireSuccess = false): Promise<any> {
+    const res = await apiFetch(url, options)
+    const data = await parseResponseData(res)
+
+    if (res.status === 401 || res.status === 403) {
+        redirectToLogin()
+        throw new Error(extractErrorMessage(data, '登录已过期，请重新登录'))
+    }
+
+    if (!res.ok) {
+        throw new Error(extractErrorMessage(data, `请求失败 (${res.status})`))
+    }
+
+    if (requireSuccess && data && typeof data === 'object' && 'success' in data) {
+        const success = (data as { success?: unknown }).success
+        if (success === false) {
+            throw new Error(extractErrorMessage(data, '操作失败'))
+        }
+    }
+
+    return data
+}
+
 // 登录
 export async function login(username: string, password: string): Promise<{ token?: string, error?: string }> {
     const res = await fetch('/api/login', {
@@ -41,84 +100,90 @@ export async function login(username: string, password: string): Promise<{ token
 export const api = {
     // 服务器相关
     async getServers() {
-        const res = await apiFetch('/api/servers')
-        return res.json()
+        return requestJson('/api/servers')
     },
 
     async getStatus() {
-        const res = await apiFetch('/api/status')
-        return res.json()
+        return requestJson('/api/status')
     },
 
     async getMetricsHistory(serverId: string) {
-        const res = await apiFetch(`/api/metrics/${serverId}/history`)
-        return res.json()
+        return requestJson(`/api/metrics/${serverId}/history`)
     },
 
     async sendCommand(serverId: string, command: string) {
-        const res = await apiFetch(`/api/servers/${serverId}/command`, {
+        return requestJson(`/api/servers/${serverId}/command`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ command })
         })
-        return res.json()
     },
 
     // 文件相关
     async listFiles(path: string, serverId?: string) {
         const base = serverId ? `/api/remote/${serverId}/files` : '/api/files'
-        const res = await apiFetch(`${base}/list?path=${encodeURIComponent(path)}`)
-        return res.json()
+        return requestJson(`${base}/list?path=${encodeURIComponent(path)}`)
     },
 
     async readFile(path: string, serverId?: string) {
         const base = serverId ? `/api/remote/${serverId}/files` : '/api/files'
-        const res = await apiFetch(`${base}/read?path=${encodeURIComponent(path)}`)
-        return res.json()
+        return requestJson(`${base}/read?path=${encodeURIComponent(path)}`)
     },
 
     async writeFile(path: string, content: string, serverId?: string) {
         const base = serverId ? `/api/remote/${serverId}/files` : '/api/files'
-        const res = await apiFetch(`${base}/write`, {
+        return requestJson(`${base}/write`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path, content })
-        })
-        return res.json()
+        }, true)
+    },
+
+    async mkdir(path: string, serverId?: string) {
+        const base = serverId ? `/api/remote/${serverId}/files` : '/api/files'
+        return requestJson(`${base}/mkdir`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path })
+        }, true)
+    },
+
+    async uploadFile(path: string, content: string, encoding = 'utf-8', serverId?: string) {
+        const base = serverId ? `/api/remote/${serverId}/files` : '/api/files'
+        return requestJson(`${base}/upload`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path, content, encoding })
+        }, true)
     },
 
     // 用户相关
     async getUsers() {
-        const res = await apiFetch('/api/users')
-        return res.json()
+        return requestJson('/api/users')
     },
 
     async createUser(username: string, password: string, role: string) {
-        const res = await apiFetch('/api/users', {
+        return requestJson('/api/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password, role })
         })
-        return res.json()
     },
 
     async deleteUser(username: string) {
-        const res = await apiFetch(`/api/users/${username}`, { method: 'DELETE' })
-        return res.json()
+        return requestJson(`/api/users/${username}`, { method: 'DELETE' })
     },
 
     // 配置相关
     async getConfig() {
-        const res = await apiFetch('/api/config')
-        return res.json()
+        return requestJson('/api/config')
     },
 
     async saveConfig(config: Record<string, unknown>) {
-        const res = await apiFetch('/api/config', {
+        return requestJson('/api/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
         })
-        return res.json()
     }
 }

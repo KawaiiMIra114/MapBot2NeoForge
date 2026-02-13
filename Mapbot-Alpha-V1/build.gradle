@@ -38,6 +38,11 @@ java {
     }
 }
 
+tasks.named('wrapper', Wrapper).configure {
+    gradleVersion = '8.8'
+    distributionType = Wrapper.DistributionType.BIN
+}
+
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }

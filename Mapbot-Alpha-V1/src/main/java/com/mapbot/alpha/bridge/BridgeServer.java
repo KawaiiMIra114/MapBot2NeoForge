@@ -45,6 +45,8 @@ public class BridgeServer {
                         p.addLast(new LineBasedFrameDecoder(65536));
                         p.addLast(new StringDecoder(StandardCharsets.UTF_8));
                         p.addLast(new StringEncoder(StandardCharsets.UTF_8));
+                        // 首帧 register 强制鉴权，通过后再放行到 BridgeMessageHandler
+                        p.addLast(new BridgeRegistrationAuthHandler());
                         // Bridge 消息处理
                         p.addLast(new BridgeMessageHandler());
                     }
@@ -70,5 +72,67 @@ public class BridgeServer {
             workerGroup.shutdownGracefully();
         }
         LOGGER.info("Bridge 服务器已停止");
+    }
+
+    private static class BridgeRegistrationAuthHandler extends SimpleChannelInboundHandler<String> {
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, String msg) {
+            String payload = msg == null ? "" : msg.trim();
+            if (payload.isEmpty()) {
+                reject(ctx, null, "empty_message");
+                return;
+            }
+
+            java.util.Map<String, Object> data = com.mapbot.alpha.utils.JsonUtils.fromJson(payload, java.util.Map.class);
+            if (data == null) {
+                reject(ctx, null, "invalid_json");
+                return;
+            }
+
+            String type = String.valueOf(data.get("type"));
+            if (!"register".equals(type)) {
+                reject(ctx, null, "register_required");
+                return;
+            }
+
+            String serverId = toSafeString(data.get("serverId"));
+            String token = firstNonBlank(
+                    toSafeString(data.get("token")),
+                    toSafeString(data.get("authToken")),
+                    toSafeString(data.get("bridgeToken")),
+                    toSafeString(data.get("secret"))
+            );
+            if (!com.mapbot.alpha.security.AuthManager.INSTANCE.isBridgeRegistrationAuthorized(serverId, token)) {
+                reject(ctx, serverId, "unauthorized");
+                return;
+            }
+
+            LOGGER.info("Bridge 注册鉴权通过: {} ({})", serverId, ctx.channel().remoteAddress());
+            ctx.pipeline().remove(this);
+            ctx.fireChannelRead(msg);
+        }
+
+        private static void reject(ChannelHandlerContext ctx, String serverId, String reason) {
+            LOGGER.warn("拒绝未授权 Bridge 注册: serverId={}, from={}, reason={}",
+                    serverId, ctx.channel().remoteAddress(), reason);
+            String response = "{\"type\":\"register_ack\",\"success\":false,\"error\":\"" + reason + "\"}\n";
+            ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+        }
+
+        private static String toSafeString(Object value) {
+            if (value == null) return null;
+            String s = String.valueOf(value).trim();
+            if (s.isEmpty() || "null".equalsIgnoreCase(s)) return null;
+            return s;
+        }
+
+        private static String firstNonBlank(String... values) {
+            for (String value : values) {
+                if (value != null && !value.isBlank()) {
+                    return value;
+                }
+            }
+            return null;
+        }
     }
 }

@@ -3,9 +3,15 @@ package com.mapbot.alpha.bridge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Set;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.mapbot.alpha.data.DataManager;
 
@@ -19,6 +25,9 @@ public class BridgeProxy {
     
     // 请求超时 (秒)
     private static final int TIMEOUT = 10;
+    // 多服 fan-out 总超时 (秒)
+    private static final int FANOUT_TIMEOUT = 10;
+    private static final AtomicLong REQUEST_SEQ = new AtomicLong(0);
     
     // 待处理请求: requestId -> CompletableFuture
     private final ConcurrentHashMap<String, CompletableFuture<String>> pendingRequests = new ConcurrentHashMap<>();
@@ -62,6 +71,72 @@ public class BridgeProxy {
             }
         }
         return matched;
+    }
+
+    private static String nextRequestId(String action, String serverId) {
+        long seq = REQUEST_SEQ.incrementAndGet();
+        return action + "_" + System.currentTimeMillis() + "_" + seq + "_" + (serverId == null ? "unknown" : serverId);
+    }
+
+    private static Set<String> getOnlineServerIds() {
+        Set<String> ids = new HashSet<>();
+        for (var s : ServerRegistry.INSTANCE.getAllServers()) {
+            if (s == null || s.serverId == null || s.serverId.isEmpty()) continue;
+            if (s.channel != null && s.channel.isActive()) {
+                ids.add(s.serverId);
+            }
+        }
+        return ids;
+    }
+
+    private static FanoutBatchResult fanOutRequests(Collection<String> serverIds, String action, String arg1, String arg2, int totalTimeoutSeconds) {
+        if (serverIds == null || serverIds.isEmpty()) {
+            return new FanoutBatchResult(Collections.emptyMap(), 0);
+        }
+
+        Map<String, CompletableFuture<String>> futureMap = new LinkedHashMap<>();
+        for (String serverId : serverIds) {
+            futureMap.put(serverId, sendRequestAsyncToServer(serverId, action, arg1, arg2));
+        }
+
+        CompletableFuture<?>[] futures = futureMap.values().toArray(new CompletableFuture[0]);
+        CompletableFuture.allOf(futures)
+            .completeOnTimeout(null, totalTimeoutSeconds, TimeUnit.SECONDS)
+            .join();
+
+        Map<String, String> responses = new LinkedHashMap<>();
+        int timeoutCount = 0;
+        for (Map.Entry<String, CompletableFuture<String>> entry : futureMap.entrySet()) {
+            CompletableFuture<String> future = entry.getValue();
+            if (!future.isDone()) {
+                timeoutCount++;
+                continue;
+            }
+            try {
+                responses.put(entry.getKey(), future.getNow(null));
+            } catch (CompletionException e) {
+                LOGGER.debug("fan-out 子请求异常: action={}, server={}", action, entry.getKey(), e);
+            }
+        }
+
+        if (timeoutCount > 0) {
+            LOGGER.warn("fan-out 总超时: action={}, 完成 {}/{}, 超时 {}",
+                action, responses.size(), futureMap.size(), timeoutCount);
+        } else {
+            LOGGER.info("fan-out 完成: action={}, 完成 {}/{}",
+                action, responses.size(), futureMap.size());
+        }
+        return new FanoutBatchResult(responses, timeoutCount);
+    }
+
+    private static final class FanoutBatchResult {
+        private final Map<String, String> responses;
+        private final int timeoutCount;
+
+        private FanoutBatchResult(Map<String, String> responses, int timeoutCount) {
+            this.responses = responses;
+            this.timeoutCount = timeoutCount;
+        }
     }
     
     /**
@@ -262,18 +337,19 @@ public class BridgeProxy {
      * @return SUCCESS[:发放服务器数/目标服务器数] 或 FAIL:OFFLINE / FAIL:INVENTORY_FULL / FAIL:原因
      */
     public String giveItemToOnlineServers(String uuid, String itemJson) {
-        java.util.Set<String> targets = findOnlineServersForPlayer(uuid);
+        Set<String> targets = findOnlineServersForPlayer(uuid);
         if (targets.isEmpty()) {
             return "FAIL:OFFLINE";
         }
 
+        FanoutBatchResult batch = fanOutRequests(targets, "give_item", uuid, itemJson, FANOUT_TIMEOUT);
         int successCount = 0;
         boolean anyInventoryFull = false;
         String firstError = null;
 
         for (String serverId : targets) {
-            String result = sendRequestToServer(serverId, "give_item", uuid, itemJson);
-            if (result == null) {
+            String result = batch.responses.get(serverId);
+            if (result == null || result.isEmpty()) {
                 firstError = firstError == null ? ("服务器无响应: " + serverId) : firstError;
                 continue;
             }
@@ -290,9 +366,16 @@ public class BridgeProxy {
                 firstError = firstError == null ? result : firstError;
                 continue;
             }
+            if (result.startsWith("[错误]")) {
+                firstError = firstError == null ? ("FAIL:" + result) : firstError;
+                continue;
+            }
             // 未知返回
             firstError = firstError == null ? ("FAIL:" + result) : firstError;
         }
+
+        LOGGER.info("多服发奖结果: targets={}, success={}, timeout={}, firstError={}",
+            targets.size(), successCount, batch.timeoutCount, firstError);
 
         if (successCount > 0) {
             return "SUCCESS:" + successCount + "/" + targets.size();
@@ -313,18 +396,25 @@ public class BridgeProxy {
     /**
      * P3: 获取玩家在线服务器集合
      */
-    public java.util.Set<String> findOnlineServersForPlayer(String uuid) {
-        java.util.Set<String> onlineServers = new java.util.HashSet<>();
+    public Set<String> findOnlineServersForPlayer(String uuid) {
+        Set<String> onlineServers = new HashSet<>();
         if (uuid == null || uuid.isEmpty()) return onlineServers;
 
-        for (var s : ServerRegistry.INSTANCE.getAllServers()) {
-            String result = sendRequestToServer(s.serverId, "has_player", uuid, null);
+        Set<String> targets = getOnlineServerIds();
+        if (targets.isEmpty()) return onlineServers;
+
+        FanoutBatchResult batch = fanOutRequests(targets, "has_player", uuid, null, FANOUT_TIMEOUT);
+        for (String serverId : targets) {
+            String result = batch.responses.get(serverId);
             if (result == null) continue;
             if ("YES".equalsIgnoreCase(result) || "TRUE".equalsIgnoreCase(result) || "ONLINE".equalsIgnoreCase(result)) {
-                onlineServers.add(s.serverId);
+                onlineServers.add(serverId);
             }
         }
 
+        if (batch.timeoutCount > 0) {
+            LOGGER.warn("玩家在线查询部分超时: uuid={}, online={}, timeout={}", uuid, onlineServers.size(), batch.timeoutCount);
+        }
         return onlineServers;
     }
     
@@ -376,28 +466,50 @@ public class BridgeProxy {
      * 关闭服务器 (异步)
      */
     public static CompletableFuture<String> stopServer(int countdown) {
-        return sendRequestAsync("stop_server", String.valueOf(countdown), null);
+        return stopServer(countdown, null);
+    }
+
+    public static CompletableFuture<String> stopServer(int countdown, String serverId) {
+        return sendRequestAsync("stop_server", String.valueOf(countdown), null, serverId);
     }
     
     /**
      * 取消关服 (异步)
      */
     public static CompletableFuture<String> cancelStop() {
-        return sendRequestAsync("cancel_stop", null, null);
+        return cancelStop(null);
+    }
+
+    public static CompletableFuture<String> cancelStop(String serverId) {
+        return sendRequestAsync("cancel_stop", null, null, serverId);
     }
     
     /**
      * 异步发送请求
      */
-    private static CompletableFuture<String> sendRequestAsync(String action, String arg1, String arg2) {
-        var servers = ServerRegistry.INSTANCE.getAllServers();
-        if (servers.isEmpty()) {
-            LOGGER.warn("无可用服务器");
-            return CompletableFuture.completedFuture("[错误] 无可用服务器");
+    private static CompletableFuture<String> sendRequestAsync(String action, String arg1, String arg2, String explicitServerId) {
+        String targetServerId = null;
+        String serverQuery = explicitServerId == null ? "" : explicitServerId.trim();
+
+        if (!serverQuery.isEmpty()) {
+            targetServerId = resolveServerId(serverQuery);
+            if (targetServerId == null) {
+                return CompletableFuture.completedFuture("[错误] 未找到或匹配不唯一的服务器: " + serverQuery + "；在线服务器: " + listServerIds());
+            }
+        } else {
+            Set<String> onlineServers = getOnlineServerIds();
+            if (onlineServers.isEmpty()) {
+                LOGGER.warn("无可用服务器");
+                return CompletableFuture.completedFuture("[错误] 无可用服务器");
+            }
+            if (onlineServers.size() > 1) {
+                return CompletableFuture.completedFuture("[错误] 检测到多服在线，请显式指定 serverId。在线服务器: " + listServerIds());
+            }
+            targetServerId = onlineServers.iterator().next();
         }
-        
-        ServerRegistry.ServerInfo server = servers.iterator().next();
-        return sendRequestAsyncToServer(server.serverId, action, arg1, arg2);
+
+        LOGGER.info("异步请求下发: action={}, target={}", action, targetServerId);
+        return sendRequestAsyncToServer(targetServerId, action, arg1, arg2);
     }
 
     /**
@@ -409,7 +521,7 @@ public class BridgeProxy {
             return CompletableFuture.completedFuture("[错误] 服务器离线: " + serverId);
         }
 
-        String requestId = action + "_" + System.currentTimeMillis();
+        String requestId = nextRequestId(action, serverId);
         
         CompletableFuture<String> future = new CompletableFuture<>();
         INSTANCE.pendingRequests.put(requestId, future);
@@ -426,6 +538,7 @@ public class BridgeProxy {
         return future.orTimeout(TIMEOUT, TimeUnit.SECONDS)
             .exceptionally(e -> {
                 INSTANCE.pendingRequests.remove(requestId);
+                LOGGER.warn("异步请求超时: action={}, serverId={}, requestId={}", action, serverId, requestId);
                 return "[错误] 请求超时";
             });
     }
@@ -454,7 +567,7 @@ public class BridgeProxy {
             return null;
         }
 
-        String requestId = action + "_" + System.currentTimeMillis();
+        String requestId = nextRequestId(action, serverId);
         
         CompletableFuture<String> future = new CompletableFuture<>();
         pendingRequests.put(requestId, future);

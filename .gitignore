@@ -1,0 +1,31 @@
+# Gradle and Java build outputs
+**/.gradle/
+**/build/
+out/
+
+# Runtime outputs
+**/run/
+**/logs/
+**/crash-reports/
+hs_err_pid*
+replay_pid*
+
+# Node ecosystem
+**/node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE/editor metadata
+**/.idea/
+**/*.iml
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Common local artifacts
+*.log
+*.tmp
+*.swp

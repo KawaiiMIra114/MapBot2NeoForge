@@ -23,13 +23,29 @@ public class LogWebSocketHandler extends SimpleChannelInboundHandler<TextWebSock
     private static final ChannelGroup CLIENTS = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
 
     private static final AttributeKey<String> SELECTED_SERVER_ID = AttributeKey.valueOf("mapbot.console.selectedServerId");
+    private final String authToken;
+
+    public LogWebSocketHandler(String authToken) {
+        this.authToken = authToken;
+    }
+
+    public LogWebSocketHandler() {
+        this(null);
+    }
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) {
+        if (!com.mapbot.alpha.security.AuthManager.INSTANCE.validateToken(authToken)) {
+            ctx.channel().writeAndFlush(new TextWebSocketFrame("[Alpha] 认证已失效，请重新登录。"));
+            ctx.close();
+            return;
+        }
+
         Channel channel = ctx.channel();
         CLIENTS.add(channel);
         channel.attr(SELECTED_SERVER_ID).set(null);
-        LOGGER.info("Web 控制台已连接: {} (当前连接数: {})", channel.remoteAddress(), CLIENTS.size());
+        String username = com.mapbot.alpha.security.AuthManager.INSTANCE.getUsername(authToken);
+        LOGGER.info("Web 控制台已连接: {} user={} (当前连接数: {})", channel.remoteAddress(), username, CLIENTS.size());
         
         // 发送历史日志
         for (String line : ProcessManager.INSTANCE.getLogHistory()) {
@@ -58,6 +74,10 @@ public class LogWebSocketHandler extends SimpleChannelInboundHandler<TextWebSock
     }
 
     private void handleConsoleInput(ChannelHandlerContext ctx, String text) {
+        if (!ensurePermission(ctx, com.mapbot.alpha.security.AuthManager.Role.OPERATOR)) {
+            return;
+        }
+
         String selectedServerId = ctx.channel().attr(SELECTED_SERVER_ID).get();
 
         // 全局控制指令：/server 与 /back 永远优先处理
@@ -127,6 +147,20 @@ public class LogWebSocketHandler extends SimpleChannelInboundHandler<TextWebSock
 
         ctx.channel().attr(SELECTED_SERVER_ID).set(resolved);
         ctx.channel().writeAndFlush(new TextWebSocketFrame("[Alpha] 已切换到服务器控制台: " + resolved + "（输入 /back 返回）"));
+    }
+
+    private boolean ensurePermission(ChannelHandlerContext ctx, com.mapbot.alpha.security.AuthManager.Role role) {
+        var auth = com.mapbot.alpha.security.AuthManager.INSTANCE;
+        if (!auth.validateToken(authToken)) {
+            ctx.channel().writeAndFlush(new TextWebSocketFrame("[Alpha] Token 已过期，请重新登录。"));
+            ctx.close();
+            return false;
+        }
+        if (!auth.hasPermission(authToken, role)) {
+            ctx.channel().writeAndFlush(new TextWebSocketFrame("[Alpha] 权限不足，需要 OPERATOR。"));
+            return false;
+        }
+        return true;
     }
 
     @Override

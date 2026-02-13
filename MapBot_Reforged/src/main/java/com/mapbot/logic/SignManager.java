@@ -15,8 +15,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -110,6 +112,7 @@ public class SignManager {
         if (uuidStr == null) {
             // 未绑定：放回暂存区
             pendingRewards.put(qq, item);
+            saveCache();
             return false;
         }
 
@@ -117,6 +120,7 @@ public class SignManager {
         if (!success) {
             // 发放失败（离线/背包满）：放回暂存区
             pendingRewards.put(qq, item);
+            saveCache();
         } else {
             saveCache();
         }
@@ -142,7 +146,8 @@ public class SignManager {
         long boundQQ = DataManager.INSTANCE.getQQByUUID(uuidStr);
         if (boundQQ != ctx.qq) {
             // 放回池子 (防止误操作导致失效)
-            activeCdks.put(code, ctx); 
+            activeCdks.put(code, ctx);
+            saveCache();
             return "此兑换码不属于您绑定的账号";
         }
 
@@ -152,6 +157,7 @@ public class SignManager {
         } else {
             // 发放失败 (如背包满)，放回
             activeCdks.put(code, ctx);
+            saveCache();
             return "背包空间不足，兑换失败";
         }
     }
@@ -219,11 +225,23 @@ public class SignManager {
     /**
      * 保存缓存到磁盘
      */
-    private void saveCache() {
+    private synchronized void saveCache() {
         if (cachePath == null) return;
         try {
-            CacheData data = new CacheData(pendingRewards, activeCdks);
-            Files.writeString(cachePath, GSON.toJson(data));
+            CacheData data = new CacheData(new java.util.HashMap<>(pendingRewards), new java.util.HashMap<>(activeCdks));
+            String json = GSON.toJson(data);
+            Path tempPath = cachePath.resolveSibling(cachePath.getFileName() + ".tmp");
+
+            Path parent = cachePath.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.writeString(tempPath, json);
+            try {
+                Files.move(tempPath, cachePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(tempPath, cachePath, StandardCopyOption.REPLACE_EXISTING);
+            }
             LOGGER.debug("签到缓存已保存 (pending={}, cdks={})", pendingRewards.size(), activeCdks.size());
         } catch (IOException e) {
             LOGGER.error("保存签到缓存失败: {}", e.getMessage());

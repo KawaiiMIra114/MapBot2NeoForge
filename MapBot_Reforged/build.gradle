@@ -6,9 +6,12 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.139'
 }
 
+def TARGET_GRADLE_VERSION = '8.8'
+def TARGET_NEOFORGE_VERSION = '21.1.1'
+
 tasks.named('wrapper', Wrapper).configure {
     // Gradle 8.8+ is required for moddev 2.0.x
-    gradleVersion = '8.8' 
+    gradleVersion = TARGET_GRADLE_VERSION
     distributionType = Wrapper.DistributionType.BIN
 }
 
@@ -17,6 +20,11 @@ group = project.mod_group_id
 
 repositories {
     mavenLocal()
+    mavenCentral()
+    maven {
+        name = 'AliyunPublic'
+        url = 'https://maven.aliyun.com/repository/public'
+    }
 }
 
 base {
@@ -27,8 +35,8 @@ base {
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 neoForge {
-    // Specify the version of NeoForge to use.
-    version = project.neoforge_version
+    // Keep NeoForge pinned to a known-compatible baseline for repository consistency.
+    version = TARGET_NEOFORGE_VERSION
 
     parchment {
         mappingsVersion = '2024.07.28' // Example Parchment mapping

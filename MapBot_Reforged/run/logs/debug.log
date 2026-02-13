@@ -1,61 +1,196 @@
-[251月2026 10:47:49.036] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeserveruserdev, --gameDir, ., --fml.neoForgeVersion, 21.1.1, --fml.fmlVersion, 4.0.24, --fml.mcVersion, 1.21.1, --fml.neoFormVersion, 20240808.144430, --nogui]
-[251月2026 10:47:49.041] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: JVM identified as Oracle Corporation Java HotSpot(TM) 64-Bit Server VM 21.0.8+12-LTS-250
-[251月2026 10:47:49.043] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher 11.0.4+main.d2e20e43 starting: java version 21.0.8 by Oracle Corporation; OS Windows 11 arch amd64 version 10.0
-[251月2026 10:47:49.206] [main/INFO] [net.neoforged.fml.loading.ImmediateWindowHandler/]: ImmediateWindowProvider not loading because launch target is forgeserveruserdev
-[251月2026 10:47:49.255] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.6 Source=union:/C:/Users/KawaiiMira/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.14.0+mixin.0.8.6/c265173c84346e9e5d42a2384b2b02bd39a4a899/sponge-mixin-0.14.0+mixin.0.8.6.jar%2387!/ Service=ModLauncher Env=SERVER
-[251月2026 10:47:49.872] [main/INFO] [net.neoforged.fml.loading.moddiscovery.locators.JarInJarDependencyLocator/]: Found 1 dependencies adding them to mods collection
-[251月2026 10:47:50.116] [main/INFO] [net.neoforged.fml.loading.FMLServiceProvider/CORE]: Loading coremod script-engine for [neoforge]
-[251月2026 10:47:51.848] [main/INFO] [cpw.mods.modlauncher.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeserveruserdev' with arguments [--gameDir, ., --nogui]
-[251月2026 10:47:53.297] [main/WARN] [oshi.driver.windows.perfmon.PerfmonDisabled/]: Invalid registry value type detected for PerfOS counters. Should be REG_DWORD. Ignoring: HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\PerfOS\Performance\Disable Performance Counters.
-[251月2026 10:47:53.752] [main/INFO] [MixinExtras|Service/]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.3.5).
-[251月2026 10:48:01.267] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, location] and [teleport, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
-[251月2026 10:48:01.268] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, location] and [teleport, targets] with inputs: [0.1 -0.5 .9, 0 0 0]
-[251月2026 10:48:01.273] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, destination] and [teleport, targets] with inputs: [Player, 0123, @e, dd12be42-52a9-4a91-a8a1-11c01849e498]
-[251月2026 10:48:01.274] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, targets] and [teleport, destination] with inputs: [Player, 0123, dd12be42-52a9-4a91-a8a1-11c01849e498]
-[251月2026 10:48:01.276] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, targets, location] and [teleport, targets, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
-[251月2026 10:48:01.414] [modloading-worker-0/INFO] [com.mapbot.MapBot/]: MapBot Reforged 初始化开始...
-[251月2026 10:48:01.428] [modloading-worker-0/INFO] [net.neoforged.neoforge.common.NeoForgeMod/NEOFORGE-MOD]: NeoForge mod loading, version 21.1.1, for MC 1.21.1
-[251月2026 10:48:01.432] [modloading-worker-0/INFO] [com.mapbot.MapBot/]: 配置系统已注册: mapbot-common.toml
-[251月2026 10:48:01.438] [modloading-worker-0/INFO] [com.mapbot.MapBot/]: MapBot Reforged 初始化完成 (Constructed).
-[251月2026 10:48:01.788] [main/INFO] [com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService/]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
-[251月2026 10:48:01.970] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/D:/riserver/Mapbot2NeoForge/MapBot_Reforged/build/moddev/artifacts/neoforge-21.1.1.jar%23119!/assets/.mcassetsroot' uses unexpected schema
-[251月2026 10:48:01.971] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/D:/riserver/Mapbot2NeoForge/MapBot_Reforged/build/moddev/artifacts/neoforge-21.1.1.jar%23119!/data/.mcassetsroot' uses unexpected schema
-[251月2026 10:48:03.007] [Worker-Main-1/INFO] [com.mapbot.MapBot/]: 已注册游戏命令: /mapbot cdk
-[251月2026 10:48:03.310] [main/INFO] [net.minecraft.world.item.crafting.RecipeManager/]: Loaded 1290 recipes
-[251月2026 10:48:03.543] [main/INFO] [net.minecraft.advancements.AdvancementTree/]: Loaded 1399 advancements
-[251月2026 10:48:03.966] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Starting minecraft server version 1.21.1
-[251月2026 10:48:03.966] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Loading properties
-[251月2026 10:48:03.967] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Default game type: SURVIVAL
-[251月2026 10:48:03.967] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Generating keypair
-[251月2026 10:48:04.029] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Starting Minecraft server on *:25565
-[251月2026 10:48:04.107] [Server thread/INFO] [net.minecraft.server.network.ServerConnectionListener/]: Using default channel type
-[251月2026 10:48:04.148] [Server thread/WARN] [net.minecraft.server.dedicated.DedicatedServer/]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
-[251月2026 10:48:04.150] [Server thread/WARN] [net.minecraft.server.dedicated.DedicatedServer/]: The server will make no attempt to authenticate usernames. Beware.
-[251月2026 10:48:04.150] [Server thread/WARN] [net.minecraft.server.dedicated.DedicatedServer/]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
-[251月2026 10:48:04.150] [Server thread/WARN] [net.minecraft.server.dedicated.DedicatedServer/]: To change this, set "online-mode" to "true" in the server.properties file.
-[251月2026 10:48:04.192] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Preparing level "world"
-[251月2026 10:48:05.050] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Preparing start region for dimension minecraft:overworld
-[251月2026 10:48:05.391] [worldgen/INFO] [net.minecraft.server.level.progress.LoggerChunkProgressListener/]: Preparing spawn area: 0%
-[251月2026 10:48:05.529] [Server thread/INFO] [net.minecraft.server.level.progress.LoggerChunkProgressListener/]: Time elapsed: 479 ms
-[251月2026 10:48:05.529] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Done (1.367s)! For help, type "help"
-[251月2026 10:48:05.553] [LanServerPinger #1/WARN] [net.minecraft.client.server.LanServerPinger/]: LanServerPinger: Network is unreachable: sendto
-[251月2026 10:48:05.574] [Server thread/INFO] [net.neoforged.neoforge.gametest.GameTestHooks/]: Enabled Gametest Namespaces: [mapbot]
-[251月2026 10:48:05.586] [Server thread/INFO] [net.neoforged.neoforge.server.permission.PermissionAPI/]: Successfully initialized permission handler neoforge:default_handler
-[251月2026 10:48:05.587] [Server thread/INFO] [com.mapbot.MapBot/]: 服务器正在启动，准备连接到 NapCat...
-[251月2026 10:48:05.595] [Server thread/INFO] [MapBot/Data/]: 数据文件路径: D:\riserver\Mapbot2NeoForge\MapBot_Reforged\run\config\mapbot_data.json
-[251月2026 10:48:05.600] [Server thread/INFO] [MapBot/Data/]: 数据加载成功: 9 权限记录, 3 绑定, 0 禁言
-[251月2026 10:48:05.601] [Server thread/INFO] [com.mapbot.MapBot/]: 数据管理器已初始化
-[251月2026 10:48:05.615] [Server thread/INFO] [MapBot/Loot/]: 已加载奖池: 4 个稀有度组
-[251月2026 10:48:05.615] [Server thread/INFO] [com.mapbot.MapBot/]: 奖池配置已初始化
-[251月2026 10:48:05.616] [Server thread/INFO] [com.mapbot.MapBot/]: 目标群号: 875585697
-[251月2026 10:48:05.624] [ForkJoinPool.commonPool-worker-7/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接 Alpha Core: 127.0.0.1:25561
-[251月2026 10:48:05.626] [ForkJoinPool.commonPool-worker-7/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
-[251月2026 10:48:05.628] [ForkJoinPool.commonPool-worker-7/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已发送注册: default
-[251月2026 10:48:05.632] [Server thread/INFO] [MapBot/Status/]: TPS 监控器已启动 (间隔 30 秒)
-[251月2026 10:48:05.635] [Server thread/INFO] [MapBot/Event/]: 服务器启动完成，启动 TPS 监控器
-[251月2026 10:48:05.635] [Server thread/WARN] [MapBot/Status/]: TPS 监控器已在运行
-[251月2026 10:48:05.644] [Bridge-Reader/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
-[251月2026 10:58:03.078] [Bridge-Reader/WARN] [com.mapbot.network.BridgeClient/]: [Bridge] 连接断开: Connection reset
-[251月2026 10:58:03.079] [Bridge-Reader/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
-[251月2026 10:58:06.079] [Bridge-Reader/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接 Alpha Core: 127.0.0.1:25561
-[251月2026 10:58:06.080] [Bridge-Reader/WARN] [com.mapbot.network.BridgeClient/]: [Bridge] 连接 Alpha Core 失败: Connection refused: connect，5秒后重试...
+[132月2026 20:04:37.101] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeserveruserdev, --gameDir, ., --fml.neoForgeVersion, 21.1.1, --fml.fmlVersion, 4.0.24, --fml.mcVersion, 1.21.1, --fml.neoFormVersion, 20240808.144430, --nogui]
+[132月2026 20:04:37.165] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: JVM identified as Oracle Corporation Java HotSpot(TM) 64-Bit Server VM 21.0.8+12-LTS-250
+[132月2026 20:04:37.169] [main/INFO] [cpw.mods.modlauncher.Launcher/MODLAUNCHER]: ModLauncher 11.0.4+main.d2e20e43 starting: java version 21.0.8 by Oracle Corporation; OS Windows 11 arch amd64 version 10.0
+[132月2026 20:04:37.523] [main/INFO] [net.neoforged.fml.loading.ImmediateWindowHandler/]: ImmediateWindowProvider not loading because launch target is forgeserveruserdev
+[132月2026 20:04:37.632] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.6 Source=union:/C:/Users/KawaiiMira/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.14.0+mixin.0.8.6/c265173c84346e9e5d42a2384b2b02bd39a4a899/sponge-mixin-0.14.0+mixin.0.8.6.jar%2387!/ Service=ModLauncher Env=SERVER
+[132月2026 20:04:38.187] [main/INFO] [net.neoforged.fml.loading.moddiscovery.locators.JarInJarDependencyLocator/]: Found 1 dependencies adding them to mods collection
+[132月2026 20:04:38.413] [main/INFO] [net.neoforged.fml.loading.FMLServiceProvider/CORE]: Loading coremod script-engine for [neoforge]
+[132月2026 20:04:40.324] [main/INFO] [cpw.mods.modlauncher.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeserveruserdev' with arguments [--gameDir, ., --nogui]
+[132月2026 20:04:41.654] [main/WARN] [oshi.driver.windows.perfmon.PerfmonDisabled/]: Invalid registry value type detected for PerfOS counters. Should be REG_DWORD. Ignoring: HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\PerfOS\Performance\Disable Performance Counters.
+[132月2026 20:04:42.074] [main/INFO] [MixinExtras|Service/]: Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.3.5).
+[132月2026 20:04:49.985] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, location] and [teleport, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[132月2026 20:04:49.987] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, location] and [teleport, targets] with inputs: [0.1 -0.5 .9, 0 0 0]
+[132月2026 20:04:49.989] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, destination] and [teleport, targets] with inputs: [Player, 0123, @e, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[132月2026 20:04:49.992] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, targets] and [teleport, destination] with inputs: [Player, 0123, dd12be42-52a9-4a91-a8a1-11c01849e498]
+[132月2026 20:04:49.994] [main/WARN] [net.minecraft.commands.Commands/]: Ambiguity between arguments [teleport, targets, location] and [teleport, targets, destination] with inputs: [0.1 -0.5 .9, 0 0 0]
+[132月2026 20:04:50.124] [modloading-worker-0/INFO] [com.mapbot.MapBot/]: MapBot Reforged 初始化开始...
+[132月2026 20:04:50.140] [modloading-worker-0/INFO] [net.neoforged.neoforge.common.NeoForgeMod/NEOFORGE-MOD]: NeoForge mod loading, version 21.1.1, for MC 1.21.1
+[132月2026 20:04:50.145] [modloading-worker-0/INFO] [com.mapbot.MapBot/]: 配置系统已注册: mapbot-common.toml
+[132月2026 20:04:50.154] [modloading-worker-0/INFO] [com.mapbot.MapBot/]: MapBot Reforged 初始化完成 (Constructed).
+[132月2026 20:04:50.362] [modloading-sync-worker/WARN] [net.neoforged.fml.config.ConfigTracker/CONFIG]: Configuration file D:\axm\mcs\MapBot2NeoForge\MapBot_Reforged\run\config\mapbot-common.toml is not correct. Correcting
+[132月2026 20:04:50.494] [main/INFO] [com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService/]: Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, name=PROD]
+[132月2026 20:04:50.727] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/D:/axm/mcs/MapBot2NeoForge/MapBot_Reforged/build/moddev/artifacts/neoforge-21.1.1.jar%23119!/assets/.mcassetsroot' uses unexpected schema
+[132月2026 20:04:50.727] [main/WARN] [net.minecraft.server.packs.VanillaPackResourcesBuilder/]: Assets URL 'union:/D:/axm/mcs/MapBot2NeoForge/MapBot_Reforged/build/moddev/artifacts/neoforge-21.1.1.jar%23119!/data/.mcassetsroot' uses unexpected schema
+[132月2026 20:04:51.798] [Worker-Main-1/INFO] [com.mapbot.MapBot/]: 已注册游戏命令: /mapbot cdk
+[132月2026 20:04:52.156] [main/INFO] [net.minecraft.world.item.crafting.RecipeManager/]: Loaded 1290 recipes
+[132月2026 20:04:52.463] [main/INFO] [net.minecraft.advancements.AdvancementTree/]: Loaded 1399 advancements
+[132月2026 20:04:52.903] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Starting minecraft server version 1.21.1
+[132月2026 20:04:52.904] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Loading properties
+[132月2026 20:04:52.904] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Default game type: SURVIVAL
+[132月2026 20:04:52.904] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Generating keypair
+[132月2026 20:04:52.978] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Starting Minecraft server on *:25565
+[132月2026 20:04:53.060] [Server thread/INFO] [net.minecraft.server.network.ServerConnectionListener/]: Using default channel type
+[132月2026 20:04:53.104] [Server thread/WARN] [net.minecraft.server.dedicated.DedicatedServer/]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[132月2026 20:04:53.104] [Server thread/WARN] [net.minecraft.server.dedicated.DedicatedServer/]: The server will make no attempt to authenticate usernames. Beware.
+[132月2026 20:04:53.104] [Server thread/WARN] [net.minecraft.server.dedicated.DedicatedServer/]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[132月2026 20:04:53.104] [Server thread/WARN] [net.minecraft.server.dedicated.DedicatedServer/]: To change this, set "online-mode" to "true" in the server.properties file.
+[132月2026 20:04:53.147] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Preparing level "world"
+[132月2026 20:04:53.968] [Server thread/INFO] [net.minecraft.server.MinecraftServer/]: Preparing start region for dimension minecraft:overworld
+[132月2026 20:04:54.363] [worldgen/INFO] [net.minecraft.server.level.progress.LoggerChunkProgressListener/]: Preparing spawn area: 0%
+[132月2026 20:04:54.470] [worldgen/INFO] [net.minecraft.server.level.progress.LoggerChunkProgressListener/]: Preparing spawn area: 38%
+[132月2026 20:04:54.535] [Server thread/INFO] [net.minecraft.server.level.progress.LoggerChunkProgressListener/]: Time elapsed: 567 ms
+[132月2026 20:04:54.535] [Server thread/INFO] [net.minecraft.server.dedicated.DedicatedServer/]: Done (1.419s)! For help, type "help"
+[132月2026 20:04:54.558] [LanServerPinger #1/WARN] [net.minecraft.client.server.LanServerPinger/]: LanServerPinger: No route to host: sendto
+[132月2026 20:04:54.583] [Server thread/INFO] [net.neoforged.neoforge.gametest.GameTestHooks/]: Enabled Gametest Namespaces: [mapbot]
+[132月2026 20:04:54.595] [Server thread/INFO] [net.neoforged.neoforge.server.permission.PermissionAPI/]: Successfully initialized permission handler neoforge:default_handler
+[132月2026 20:04:54.596] [Server thread/INFO] [com.mapbot.MapBot/]: 服务器正在启动，准备连接到 NapCat...
+[132月2026 20:04:54.611] [Server thread/INFO] [MapBot/Loot/]: 已加载奖池: 4 个稀有度组
+[132月2026 20:04:54.611] [Server thread/INFO] [com.mapbot.MapBot/]: 奖池配置已初始化
+[132月2026 20:04:54.615] [Server thread/INFO] [com.mapbot.MapBot/]: 签到缓存已初始化
+[132月2026 20:04:54.616] [Server thread/INFO] [com.mapbot.MapBot/]: 目标群号: 875585697
+[132月2026 20:04:54.624] [Server thread/INFO] [MapBot/WS/]: 正在尝试连接到 ws://127.0.0.1:7000 ...
+[132月2026 20:04:54.689] [Server thread/WARN] [com.mapbot.network.BridgeClient/]: [Bridge] alphaToken 未配置；若 Alpha 启用 Bridge 鉴权，注册将被拒绝
+[132月2026 20:04:54.690] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:04:54.692] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:04:54.695] [Server thread/INFO] [MapBot/Status/]: TPS 监控器已启动 (间隔 30 秒)
+[132月2026 20:04:54.696] [Server thread/INFO] [MapBot/Event/]: 服务器启动完成，启动 TPS 监控器
+[132月2026 20:04:54.696] [Server thread/WARN] [MapBot/Status/]: TPS 监控器已在运行
+[132月2026 20:04:54.734] [ForkJoinPool.commonPool-worker-14/ERROR] [MapBot/WS/]: 连接建立失败: java.net.ConnectException
+[132月2026 20:04:54.735] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: 5秒后尝试重连...
+[132月2026 20:04:54.749] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:04:54.750] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:04:57.754] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:04:57.757] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:04:57.760] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:04:57.761] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:04:59.744] [MapBot-WS-Thread/INFO] [MapBot/WS/]: 正在尝试连接到 ws://127.0.0.1:7000 ...
+[132月2026 20:04:59.747] [ForkJoinPool.commonPool-worker-14/ERROR] [MapBot/WS/]: 连接建立失败: java.net.ConnectException
+[132月2026 20:04:59.747] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: 5秒后尝试重连...
+[132月2026 20:05:00.773] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:00.775] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:00.778] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:00.779] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:03.787] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:03.791] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:03.794] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:03.794] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:04.751] [MapBot-WS-Thread/INFO] [MapBot/WS/]: 正在尝试连接到 ws://127.0.0.1:7000 ...
+[132月2026 20:05:04.754] [ForkJoinPool.commonPool-worker-14/ERROR] [MapBot/WS/]: 连接建立失败: java.net.ConnectException
+[132月2026 20:05:04.754] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: 5秒后尝试重连...
+[132月2026 20:05:06.809] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:06.811] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:06.814] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:06.814] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:09.763] [MapBot-WS-Thread/INFO] [MapBot/WS/]: 正在尝试连接到 ws://127.0.0.1:7000 ...
+[132月2026 20:05:09.768] [ForkJoinPool.commonPool-worker-14/ERROR] [MapBot/WS/]: 连接建立失败: java.net.ConnectException
+[132月2026 20:05:09.769] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: 5秒后尝试重连...
+[132月2026 20:05:09.825] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:09.825] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:09.830] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:09.831] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:12.834] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:12.835] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:12.839] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:12.840] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:14.783] [MapBot-WS-Thread/INFO] [MapBot/WS/]: 正在尝试连接到 ws://127.0.0.1:7000 ...
+[132月2026 20:05:14.787] [ForkJoinPool.commonPool-worker-14/ERROR] [MapBot/WS/]: 连接建立失败: java.net.ConnectException
+[132月2026 20:05:14.787] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: 5秒后尝试重连...
+[132月2026 20:05:15.842] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:15.845] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:15.849] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:15.850] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:18.855] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:18.858] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:18.861] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:18.862] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:19.793] [MapBot-WS-Thread/INFO] [MapBot/WS/]: 正在尝试连接到 ws://127.0.0.1:7000 ...
+[132月2026 20:05:19.797] [ForkJoinPool.commonPool-worker-14/ERROR] [MapBot/WS/]: 连接建立失败: java.net.ConnectException
+[132月2026 20:05:19.798] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: 5秒后尝试重连...
+[132月2026 20:05:21.876] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:21.878] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:21.881] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:21.882] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:24.800] [MapBot-WS-Thread/INFO] [MapBot/WS/]: 正在尝试连接到 ws://127.0.0.1:7000 ...
+[132月2026 20:05:24.829] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: WebSocket 通道已打开 (onOpen)
+[132月2026 20:05:24.830] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: [DEBUG] 收到消息片段 (last=true): {"time":1770984324,"self_id":2133782376,"post_type":"meta_event","meta_event_type":"lifecycle","sub_type":"connect"}
+[132月2026 20:05:24.830] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: [DEBUG] 完整消息: {"time":1770984324,"self_id":2133782376,"post_type":"meta_event","meta_event_type":"lifecycle","sub_type":"connect"}
+[132月2026 20:05:24.850] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/Inbound/]: OneBot 生命周期变更: connect
+[132月2026 20:05:24.851] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: 连接成功建立!
+[132月2026 20:05:24.851] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: [DEBUG] 发送数据包: {"action":"get_group_member_list","params":{"group_id":875585697},"echo":"load_members_1770984324851"}
+[132月2026 20:05:24.853] [ForkJoinPool.commonPool-worker-14/INFO] [MapBot/WS/]: 已请求玩家群 875585697 的成员列表
+[132月2026 20:05:24.863] [HttpClient-2-Worker-1/INFO] [MapBot/WS/]: [DEBUG] 收到消息片段 (last=true): {"status":"ok","retcode":0,"data":[{"group_id":875585697,"user_id":3910966899,"nickname":"HJm_desUne","card":"","sex":"unknown","age":0,"area":"","level":"0","qq_level":0,"join_time":1768613559,"last_sent_time":1768613559,"title_expire_time":0,"unfriendly":false,"card_changeable":true,"is_robot":false,"shut_up_timestamp":0,"role":"member","title":""},{"group_id":875585697,"user_id":3892788719,"nickname":"🐇","card":"","sex":"unknown","age":0,"area":"","level":"3","qq_level":0,"join_time":1768613559,"last_sent_time":1770026312,"title_expire_time":0,"unfriendly":false,"card_changeable":true,"is_robot":false,"shut_up_timestamp":0,"role":"member","title":""},{"group_id":875585697,"user_id":3860373742,"nickname":"对","card":"","sex":"unknown","age":0,"area":"","level":"4","qq_level":0,"join_time":1768613558,"last_sent_time":1770026230,"title_expire_time":0,"unfriendly":false,"card_changeable":true,"is_robot":false,"shut_up_timestamp":0,"role":"owner","title":""},{"group_id":875585697,"user_id":2133782376,"nickname":"CIR-Bot","card":"","sex":"unknown","age":0,"area":"","level":"3","qq_level":0,"join_time":1768922051,"last_sent_time":1769843805,"title_expire_time":0,"unfriendly":false,"card_changeable":true,"is_robot":false,"shut_up_timestamp":0,"role":"member","title":""}],"message":"","wording":"","echo":"load_members_1770984324851","stream":"normal-action"}
+[132月2026 20:05:24.864] [HttpClient-2-Worker-1/INFO] [MapBot/WS/]: [DEBUG] 完整消息: {"status":"ok","retcode":0,"data":[{"group_id":875585697,"user_id":3910966899,"nickname":"HJm_desUne","card":"","sex":"unknown","age":0,"area":"","level":"0","qq_level":0,"join_time":1768613559,"last_sent_time":1768613559,"title_expire_time":0,"unfriendly":false,"card_changeable":true,"is_robot":false,"shut_up_timestamp":0,"role":"member","title":""},{"group_id":875585697,"user_id":3892788719,"nickname":"🐇","card":"","sex":"unknown","age":0,"area":"","level":"3","qq_level":0,"join_time":1768613559,"last_sent_time":1770026312,"title_expire_time":0,"unfriendly":false,"card_changeable":true,"is_robot":false,"shut_up_timestamp":0,"role":"member","title":""},{"group_id":875585697,"user_id":3860373742,"nickname":"对","card":"","sex":"unknown","age":0,"area":"","level":"4","qq_level":0,"join_time":1768613558,"last_sent_time":1770026230,"title_expire_time":0,"unfriendly":false,"card_changeable":true,"is_robot":false,"shut_up_timestamp":0,"role":"owner","title":""},{"group_id":875585697,"user_id":2133782376,"nickname":"CIR-Bot","card":"","sex":"unknown","age":0,"area":"","level":"3","qq_level":0,"join_time":1768922051,"last_sent_time":1769843805,"title_expire_time":0,"unfriendly":false,"card_changeable":true,"is_robot":false,"shut_up_timestamp":0,"role":"member","title":""}],"message":"","wording":"","echo":"load_members_1770984324851","stream":"normal-action"}
+[132月2026 20:05:24.865] [HttpClient-2-Worker-1/INFO] [MapBot/MemberCache/]: 已加载 4 个群成员昵称到缓存
+[132月2026 20:05:24.895] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:24.896] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:24.900] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:24.900] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:27.906] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:27.909] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:27.912] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:27.912] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:30.913] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:30.914] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:30.917] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:30.917] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:33.918] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:33.919] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:33.922] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:33.922] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:36.923] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:36.924] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:36.927] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:36.928] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:39.929] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:39.930] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:39.933] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:39.934] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:42.934] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:42.934] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:42.938] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:42.938] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:45.940] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:45.941] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:45.944] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:45.945] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:48.946] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:48.947] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:48.949] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:48.950] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:51.951] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:51.952] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:51.957] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:51.957] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:52.307] [HttpClient-2-Worker-1/INFO] [MapBot/WS/]: [DEBUG] 收到消息片段 (last=true): {"time":1770984352,"self_id":2133782376,"post_type":"meta_event","meta_event_type":"heartbeat","status":{"online":true,"good":true},"interval":30000}
+[132月2026 20:05:52.307] [HttpClient-2-Worker-1/INFO] [MapBot/WS/]: [DEBUG] 完整消息: {"time":1770984352,"self_id":2133782376,"post_type":"meta_event","meta_event_type":"heartbeat","status":{"online":true,"good":true},"interval":30000}
+[132月2026 20:05:54.969] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:54.970] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:54.974] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:54.974] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:05:57.984] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:05:57.987] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:05:57.991] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:05:57.992] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:06:00.996] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:06:01.000] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:06:01.002] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:06:01.003] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:06:04.008] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:06:04.011] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:06:04.014] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:06:04.014] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:06:07.017] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:06:07.020] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:06:07.024] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:06:07.025] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:06:10.034] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:06:10.035] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:06:10.039] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:06:10.039] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:06:13.045] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:06:13.046] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 已连接到 Alpha Core
+[132月2026 20:06:13.050] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 注册确认收到
+[132月2026 20:06:13.052] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...
+[132月2026 20:06:16.053] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 正在连接到 Alpha Core: 127.0.0.1:25561
+[132月2026 20:06:16.054] [MapBot-Bridge/ERROR] [com.mapbot.network.BridgeClient/]: [Bridge] 连接/会话异常: Connection refused: connect
+[132月2026 20:06:16.054] [MapBot-Bridge/INFO] [com.mapbot.network.BridgeClient/]: [Bridge] 3秒后尝试重连...

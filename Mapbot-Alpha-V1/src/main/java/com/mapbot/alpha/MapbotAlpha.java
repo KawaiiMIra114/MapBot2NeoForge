@@ -47,6 +47,9 @@ public class MapbotAlpha {
         // 0.5. 初始化认证管理器
         com.mapbot.alpha.security.AuthManager.INSTANCE.init();
         LOGGER.info("[AUTH] 认证管理器已初始化");
+        if (!com.mapbot.alpha.security.AuthManager.INSTANCE.isBridgeAuthEnabled()) {
+            LOGGER.warn("[SECURITY] Bridge 鉴权未就绪：默认拒绝所有 Bridge 注册，请配置 auth.bridge.token 与 auth.bridge.allowedServerIds");
+        }
         
         // 1. 初始化数据管理器
         DataManager.INSTANCE.init();

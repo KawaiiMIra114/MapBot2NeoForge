@@ -41,3 +41,6 @@
 	#默认使用 25561
 	#Range: 1 ~ 65535
 	alphaPort = 25561
+	#Alpha Core Bridge 鉴权令牌
+	#需与 Alpha 端 auth.bridge.token 配置一致
+	alphaToken = ""

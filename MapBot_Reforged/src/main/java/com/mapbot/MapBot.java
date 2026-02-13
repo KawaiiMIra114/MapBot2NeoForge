@@ -157,9 +157,10 @@ public class MapBot {
             LOGGER.info("目标群号: {}", groupId);
         }
 
+        // 恢复 NapCat OneBot 连接，确保 QQ 指令与回包链路可用
+        BotClient.INSTANCE.connect();
+
         // 启动 Alpha Core Bridge 连接 (STEP 11/12 - 中枢模式)
-        // OneBot 连接由 Alpha Core 统一管理，此处仅启动 Bridge 客户端
-        // 旧: BotClient.INSTANCE.connect(); // 已禁用，改为中枢模式
         com.mapbot.network.BridgeClient.INSTANCE.connect();
     }
     

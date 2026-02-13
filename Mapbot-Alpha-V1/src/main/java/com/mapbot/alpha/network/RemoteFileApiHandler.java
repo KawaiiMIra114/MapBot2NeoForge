@@ -25,6 +25,8 @@ public class RemoteFileApiHandler {
             // /api/remote/{serverId}/files/read?path=xxx
             // /api/remote/{serverId}/files/write
             // /api/remote/{serverId}/files/delete?path=xxx
+            // /api/remote/{serverId}/files/mkdir
+            // /api/remote/{serverId}/files/upload
             
             // 解析 serverId
             String path = uri.substring("/api/remote/".length());
@@ -45,12 +47,16 @@ public class RemoteFileApiHandler {
                 handleWrite(ctx, req, serverId);
             } else if (action.startsWith("/files/delete") && method == HttpMethod.DELETE) {
                 handleDelete(ctx, serverId, getQueryParam(uri, "path"));
+            } else if (action.equals("/files/mkdir") && method == HttpMethod.POST) {
+                handleMkdir(ctx, req, serverId);
+            } else if (action.equals("/files/upload") && method == HttpMethod.POST) {
+                handleUpload(ctx, req, serverId);
             } else {
                 sendJson(ctx, HttpResponseStatus.NOT_FOUND, "{\"error\": \"Unknown remote file action\"}");
             }
         } catch (Exception e) {
             LOGGER.error("远程文件 API 处理失败", e);
-            sendJson(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, "{\"error\": \"" + e.getMessage() + "\"}");
+            sendJson(ctx, HttpResponseStatus.INTERNAL_SERVER_ERROR, "{\"error\": \"" + escapeJson(e.getMessage()) + "\"}");
         }
     }
     
@@ -60,7 +66,7 @@ public class RemoteFileApiHandler {
             // 现在 content 直接是 JSON 数组格式
             sendJson(ctx, HttpResponseStatus.OK, resp.content != null ? resp.content : "[]");
         } else {
-            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"" + resp.error + "\"}");
+            sendProxyError(ctx, resp.error);
         }
     }
     
@@ -69,7 +75,7 @@ public class RemoteFileApiHandler {
         if (resp.isSuccess()) {
             sendJson(ctx, HttpResponseStatus.OK, "{\"content\":\"" + escapeJson(resp.content) + "\"}");
         } else {
-            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"" + resp.error + "\"}");
+            sendProxyError(ctx, resp.error);
         }
     }
     
@@ -77,12 +83,16 @@ public class RemoteFileApiHandler {
         String body = req.content().toString(StandardCharsets.UTF_8);
         String path = extractJsonValue(body, "path");
         String content = extractJsonValue(body, "content");
+        if (path == null || path.isBlank()) {
+            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\":\"Path is required\"}");
+            return;
+        }
         
         BridgeFileProxy.FileResponse resp = BridgeFileProxy.writeFile(serverId, path, content);
         if (resp.isSuccess()) {
             sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
         } else {
-            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"" + resp.error + "\"}");
+            sendProxyError(ctx, resp.error);
         }
     }
     
@@ -91,8 +101,50 @@ public class RemoteFileApiHandler {
         if (resp.isSuccess()) {
             sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
         } else {
-            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\": \"" + resp.error + "\"}");
+            sendProxyError(ctx, resp.error);
         }
+    }
+
+    private static void handleMkdir(ChannelHandlerContext ctx, FullHttpRequest req, String serverId) {
+        String body = req.content().toString(StandardCharsets.UTF_8);
+        String path = extractJsonValue(body, "path");
+        if (path == null || path.isBlank()) {
+            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\":\"Path is required\"}");
+            return;
+        }
+
+        BridgeFileProxy.FileResponse resp = BridgeFileProxy.mkdir(serverId, path);
+        if (resp.isSuccess()) {
+            sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
+        } else {
+            sendProxyError(ctx, resp.error);
+        }
+    }
+
+    private static void handleUpload(ChannelHandlerContext ctx, FullHttpRequest req, String serverId) {
+        String body = req.content().toString(StandardCharsets.UTF_8);
+        String path = extractJsonValue(body, "path");
+        String content = extractJsonValue(body, "content");
+        String encoding = extractJsonValue(body, "encoding");
+        if (path == null || path.isBlank()) {
+            sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\":\"Path is required\"}");
+            return;
+        }
+
+        BridgeFileProxy.FileResponse resp = BridgeFileProxy.uploadFile(serverId, path, content, encoding);
+        if (resp.isSuccess()) {
+            sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
+        } else {
+            sendProxyError(ctx, resp.error);
+        }
+    }
+
+    private static void sendProxyError(ChannelHandlerContext ctx, String rawError) {
+        String error = rawError == null || rawError.isBlank() ? "Remote file action failed" : rawError;
+        if ("Unknown action".equalsIgnoreCase(error)) {
+            error = "Remote server bridge does not support this file action yet";
+        }
+        sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\":\"" + escapeJson(error) + "\"}");
     }
     
     private static String getQueryParam(String uri, String key) {

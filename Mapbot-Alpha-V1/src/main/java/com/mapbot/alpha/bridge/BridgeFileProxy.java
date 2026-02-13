@@ -3,6 +3,7 @@ package com.mapbot.alpha.bridge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -38,7 +39,9 @@ public class BridgeFileProxy {
      * 写入远程服务器文件
      */
     public static FileResponse writeFile(String serverId, String path, String content) {
-        return sendRequest(serverId, "file_write", path, content);
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("content", content != null ? content : "");
+        return sendRequest(serverId, "file_write", path, fields);
     }
     
     /**
@@ -47,8 +50,27 @@ public class BridgeFileProxy {
     public static FileResponse deleteFile(String serverId, String path) {
         return sendRequest(serverId, "file_delete", path, null);
     }
+
+    /**
+     * 创建远程目录
+     */
+    public static FileResponse mkdir(String serverId, String path) {
+        return sendRequest(serverId, "file_mkdir", path, null);
+    }
+
+    /**
+     * 上传远程文件
+     */
+    public static FileResponse uploadFile(String serverId, String path, String content, String encoding) {
+        Map<String, Object> fields = new HashMap<>();
+        fields.put("content", content != null ? content : "");
+        if (encoding != null && !encoding.isEmpty()) {
+            fields.put("encoding", encoding);
+        }
+        return sendRequest(serverId, "file_upload", path, fields);
+    }
     
-    private static FileResponse sendRequest(String serverId, String action, String path, String content) {
+    private static FileResponse sendRequest(String serverId, String action, String path, Map<String, Object> fields) {
         ServerRegistry.ServerInfo server = ServerRegistry.INSTANCE.getServer(serverId);
         if (server == null || !server.isOnline()) {
             return new FileResponse(null, "Server not connected: " + serverId);
@@ -60,12 +82,12 @@ public class BridgeFileProxy {
         
         try {
             // 构建请求消息
-            Map<String, Object> req = new java.util.HashMap<>();
+            Map<String, Object> req = new HashMap<>();
             req.put("type", action);
             req.put("requestId", requestId);
-            req.put("path", path);
-            if (content != null) {
-                req.put("content", content);
+            req.put("path", path != null ? path : "");
+            if (fields != null && !fields.isEmpty()) {
+                req.putAll(fields);
             }
             
             server.channel.writeAndFlush(com.mapbot.alpha.utils.JsonUtils.toJson(req) + "\n");

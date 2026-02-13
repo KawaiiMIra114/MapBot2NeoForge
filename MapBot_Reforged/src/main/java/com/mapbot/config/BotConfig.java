@@ -37,6 +37,7 @@ public class BotConfig {
     public final ModConfigSpec.ConfigValue<String> serverId;
     public final ModConfigSpec.ConfigValue<String> alphaHost;
     public final ModConfigSpec.IntValue alphaPort;
+    public final ModConfigSpec.ConfigValue<String> alphaToken;
 
     static {
         Pair<BotConfig, ModConfigSpec> pair = new ModConfigSpec.Builder()
@@ -100,6 +101,11 @@ public class BotConfig {
                 .comment("Alpha Core Bridge 端口")
                 .comment("默认使用 25561")
                 .defineInRange("alphaPort", 25561, 1, 65535);
+
+        alphaToken = builder
+                .comment("Alpha Core Bridge 鉴权令牌")
+                .comment("需与 Alpha 端 auth.bridge.token 配置一致")
+                .define("alphaToken", "");
         
         builder.pop();
 
@@ -195,5 +201,12 @@ public class BotConfig {
      */
     public static int getAlphaPort() {
         return INSTANCE.alphaPort.get();
+    }
+
+    /**
+     * 获取 Alpha Core Bridge 鉴权令牌
+     */
+    public static String getAlphaToken() {
+        return INSTANCE.alphaToken.get();
     }
 }

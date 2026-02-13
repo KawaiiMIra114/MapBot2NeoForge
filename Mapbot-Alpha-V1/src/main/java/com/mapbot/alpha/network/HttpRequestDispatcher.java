@@ -5,7 +5,6 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
-import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,35 +16,39 @@ import java.nio.charset.StandardCharsets;
  */
 public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpRequest> {
     private static final Logger LOGGER = LoggerFactory.getLogger("Mapbot/Network/Http");
+    private static final String REDIS_PASSWORD_MASK = "********";
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest req) throws Exception {
         String uri = req.uri();
+        QueryStringDecoder uriDecoder = new QueryStringDecoder(uri);
+        String path = uriDecoder.path();
         
-        // WebSocket 升级请求 (无需认证)
-        if (uri.equals("/ws") && isWebSocketUpgrade(req)) {
-            handleWebSocketUpgrade(ctx, req);
+        // WebSocket 升级请求（必须认证）
+        if (path.equals("/ws") && isWebSocketUpgrade(req)) {
+            String wsToken = extractRequestToken(req, uriDecoder);
+            if (!com.mapbot.alpha.security.AuthManager.INSTANCE.validateToken(wsToken)) {
+                sendUnauthorized(ctx);
+                return;
+            }
+            handleWebSocketUpgrade(ctx, req, wsToken, path);
             return;
         }
         
         // 登录 API (无需认证)
-        if (uri.equals("/api/login") && req.method() == HttpMethod.POST) {
+        if (path.equals("/api/login") && req.method() == HttpMethod.POST) {
             handleLogin(ctx, req);
             return;
         }
         
         // 静态资源 (无需认证)
-        if (!uri.startsWith("/api/")) {
+        if (!path.startsWith("/api/")) {
             handleStaticResource(ctx, req);
             return;
         }
         
         // === API 认证拦截 ===
-        String authHeader = req.headers().get("Authorization");
-        String token = null;
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7);
-        }
+        String token = extractBearerToken(req.headers().get(HttpHeaderNames.AUTHORIZATION));
         
         if (!com.mapbot.alpha.security.AuthManager.INSTANCE.validateToken(token)) {
             sendUnauthorized(ctx);
@@ -53,19 +56,23 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         }
         
         // API 请求 (已认证)
-        if (uri.startsWith("/api/")) {
+        if (path.startsWith("/api/")) {
             // Metrics 历史数据 API
-            if (uri.matches("/api/metrics/.+/history")) {
-                handleMetricsHistory(ctx, uri);
+            if (path.matches("/api/metrics/.+/history")) {
+                handleMetricsHistory(ctx, path);
                 return;
             }
             // 系统状态 API (BUG #6, #7)
-            if (uri.equals("/api/status")) {
+            if (path.equals("/api/status")) {
                 sendJson(ctx, getStatusJson());
                 return;
             }
             // 配置 API (#10 设置页面)
-            if (uri.equals("/api/config")) {
+            if (path.equals("/api/config")) {
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.ADMIN)) {
+                    sendForbidden(ctx, "Permission denied. ADMIN required.");
+                    return;
+                }
                 if (req.method() == HttpMethod.GET) {
                     sendJson(ctx, getConfigJson());
                 } else if (req.method() == HttpMethod.POST) {
@@ -74,42 +81,49 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
                 return;
             }
             // 服务器列表 API (STEP 10)
-            if (uri.equals("/api/servers")) {
+            if (path.equals("/api/servers")) {
                 sendJson(ctx, com.mapbot.alpha.bridge.ServerRegistry.INSTANCE.toJson());
                 return;
             }
             // 服务器命令 API (问题 #4)
-            if (uri.matches("/api/servers/.+/command") && req.method() == HttpMethod.POST) {
-                handleServerCommand(ctx, req, uri);
+            if (path.matches("/api/servers/.+/command") && req.method() == HttpMethod.POST) {
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.OPERATOR)) {
+                    sendForbidden(ctx, "Permission denied. OPERATOR required.");
+                    return;
+                }
+                handleServerCommand(ctx, req, path);
                 return;
             }
             // 服务器重启/停止 API
-            if (uri.matches("/api/servers/.+/restart") && req.method() == HttpMethod.POST) {
-                handleServerControl(ctx, uri, "restart");
+            if (path.matches("/api/servers/.+/restart") && req.method() == HttpMethod.POST) {
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.OPERATOR)) {
+                    sendForbidden(ctx, "Permission denied. OPERATOR required.");
+                    return;
+                }
+                handleServerControl(ctx, path, "restart");
                 return;
             }
-            if (uri.matches("/api/servers/.+/stop") && req.method() == HttpMethod.POST) {
-                handleServerControl(ctx, uri, "stop");
+            if (path.matches("/api/servers/.+/stop") && req.method() == HttpMethod.POST) {
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.OPERATOR)) {
+                    sendForbidden(ctx, "Permission denied. OPERATOR required.");
+                    return;
+                }
+                handleServerControl(ctx, path, "stop");
                 return;
             }
             // 跨服文件 API (STEP 9)
-            if (uri.startsWith("/api/remote/")) {
+            if (path.startsWith("/api/remote/")) {
                 RemoteFileApiHandler.handle(ctx, req);
                 return;
             }
-            // 批量文件操作
-            if (uri.equals("/api/files/batch-delete") && req.method() == HttpMethod.POST) {
-                handleBatchDelete(ctx, req);
-                return;
-            }
             // 用户管理 API (需要 ADMIN 权限)
-            if (uri.startsWith("/api/users")) {
-                handleUsersApi(ctx, req, uri, token);
+            if (path.startsWith("/api/users")) {
+                handleUsersApi(ctx, req, path, token);
                 return;
             }
             // MapBot 数据管理 API (需要 ADMIN 权限)
-            if (uri.startsWith("/api/mapbot")) {
-                handleMapbotDataApi(ctx, req, uri, token);
+            if (path.startsWith("/api/mapbot")) {
+                handleMapbotDataApi(ctx, req, path, token);
                 return;
             }
             // 本地文件 API (STEP 8)
@@ -123,9 +137,38 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
     private boolean isWebSocketUpgrade(FullHttpRequest req) {
         return req.headers().contains(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET, true);
     }
+
+    private String extractRequestToken(FullHttpRequest req, QueryStringDecoder decoder) {
+        String token = extractBearerToken(req.headers().get(HttpHeaderNames.AUTHORIZATION));
+        if (token != null) return token;
+
+        token = firstQueryValue(decoder, "token");
+        if (token != null) return token;
+
+        token = firstQueryValue(decoder, "access_token");
+        if (token != null) return token;
+
+        return null;
+    }
+
+    private String extractBearerToken(String authHeader) {
+        if (authHeader == null) return null;
+        if (!authHeader.startsWith("Bearer ")) return null;
+        String token = authHeader.substring(7).trim();
+        return token.isEmpty() ? null : token;
+    }
+
+    private String firstQueryValue(QueryStringDecoder decoder, String key) {
+        var values = decoder.parameters().get(key);
+        if (values == null || values.isEmpty()) return null;
+        String value = values.get(0);
+        if (value == null) return null;
+        value = value.trim();
+        return value.isEmpty() ? null : value;
+    }
     
-    private void handleWebSocketUpgrade(ChannelHandlerContext ctx, FullHttpRequest req) {
-        String wsUrl = "ws://" + req.headers().get(HttpHeaderNames.HOST) + "/ws";
+    private void handleWebSocketUpgrade(ChannelHandlerContext ctx, FullHttpRequest req, String token, String path) {
+        String wsUrl = "ws://" + req.headers().get(HttpHeaderNames.HOST) + path;
         WebSocketServerHandshakerFactory factory = new WebSocketServerHandshakerFactory(wsUrl, null, true);
         WebSocketServerHandshaker handshaker = factory.newHandshaker(req);
         
@@ -134,8 +177,9 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         } else {
             handshaker.handshake(ctx.channel(), req);
             // 添加 WebSocket 帧处理器
-            ctx.pipeline().addLast(new LogWebSocketHandler());
-            LOGGER.info("WebSocket 握手完成: {}", ctx.channel().remoteAddress());
+            ctx.pipeline().addLast(new LogWebSocketHandler(token));
+            String username = com.mapbot.alpha.security.AuthManager.INSTANCE.getUsername(token);
+            LOGGER.info("WebSocket 握手完成: {} user={}", ctx.channel().remoteAddress(), username);
         }
     }
     
@@ -145,7 +189,7 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             return;
         }
 
-        String uri = req.uri();
+        String uri = new QueryStringDecoder(req.uri()).path();
         String resourcePath;
         String contentType;
 
@@ -173,12 +217,24 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             return;
         }
 
+        boolean spaFallbackCandidate = uri.startsWith("/vue/")
+                && !uri.contains("/assets/")
+                && !uri.substring(uri.lastIndexOf('/') + 1).contains(".");
+
         try {
             // 尝试多种方式加载资源
             var is = getClass().getResourceAsStream(resourcePath);
             if (is == null) {
                 // 备选：使用 ClassLoader
                 is = getClass().getClassLoader().getResourceAsStream(resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath);
+            }
+            if (is == null && spaFallbackCandidate) {
+                resourcePath = "/web-vue/index.html";
+                contentType = "text/html; charset=UTF-8";
+                is = getClass().getResourceAsStream(resourcePath);
+                if (is == null) {
+                    is = getClass().getClassLoader().getResourceAsStream(resourcePath.substring(1));
+                }
             }
             if (is == null) {
                 LOGGER.warn("未找到资源: {} (尝试了 Class 和 ClassLoader)", resourcePath);
@@ -270,7 +326,7 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         data.put("redisEnabled", cfg.isRedisEnabled());
         data.put("redisHost", cfg.getRedisHost());
         data.put("redisPort", cfg.getRedisPort());
-        data.put("redisPassword", cfg.getRedisPassword());
+        data.put("redisPassword", maskSecret(cfg.getRedisPassword()));
         data.put("redisDatabase", cfg.getRedisDatabase());
         
         return com.mapbot.alpha.utils.JsonUtils.toJson(data);
@@ -280,35 +336,36 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         try {
             String json = req.content().toString(java.nio.charset.StandardCharsets.UTF_8);
             var data = com.mapbot.alpha.utils.JsonUtils.fromJson(json, java.util.Map.class);
+            if (data == null) {
+                data = new java.util.HashMap<>();
+            }
             
             var cfg = com.mapbot.alpha.config.AlphaConfig.INSTANCE;
             if (data.containsKey("wsUrl")) cfg.setWsUrl(String.valueOf(data.get("wsUrl")));
             if (data.containsKey("adminQQs")) cfg.setAdminQQs(String.valueOf(data.get("adminQQs")));
             
             if (data.containsKey("redisEnabled")) cfg.setRedisEnabled(Boolean.parseBoolean(String.valueOf(data.get("redisEnabled"))));
-            if (data.containsKey("redisHost")) {
-                String host = String.valueOf(data.get("redisHost"));
-                
-                int port = 6379;
-                if (data.containsKey("redisPort")) {
-                    try {
-                        port = (int) Double.parseDouble(String.valueOf(data.get("redisPort")));
-                    } catch (Exception e) {
-                        port = 6379;
+
+            boolean hasRedisUpdate =
+                    data.containsKey("redisHost")
+                    || data.containsKey("redisPort")
+                    || data.containsKey("redisPassword")
+                    || data.containsKey("redisDatabase");
+            if (hasRedisUpdate) {
+                String host = data.containsKey("redisHost")
+                        ? String.valueOf(data.get("redisHost"))
+                        : cfg.getRedisHost();
+                int port = parseIntOrDefault(data.get("redisPort"), cfg.getRedisPort());
+                int db = parseIntOrDefault(data.get("redisDatabase"), cfg.getRedisDatabase());
+                String pass = cfg.getRedisPassword();
+                if (data.containsKey("redisPassword")) {
+                    String submitted = toNullableString(data.get("redisPassword"));
+                    if (submitted == null) {
+                        pass = "";
+                    } else if (!REDIS_PASSWORD_MASK.equals(submitted)) {
+                        pass = submitted;
                     }
                 }
-                
-                String pass = data.containsKey("redisPassword") ? String.valueOf(data.get("redisPassword")) : "";
-                
-                int db = 0;
-                if (data.containsKey("redisDatabase")) {
-                    try {
-                        db = (int) Double.parseDouble(String.valueOf(data.get("redisDatabase")));
-                    } catch (Exception e) {
-                        db = 0;
-                    }
-                }
-                
                 cfg.setRedisConfig(host, port, pass, db);
             }
             
@@ -415,6 +472,37 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         HttpUtil.setContentLength(response, bytes.length);
         ctx.writeAndFlush(response);
     }
+
+    private void sendForbidden(ChannelHandlerContext ctx, String message) {
+        String escaped = escapeJson(message);
+        byte[] bytes = ("{\"error\":\"" + escaped + "\"}").getBytes(StandardCharsets.UTF_8);
+        FullHttpResponse response = new DefaultFullHttpResponse(
+                HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN,
+                io.netty.buffer.Unpooled.wrappedBuffer(bytes));
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json");
+        HttpUtil.setContentLength(response, bytes.length);
+        ctx.writeAndFlush(response);
+    }
+
+    private String maskSecret(String secret) {
+        return (secret == null || secret.isEmpty()) ? "" : REDIS_PASSWORD_MASK;
+    }
+
+    private int parseIntOrDefault(Object value, int defaultValue) {
+        if (value == null) return defaultValue;
+        try {
+            return (int) Double.parseDouble(String.valueOf(value));
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
+    private String toNullableString(Object value) {
+        if (value == null) return null;
+        String s = String.valueOf(value);
+        if ("null".equalsIgnoreCase(s)) return null;
+        return s;
+    }
     
     /**
      * 处理 Metrics 历史数据请求
@@ -473,42 +561,6 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             
             sendJson(ctx, "{\"success\":true}");
             LOGGER.info("[控制] {} 服务器: {}", action, serverId);
-        } catch (Exception e) {
-            sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
-        }
-    }
-    
-    /**
-     * 处理批量文件删除
-     */
-    private void handleBatchDelete(ChannelHandlerContext ctx, FullHttpRequest req) {
-        try {
-            String body = req.content().toString(StandardCharsets.UTF_8);
-            // 简单解析 paths 数组: {"paths":["file1","file2"]}
-            int start = body.indexOf("[");
-            int end = body.lastIndexOf("]");
-            if (start == -1 || end == -1) {
-                sendJson(ctx, "{\"success\":false,\"error\":\"Invalid request\"}");
-                return;
-            }
-            
-            String pathsStr = body.substring(start + 1, end);
-            String[] paths = pathsStr.split(",");
-            int deleted = 0;
-            
-            for (String p : paths) {
-                p = p.trim().replace("\"", "");
-                if (p.isEmpty()) continue;
-                
-                java.nio.file.Path file = java.nio.file.Paths.get(".").resolve(p);
-                if (java.nio.file.Files.exists(file)) {
-                    java.nio.file.Files.deleteIfExists(file);
-                    deleted++;
-                }
-            }
-            
-            sendJson(ctx, "{\"success\":true,\"deleted\":" + deleted + "}");
-            LOGGER.info("[文件] 批量删除 {} 个文件", deleted);
         } catch (Exception e) {
             sendJson(ctx, "{\"success\":false,\"error\":\"" + escapeJson(e.getMessage()) + "\"}");
         }
