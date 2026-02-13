@@ -2,14 +2,21 @@ package com.mapbot.logic;
 
 import com.mapbot.data.DataManager;
 import com.mapbot.data.loot.LootConfig;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
+import net.neoforged.fml.loading.FMLPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
+import java.io.IOException;
+import java.lang.reflect.Type;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -18,19 +25,33 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 签到状态管理器
  * 管理签到流程: 抽奖 -> 暂存 -> (在线领 | CDK兑换)
+ * 
+ * R1 重构: 添加 JSON 持久化，防止服务器重启丢失未领取奖励
  */
 public class SignManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/Sign");
     public static final SignManager INSTANCE = new SignManager();
+    
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     // 暂存的抽奖结果 (QQ -> LootItem)
-    // 注意: 这只是临时缓存，服务器重启会丢失 (符合逻辑，必须当天领)
     private final Map<Long, LootConfig.LootItem> pendingRewards = new ConcurrentHashMap<>();
     
     // CDK 映射 (Code -> RewardContext)
     private final Map<String, CdkContext> activeCdks = new ConcurrentHashMap<>();
     
+    // 持久化文件路径
+    private Path cachePath;
+    
     private record CdkContext(long qq, LootConfig.LootItem item, long expiry) {}
+
+    /**
+     * 初始化并加载缓存
+     */
+    public void init() {
+        cachePath = FMLPaths.CONFIGDIR.get().resolve("mapbot_sign_cache.json");
+        loadCache();
+    }
 
     /**
      * 执行签到抽奖
@@ -49,6 +70,7 @@ public class SignManager {
             pendingRewards.put(qq, item);
             // 标记 DataManager 今日已签 (防止重复刷)
             DataManager.INSTANCE.recordSignIn(qq);
+            saveCache();
         }
         return item;
     }
@@ -71,6 +93,7 @@ public class SignManager {
         // 从暂存区移除 (进入 CDK 流程)
         pendingRewards.remove(qq);
         
+        saveCache();
         return code;
     }
 
@@ -94,6 +117,8 @@ public class SignManager {
         if (!success) {
             // 发放失败（离线/背包满）：放回暂存区
             pendingRewards.put(qq, item);
+        } else {
+            saveCache();
         }
         return success;
     }
@@ -108,7 +133,10 @@ public class SignManager {
         CdkContext ctx = activeCdks.remove(code);
         
         if (ctx == null) return "无效的兑换码";
-        if (System.currentTimeMillis() > ctx.expiry) return "兑换码已过期";
+        if (System.currentTimeMillis() > ctx.expiry) {
+            saveCache();
+            return "兑换码已过期";
+        }
         
         // 校验使用者是否为绑定的账号 (防止被盗用)
         long boundQQ = DataManager.INSTANCE.getQQByUUID(uuidStr);
@@ -119,6 +147,7 @@ public class SignManager {
         }
 
         if (distributeItem(uuidStr, ctx.item)) {
+            saveCache();
             return "兑换成功！获得: " + ctx.item.name + " x" + ctx.item.count;
         } else {
             // 发放失败 (如背包满)，放回
@@ -175,5 +204,59 @@ public class SignManager {
             sb.append(chars.charAt(random.nextInt(chars.length())));
         }
         return sb.toString();
+    }
+
+    // ==================== 持久化 ====================
+
+    /**
+     * 持久化缓存数据结构
+     */
+    private record CacheData(
+        Map<Long, LootConfig.LootItem> pendingRewards,
+        Map<String, CdkContext> activeCdks
+    ) {}
+
+    /**
+     * 保存缓存到磁盘
+     */
+    private void saveCache() {
+        if (cachePath == null) return;
+        try {
+            CacheData data = new CacheData(pendingRewards, activeCdks);
+            Files.writeString(cachePath, GSON.toJson(data));
+            LOGGER.debug("签到缓存已保存 (pending={}, cdks={})", pendingRewards.size(), activeCdks.size());
+        } catch (IOException e) {
+            LOGGER.error("保存签到缓存失败: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 从磁盘加载缓存，并清理过期 CDK
+     */
+    private void loadCache() {
+        if (cachePath == null || !Files.exists(cachePath)) return;
+        try {
+            String json = Files.readString(cachePath);
+            Type type = new TypeToken<CacheData>() {}.getType();
+            CacheData data = GSON.fromJson(json, type);
+            
+            if (data != null) {
+                if (data.pendingRewards != null) {
+                    pendingRewards.putAll(data.pendingRewards);
+                }
+                if (data.activeCdks != null) {
+                    long now = System.currentTimeMillis();
+                    // 只加载未过期的 CDK
+                    data.activeCdks.forEach((code, ctx) -> {
+                        if (now <= ctx.expiry) {
+                            activeCdks.put(code, ctx);
+                        }
+                    });
+                }
+                LOGGER.info("签到缓存已加载 (pending={}, cdks={})", pendingRewards.size(), activeCdks.size());
+            }
+        } catch (Exception e) {
+            LOGGER.error("加载签到缓存失败: {}", e.getMessage());
+        }
     }
 }

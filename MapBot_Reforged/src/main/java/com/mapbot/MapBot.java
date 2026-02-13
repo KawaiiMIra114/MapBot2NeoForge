@@ -145,6 +145,10 @@ public class MapBot {
         com.mapbot.data.loot.LootConfig.INSTANCE.init();
         LOGGER.info("奖池配置已初始化");
 
+        // 初始化签到缓存 (R1: 持久化支持)
+        SignManager.INSTANCE.init();
+        LOGGER.info("签到缓存已初始化");
+
         long groupId = BotConfig.getTargetGroupId();
         if (groupId == 0L) {
             LOGGER.warn("目标群号未配置 (targetGroupId = 0)，消息同步功能已禁用。");
