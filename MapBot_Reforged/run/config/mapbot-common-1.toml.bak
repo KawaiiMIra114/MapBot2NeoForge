@@ -33,11 +33,15 @@
 [alpha]
 	#服务器 ID
 	#在 Alpha Core 中标识此服务器的唯一名称
-	serverId = "default"
+	serverId = "survival"
 	#Alpha Core 主机地址
 	#设置为空字符串将禁用 Bridge 功能
 	alphaHost = "127.0.0.1"
 	#Alpha Core Bridge 端口
-	#默认使用 25561
+	#除智能分流口 25560 外，请避开 25560-25566 保留端口段
+	#默认使用 25661
 	#Range: 1 ~ 65535
 	alphaPort = 25561
+	#Alpha Core Bridge 鉴权令牌
+	#需与 Alpha 端 auth.bridge.token 配置一致
+	alphaToken = "BotbmlIJnrwR-bejxo2G75NgxZquT2ex"
