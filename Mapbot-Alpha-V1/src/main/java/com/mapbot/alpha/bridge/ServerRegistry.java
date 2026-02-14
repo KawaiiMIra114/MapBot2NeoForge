@@ -19,7 +19,11 @@ public class ServerRegistry {
     private final Map<String, ServerInfo> servers = new ConcurrentHashMap<>();
     
     public void register(String serverId, Channel channel) {
-        servers.put(serverId, new ServerInfo(serverId, channel));
+        register(serverId, channel, null, 0);
+    }
+
+    public void register(String serverId, Channel channel, String transferHost, int transferPort) {
+        servers.put(serverId, new ServerInfo(serverId, channel, transferHost, transferPort));
         LOGGER.info("服务器已注册: {} (当前连接数: {})", serverId, servers.size());
     }
     
@@ -105,16 +109,20 @@ public class ServerRegistry {
         public final String serverId;
         public final Channel channel;
         public final long connectedAt;
+        public final String transferHost;
+        public final int transferPort;
         public long lastHeartbeat;
         public String players = "0";
         public String tps = "20.0";
         public String memory = "0MB";
         
-        public ServerInfo(String serverId, Channel channel) {
+        public ServerInfo(String serverId, Channel channel, String transferHost, int transferPort) {
             this.serverId = serverId;
             this.channel = channel;
             this.connectedAt = System.currentTimeMillis();
             this.lastHeartbeat = this.connectedAt;
+            this.transferHost = transferHost;
+            this.transferPort = transferPort;
         }
         
         public boolean isOnline() {

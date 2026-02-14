@@ -21,9 +21,11 @@ public class SignCommand implements ICommand {
         if (uuid == null) {
             return "[签到失败] 请先使用 #id 绑定账号";
         }
+
+        uuid = refreshBindingUuidIfNeeded(senderQQ, uuid);
         
         // 获取玩家名
-        String playerName = getPlayerName(senderQQ);
+        String playerName = getPlayerName(uuid);
         
         // 已签到检查
         if (signMgr.hasSignedInToday(senderQQ)) {
@@ -52,7 +54,7 @@ public class SignCommand implements ICommand {
             
             int days = signMgr.getSignInDays(senderQQ);
             
-            // 检查在线状态
+            // 检查在线状态（已执行过 UUID 自愈刷新）
             boolean isOnline = BridgeProxy.INSTANCE.isPlayerOnline(uuid);
             
             StringBuilder result = new StringBuilder();
@@ -76,13 +78,42 @@ public class SignCommand implements ICommand {
         }
     }
     
-    private String getPlayerName(long qq) {
-        // 尝试从已连接的服务器获取玩家名
-        String uuid = DataManager.INSTANCE.getBinding(qq);
-        if (uuid == null) return "未知玩家";
-        
-        // 向 Mod 请求玩家名 (简化：直接返回 UUID 前缀)
-        return uuid.substring(0, 8);
+    private String getPlayerName(String uuid) {
+        if (uuid == null || uuid.isEmpty()) return "未知玩家";
+        String resolved = BridgeProxy.INSTANCE.resolveNameByUuid(uuid);
+        if (resolved != null && !resolved.isBlank()) {
+            return resolved;
+        }
+        return uuid.length() > 8 ? uuid.substring(0, 8) : uuid;
+    }
+
+    private String refreshBindingUuidIfNeeded(long senderQQ, String currentUuid) {
+        if (currentUuid == null || currentUuid.isBlank()) return currentUuid;
+        String trimmed = currentUuid.trim();
+
+        // 当前绑定可用，直接返回
+        if (BridgeProxy.INSTANCE.isPlayerOnline(trimmed)) {
+            return trimmed;
+        }
+
+        // 通过旧 UUID 反查名称，再反向解析新 UUID，实现在线模式/离线模式切换后的自愈
+        String playerName = BridgeProxy.INSTANCE.resolveNameByUuid(trimmed);
+        if (playerName == null || playerName.isBlank()) {
+            return trimmed;
+        }
+
+        String resolvedUuid = BridgeProxy.INSTANCE.resolveUuidByName(playerName);
+        if (resolvedUuid == null || resolvedUuid.isBlank()) {
+            return trimmed;
+        }
+        resolvedUuid = resolvedUuid.trim();
+
+        if (trimmed.equalsIgnoreCase(resolvedUuid)) {
+            return trimmed;
+        }
+
+        boolean updated = DataManager.INSTANCE.updateBinding(senderQQ, resolvedUuid);
+        return updated ? resolvedUuid : trimmed;
     }
     
     @Override

@@ -31,8 +31,7 @@ public class CancelStopCommand implements ICommand {
         if (!trimmed.isEmpty()) {
             String[] tokens = trimmed.split("\\s+");
             if (tokens.length != 1) {
-                OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[错误] 参数格式: #cancelstop [serverId]");
-                return null;
+                return "[错误] 参数格式: #cancelstop [serverId]";
             }
             serverId = tokens[0];
         }
@@ -40,9 +39,15 @@ public class CancelStopCommand implements ICommand {
         LOGGER.warn("管理员 {} 执行取消关服命令, target={}",
             senderQQ, serverId == null ? "<auto>" : serverId);
 
-        BridgeProxy.cancelStop(serverId).thenAccept(result -> {
-            OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, result);
-        });
+        BridgeProxy.cancelStop(serverId).thenAccept(result -> sendContextReply(senderQQ, sourceGroupId, result));
         return null;
+    }
+
+    private static void sendContextReply(long senderQQ, long sourceGroupId, String message) {
+        if (sourceGroupId > 0) {
+            OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, message);
+        } else {
+            OneBotClient.INSTANCE.sendPrivateMessage(senderQQ, message);
+        }
     }
 }

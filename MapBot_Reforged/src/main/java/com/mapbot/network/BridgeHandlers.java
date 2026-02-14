@@ -8,6 +8,7 @@ package com.mapbot.network;
 
 import com.google.gson.JsonObject;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,6 +16,9 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.Locale;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -40,6 +44,30 @@ public final class BridgeHandlers {
         return ServerLifecycleHooks.getCurrentServer();
     }
 
+    private static UUID parseUuidLenient(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.isEmpty()) return null;
+
+        try {
+            return UUID.fromString(s);
+        } catch (Exception ignored) {
+        }
+
+        // 兼容无连字符 UUID
+        if (s.matches("[0-9a-fA-F]{32}")) {
+            String dashed = s.replaceFirst(
+                "([0-9a-fA-F]{8})([0-9a-fA-F]{4})([0-9a-fA-F]{4})([0-9a-fA-F]{4})([0-9a-fA-F]{12})",
+                "$1-$2-$3-$4-$5"
+            );
+            try {
+                return UUID.fromString(dashed);
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
     // ==================== 指令 ====================
 
     static void handleCommand(JsonObject json, BridgeClient client) {
@@ -48,12 +76,27 @@ public final class BridgeHandlers {
         LOGGER.info("[Bridge] 收到指令: {}", cmd);
         
         MinecraftServer server = getServer();
-        if (server != null) {
-            server.execute(() -> server.getCommands().performPrefixedCommand(
-                server.createCommandSourceStack(), cmd));
-            client.sendProxyResponse(requestId, "指令已执行");
-        } else {
+        if (server == null) {
             client.sendProxyResponse(requestId, "服务器未就绪");
+            return;
+        }
+
+        String normalized = normalizeCommand(cmd);
+        if (normalized.isEmpty()) {
+            client.sendProxyResponse(requestId, "指令为空");
+            return;
+        }
+
+        CompletableFuture<String> outcome = new CompletableFuture<>();
+        server.execute(() -> {
+            boolean ok = tryExecuteFromConsole(server, normalized);
+            outcome.complete(ok ? "指令已执行" : "指令执行失败或语法错误");
+        });
+
+        try {
+            client.sendProxyResponse(requestId, outcome.get(5, TimeUnit.SECONDS));
+        } catch (Exception e) {
+            client.sendProxyResponse(requestId, "指令执行超时");
         }
     }
 
@@ -83,7 +126,12 @@ public final class BridgeHandlers {
 
         server.execute(() -> {
             try {
-                var player = server.getPlayerList().getPlayer(UUID.fromString(uuidStr));
+                UUID uuid = parseUuidLenient(uuidStr);
+                if (uuid == null) {
+                    client.sendProxyResponse(requestId, "NO");
+                    return;
+                }
+                var player = server.getPlayerList().getPlayer(uuid);
                 client.sendProxyResponse(requestId, player != null ? "YES" : "NO");
             } catch (Exception e) {
                 client.sendProxyResponse(requestId, "NO");
@@ -114,37 +162,152 @@ public final class BridgeHandlers {
         MinecraftServer server = getServer();
         
         if (server == null) { client.sendProxyResponse(requestId, "[错误] 服务器未就绪"); return; }
-        
-        try {
-            java.util.Optional<com.mojang.authlib.GameProfile> profile = server.getProfileCache().get(playerName);
-            
-            if (profile.isEmpty()) {
-                if (!server.usesAuthentication()) {
-                    var uuid = net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(playerName);
-                    var whitelist = server.getPlayerList().getWhiteList();
-                    var gp = new com.mojang.authlib.GameProfile(uuid, playerName);
-                    if (!whitelist.isWhiteListed(gp)) {
-                        whitelist.add(new net.minecraft.server.players.UserWhiteListEntry(gp));
-                        whitelist.save();
-                    }
-                    client.sendProxyResponse(requestId, "SUCCESS:" + uuid + ":" + playerName);
+
+        String normalizedName = playerName == null ? "" : playerName.trim();
+        if (normalizedName.isEmpty()) {
+            client.sendProxyResponse(requestId, "FAIL:[绑定失败] 玩家名为空");
+            return;
+        }
+
+        CompletableFuture<String> outcome = new CompletableFuture<>();
+        server.execute(() -> {
+            try {
+                java.util.Optional<com.mojang.authlib.GameProfile> profile = server.getProfileCache().get(normalizedName);
+                if (profile.isPresent()) {
+                    addToWhitelist(server, profile.get());
+                    outcome.complete("SUCCESS:" + profile.get().getId() + ":" + profile.get().getName());
                     return;
                 }
-                client.sendProxyResponse(requestId, "FAIL:[绑定失败] 玩家不存在");
-                return;
+
+                if (!server.usesAuthentication()) {
+                    var uuid = net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(normalizedName);
+                    var gp = new com.mojang.authlib.GameProfile(uuid, normalizedName);
+                    addToWhitelist(server, gp);
+                    outcome.complete("SUCCESS:" + uuid + ":" + normalizedName);
+                    return;
+                }
+                outcome.complete("FAIL:[绑定失败] 玩家不存在");
+            } catch (Exception e) {
+                LOGGER.error("绑定失败", e);
+                outcome.complete("FAIL:[错误] 绑定失败: " + e.getMessage());
             }
-            
-            String uuid = profile.get().getId().toString();
-            var whitelist = server.getPlayerList().getWhiteList();
-            if (!whitelist.isWhiteListed(profile.get())) {
-                whitelist.add(new net.minecraft.server.players.UserWhiteListEntry(profile.get()));
-                whitelist.save();
-            }
-            client.sendProxyResponse(requestId, "SUCCESS:" + uuid + ":" + profile.get().getName());
-            
+        });
+
+        try {
+            client.sendProxyResponse(requestId, outcome.get(5, TimeUnit.SECONDS));
         } catch (Exception e) {
-            LOGGER.error("绑定失败", e);
-            client.sendProxyResponse(requestId, "[错误] 绑定失败: " + e.getMessage());
+            client.sendProxyResponse(requestId, "FAIL:[错误] 绑定请求超时");
+        }
+    }
+
+    static void handleWhitelistAdd(JsonObject json, BridgeClient client) {
+        String requestId = getString(json, "requestId");
+        String playerName = getString(json, "arg1");
+        MinecraftServer server = getServer();
+
+        if (server == null) {
+            client.sendProxyResponse(requestId, "FAIL:服务器未就绪");
+            return;
+        }
+        if (playerName == null || playerName.isBlank()) {
+            client.sendProxyResponse(requestId, "FAIL:玩家名为空");
+            return;
+        }
+        if (!hasRootCommand(server, "whitelist")) {
+            client.sendProxyResponse(requestId, "FAIL:当前服务端未启用 whitelist 命令");
+            return;
+        }
+
+        String normalizedName = playerName.trim();
+        if (!normalizedName.matches("^[A-Za-z0-9_]{3,16}$")) {
+            client.sendProxyResponse(requestId, "FAIL:玩家名格式非法");
+            return;
+        }
+
+        CompletableFuture<String> outcome = new CompletableFuture<>();
+        server.execute(() -> {
+            try {
+                boolean ok = tryExecuteFromConsole(server, "whitelist add " + normalizedName);
+                outcome.complete(ok ? "SUCCESS" : "FAIL:命令执行失败");
+            } catch (Exception e) {
+                LOGGER.error("白名单同步失败: name={}", normalizedName, e);
+                outcome.complete("FAIL:" + e.getMessage());
+            }
+        });
+
+        try {
+            client.sendProxyResponse(requestId, outcome.get(5, TimeUnit.SECONDS));
+        } catch (Exception e) {
+            client.sendProxyResponse(requestId, "FAIL:白名单同步超时");
+        }
+    }
+
+    static void handleWhitelistRemove(JsonObject json, BridgeClient client) {
+        String requestId = getString(json, "requestId");
+        String playerName = getString(json, "arg1");
+        MinecraftServer server = getServer();
+
+        if (server == null) {
+            client.sendProxyResponse(requestId, "FAIL:服务器未就绪");
+            return;
+        }
+        if (playerName == null || playerName.isBlank()) {
+            client.sendProxyResponse(requestId, "FAIL:玩家名为空");
+            return;
+        }
+        if (!hasRootCommand(server, "whitelist")) {
+            client.sendProxyResponse(requestId, "FAIL:当前服务端未启用 whitelist 命令");
+            return;
+        }
+
+        String normalizedName = playerName.trim();
+        if (!normalizedName.matches("^[A-Za-z0-9_]{3,16}$")) {
+            client.sendProxyResponse(requestId, "FAIL:玩家名格式非法");
+            return;
+        }
+
+        CompletableFuture<String> outcome = new CompletableFuture<>();
+        server.execute(() -> {
+            try {
+                boolean ok = tryExecuteFromConsole(server, "whitelist remove " + normalizedName);
+                outcome.complete(ok ? "SUCCESS" : "FAIL:命令执行失败");
+            } catch (Exception e) {
+                LOGGER.error("白名单移除失败: name={}", normalizedName, e);
+                outcome.complete("FAIL:" + e.getMessage());
+            }
+        });
+
+        try {
+            client.sendProxyResponse(requestId, outcome.get(5, TimeUnit.SECONDS));
+        } catch (Exception e) {
+            client.sendProxyResponse(requestId, "FAIL:白名单移除超时");
+        }
+    }
+
+    static void handleReloadConfig(JsonObject json, BridgeClient client) {
+        String requestId = getString(json, "requestId");
+        MinecraftServer server = getServer();
+        if (server == null) {
+            client.sendProxyResponse(requestId, "FAIL:服务器未就绪");
+            return;
+        }
+
+        CompletableFuture<String> outcome = new CompletableFuture<>();
+        server.execute(() -> {
+            try {
+                com.mapbot.data.DataManager.INSTANCE.init();
+                com.mapbot.data.loot.LootConfig.INSTANCE.init();
+                outcome.complete("SUCCESS");
+            } catch (Exception e) {
+                LOGGER.error("子服重载失败", e);
+                outcome.complete("FAIL:" + e.getMessage());
+            }
+        });
+
+        try {
+            client.sendProxyResponse(requestId, outcome.get(8, TimeUnit.SECONDS));
+        } catch (Exception e) {
+            client.sendProxyResponse(requestId, "FAIL:子服重载超时");
         }
     }
 
@@ -155,22 +318,230 @@ public final class BridgeHandlers {
 
         if (server == null || playerName.isEmpty()) { client.sendProxyResponse(requestId, ""); return; }
 
+        CompletableFuture<String> outcome = new CompletableFuture<>();
+        String normalizedName = playerName.trim();
+        server.execute(() -> {
+            try {
+                var profile = server.getProfileCache().get(normalizedName);
+                if (profile.isPresent()) {
+                    outcome.complete(profile.get().getId().toString());
+                    return;
+                }
+                if (!server.usesAuthentication()) {
+                    var uuid = net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(normalizedName);
+                    outcome.complete(uuid.toString());
+                    return;
+                }
+                outcome.complete("");
+            } catch (Exception ignored) {
+                outcome.complete("");
+            }
+        });
+
         try {
-            var profile = server.getProfileCache().get(playerName);
-            if (profile.isPresent()) {
-                client.sendProxyResponse(requestId, profile.get().getId().toString());
-                return;
-            }
-            if (!server.usesAuthentication()) {
-                var uuid = net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(playerName);
-                client.sendProxyResponse(requestId, uuid.toString());
-                return;
-            }
-            client.sendProxyResponse(requestId, "");
+            client.sendProxyResponse(requestId, outcome.get(3, TimeUnit.SECONDS));
         } catch (Exception e) {
             client.sendProxyResponse(requestId, "");
         }
     }
+
+    static void handleResolveName(JsonObject json, BridgeClient client) {
+        String requestId = getString(json, "requestId");
+        String uuidStr = getString(json, "arg1");
+        MinecraftServer server = getServer();
+
+        if (server == null || uuidStr.isEmpty()) {
+            client.sendProxyResponse(requestId, "");
+            return;
+        }
+
+        CompletableFuture<String> outcome = new CompletableFuture<>();
+        server.execute(() -> {
+            try {
+                UUID uuid = parseUuidLenient(uuidStr);
+                if (uuid == null) {
+                    outcome.complete("");
+                    return;
+                }
+
+                var online = server.getPlayerList().getPlayer(uuid);
+                if (online != null) {
+                    outcome.complete(online.getName().getString());
+                    return;
+                }
+
+                var profile = server.getProfileCache().get(uuid);
+                if (profile.isPresent()) {
+                    outcome.complete(profile.get().getName());
+                    return;
+                }
+                outcome.complete("");
+            } catch (Exception ignored) {
+                outcome.complete("");
+            }
+        });
+
+        try {
+            client.sendProxyResponse(requestId, outcome.get(3, TimeUnit.SECONDS));
+        } catch (Exception e) {
+            client.sendProxyResponse(requestId, "");
+        }
+    }
+
+    static void handleSwitchServer(JsonObject json, BridgeClient client) {
+        String requestId = getString(json, "requestId");
+        String playerName = getString(json, "arg1");
+        String transferEndpoint = getString(json, "arg2");
+        MinecraftServer server = getServer();
+
+        if (server == null) {
+            client.sendProxyResponse(requestId, "FAIL:服务器未就绪");
+            return;
+        }
+        if (playerName == null || playerName.isBlank()) {
+            client.sendProxyResponse(requestId, "FAIL:玩家名为空");
+            return;
+        }
+        if (transferEndpoint == null || transferEndpoint.isBlank()) {
+            client.sendProxyResponse(requestId, "FAIL:目标转移地址为空");
+            return;
+        }
+
+        HostPort hp = parseHostPort(transferEndpoint.trim());
+        if (hp == null) {
+            client.sendProxyResponse(requestId, "FAIL:目标转移地址格式错误，应为 host:port");
+            return;
+        }
+        if (!hasRootCommand(server, "transfer")) {
+            client.sendProxyResponse(requestId, "FAIL:当前服务端未安装原生 /transfer 命令");
+            return;
+        }
+
+        CompletableFuture<String> outcome = new CompletableFuture<>();
+        String normalizedPlayer = playerName.trim();
+        server.execute(() -> {
+            ServerPlayer player = server.getPlayerList().getPlayerByName(normalizedPlayer);
+            if (player == null) {
+                outcome.complete("FAIL:玩家不在线，无法执行跨服");
+                return;
+            }
+            boolean success = tryExecuteFromPlayer(server, player, "transfer " + hp.host + " " + hp.port);
+            if (success) {
+                outcome.complete("SUCCESS:已执行 /transfer " + hp.host + ":" + hp.port);
+            } else {
+                LOGGER.warn("跨服转移执行失败: player={}, endpoint={}:{}", normalizedPlayer, hp.host, hp.port);
+                outcome.complete("FAIL:执行 /transfer 失败，请检查目标地址或指令兼容性");
+            }
+        });
+
+        try {
+            // Alpha 侧默认 10s 超时，这里留足余量避免上游误判超时
+            String result = outcome.get(8, TimeUnit.SECONDS);
+            client.sendProxyResponse(requestId, result);
+        } catch (Exception e) {
+            LOGGER.warn("跨服转移等待执行结果超时: player={}, endpoint={}", normalizedPlayer, transferEndpoint);
+            client.sendProxyResponse(requestId, "FAIL:跨服执行超时，请稍后重试");
+        }
+    }
+
+    private static boolean tryExecuteFromPlayer(MinecraftServer server, ServerPlayer player, String rawCommand) {
+        try {
+            var source = player.createCommandSourceStack().withSuppressedOutput().withPermission(4);
+            var dispatcher = server.getCommands().getDispatcher();
+            var parse = dispatcher.parse(rawCommand, source);
+            if (parse.getReader().canRead() || !parse.getExceptions().isEmpty()) {
+                return false;
+            }
+            int result = dispatcher.execute(parse);
+            return result > 0;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean tryExecuteFromConsole(MinecraftServer server, String rawCommand) {
+        try {
+            var source = server.createCommandSourceStack().withSuppressedOutput().withPermission(4);
+            var dispatcher = server.getCommands().getDispatcher();
+            var parse = dispatcher.parse(rawCommand, source);
+            if (parse.getReader().canRead() || !parse.getExceptions().isEmpty()) {
+                return false;
+            }
+            dispatcher.execute(parse);
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static String normalizeCommand(String rawCommand) {
+        if (rawCommand == null) return "";
+        String cmd = rawCommand.trim();
+        if (cmd.startsWith("/")) {
+            cmd = cmd.substring(1).trim();
+        }
+        return cmd;
+    }
+
+    private static boolean hasRootCommand(MinecraftServer server, String literal) {
+        if (server == null || literal == null || literal.isBlank()) return false;
+        try {
+            return server.getCommands().getDispatcher().getRoot().getChild(literal) != null;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static HostPort parseHostPort(String endpoint) {
+        if (endpoint == null) return null;
+        String s = endpoint.trim();
+        if (s.isEmpty()) return null;
+
+        String host = s;
+        Integer port = null;
+
+        // 容错: 允许意外的 host:port:port，连续剥离尾部端口片段
+        while (true) {
+            int idx = host.lastIndexOf(':');
+            if (idx <= 0 || idx >= host.length() - 1) break;
+
+            String hostPart = host.substring(0, idx).trim();
+            String portStr = host.substring(idx + 1).trim();
+            try {
+                int parsed = Integer.parseInt(portStr);
+                if (hostPart.isEmpty() || parsed < 1 || parsed > 65535) {
+                    break;
+                }
+                host = hostPart;
+                port = parsed;
+            } catch (NumberFormatException e) {
+                break;
+            }
+        }
+
+        if (port == null) return null;
+        boolean bracketedIpv6 = host.startsWith("[") && host.endsWith("]") && host.length() > 2;
+        if (bracketedIpv6) {
+            host = host.substring(1, host.length() - 1);
+        }
+        if (host.isEmpty()) return null;
+        if (host.toLowerCase(Locale.ROOT).contains(" ")) return null;
+        if (!bracketedIpv6 && host.indexOf(':') >= 0) return null;
+        String normalizedHost = bracketedIpv6 ? ("[" + host + "]") : host;
+        return new HostPort(normalizedHost, port);
+    }
+
+    private static boolean addToWhitelist(MinecraftServer server, com.mojang.authlib.GameProfile profile) throws Exception {
+        var whitelist = server.getPlayerList().getWhiteList();
+        if (whitelist.isWhiteListed(profile)) {
+            return false;
+        }
+        whitelist.add(new net.minecraft.server.players.UserWhiteListEntry(profile));
+        whitelist.save();
+        return true;
+    }
+
+    private record HostPort(String host, int port) {}
 
     static void handleSignIn(JsonObject json, BridgeClient client) {
         String requestId = getString(json, "requestId");
@@ -306,10 +677,28 @@ public final class BridgeHandlers {
         MinecraftServer server = getServer();
         
         if (server == null) { client.sendProxyResponse(requestId, "[错误] 服务器未就绪"); return; }
-        
-        server.execute(() -> server.getCommands().performPrefixedCommand(
-            server.createCommandSourceStack(), command));
-        client.sendProxyResponse(requestId, "[成功] 指令已执行: " + command);
+
+        String normalized = normalizeCommand(command);
+        if (normalized.isEmpty()) {
+            client.sendProxyResponse(requestId, "[错误] 指令为空");
+            return;
+        }
+
+        CompletableFuture<String> outcome = new CompletableFuture<>();
+        server.execute(() -> {
+            boolean ok = tryExecuteFromConsole(server, normalized);
+            if (ok) {
+                outcome.complete("[成功] 指令已执行: " + normalized);
+            } else {
+                outcome.complete("[错误] 指令执行失败或语法错误: " + normalized);
+            }
+        });
+
+        try {
+            client.sendProxyResponse(requestId, outcome.get(5, TimeUnit.SECONDS));
+        } catch (Exception e) {
+            client.sendProxyResponse(requestId, "[错误] 指令执行超时: " + normalized);
+        }
     }
 
     static void handleBroadcast(JsonObject json, BridgeClient client) {

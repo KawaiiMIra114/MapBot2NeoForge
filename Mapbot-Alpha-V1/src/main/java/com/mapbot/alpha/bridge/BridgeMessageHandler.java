@@ -68,6 +68,9 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
                 case "playtime_add":
                     handlePlaytimeAdd(data);
                     break;
+                case "switch_server_request":
+                    handleSwitchServerRequest(ctx, data);
+                    break;
                 default:
                     LOGGER.warn("未知消息类型: {}", type);
             }
@@ -79,15 +82,35 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
     private void handleRegister(ChannelHandlerContext ctx, java.util.Map<String, Object> data) {
         serverId = String.valueOf(data.get("serverId"));
         String version = String.valueOf(data.getOrDefault("version", "1.0"));
-        
-        ServerRegistry.INSTANCE.register(serverId, ctx.channel());
+
+        String transferHost = readNonBlank(data.get("transferHost"));
+        int transferPort = parsePort(data.get("transferPort"), 0);
+        HostPort normalized = normalizeTransferEndpoint(transferHost, transferPort);
+        if (normalized != null) {
+            transferHost = normalized.host;
+            transferPort = normalized.port;
+        }
+        if (transferPort <= 0 || transferPort > 65535) {
+            transferPort = 0;
+        }
+
+        ServerRegistry.INSTANCE.register(serverId, ctx.channel(), transferHost, transferPort);
         
         LOGGER.info("服务器已注册: {} (版本: {})", serverId, version);
+        if (transferHost != null && transferPort > 0) {
+            LOGGER.info("服务器转移地址: {} -> {}:{}", serverId, transferHost, transferPort);
+        }
         ctx.writeAndFlush("{\"type\":\"register_ack\",\"success\":true}\n");
         
         String notifyMsg = "[服务器] " + serverId + " 已启动";
         long groupId = AlphaConfig.getPlayerGroupId();
         com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(groupId, notifyMsg);
+
+        // 新子服上线后补齐白名单快照（异步执行，避免阻塞注册回包）
+        final String registeredServerId = serverId;
+        java.util.concurrent.CompletableFuture.runAsync(() ->
+            BridgeProxy.INSTANCE.syncWhitelistSnapshotToServer(registeredServerId)
+        );
     }
     
     private void handleHeartbeat(ChannelHandlerContext ctx, java.util.Map<String, Object> data) {
@@ -164,6 +187,8 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         if (serverId != null) {
             ServerRegistry.INSTANCE.unregister(serverId);
             LOGGER.info("服务器断开连接: {}", serverId);
+            long groupId = AlphaConfig.getPlayerGroupId();
+            com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(groupId, "[服务器] " + serverId + " 断开连接");
         }
     }
 
@@ -255,14 +280,166 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
      * P0: 上报在线时长增量（由 Reforged 端触发）
      */
     private void handlePlaytimeAdd(java.util.Map<String, Object> data) {
-        try {
-            String uuid = String.valueOf(data.get("uuid"));
-            long deltaMs = Long.parseLong(String.valueOf(data.getOrDefault("deltaMs", "0")));
-            if (uuid != null && !uuid.isEmpty() && deltaMs > 0) {
-                com.mapbot.alpha.logic.PlaytimeStore.INSTANCE.addPlaytime(uuid, deltaMs);
+        String uuid = readNonBlank(data.get("uuid"));
+        long deltaMs = parseDurationMs(data.get("deltaMs"));
+        if (uuid == null || deltaMs <= 0) {
+            if (uuid != null && data.get("deltaMs") != null) {
+                LOGGER.warn("忽略非法在线时长上报: uuid={}, deltaMs={}", uuid, data.get("deltaMs"));
             }
-        } catch (Exception e) {
-            LOGGER.error("在线时长上报处理失败", e);
+            return;
+        }
+        com.mapbot.alpha.logic.PlaytimeStore.INSTANCE.addPlaytime(uuid, deltaMs);
+    }
+
+    /**
+     * 处理 Reforged 的 /server 跨服请求
+     */
+    private void handleSwitchServerRequest(ChannelHandlerContext ctx, java.util.Map<String, Object> data) {
+        String requestId = readNonBlank(data.get("requestId"));
+        String targetServer = readNonBlank(data.get("targetServer"));
+        String playerName = readNonBlank(data.get("playerName"));
+
+        if (requestId == null || requestId.isBlank()) return;
+        if (playerName == null) {
+            respondProxy(ctx, requestId, "FAIL:玩家名为空");
+            return;
+        }
+        if (targetServer == null) {
+            respondProxy(ctx, requestId, "FAIL:目标服务器名为空");
+            return;
+        }
+
+        String sourceServerId = (serverId == null ? "" : serverId);
+        if (sourceServerId.isBlank()) {
+            respondProxy(ctx, requestId, "FAIL:源服务器未注册");
+            return;
+        }
+
+        String resolved = BridgeProxy.resolveServerId(targetServer);
+        if (resolved == null) {
+            respondProxy(ctx, requestId, "FAIL:未找到服务器 " + targetServer + "，当前在线: " + BridgeProxy.listServerIds());
+            return;
+        }
+        if (resolved.equals(sourceServerId)) {
+            respondProxy(ctx, requestId, "FAIL:你已经在服务器 " + resolved);
+            return;
+        }
+
+        ServerRegistry.ServerInfo targetInfo = ServerRegistry.INSTANCE.getServer(resolved);
+        if (targetInfo == null || targetInfo.transferHost == null || targetInfo.transferHost.isBlank() || targetInfo.transferPort <= 0) {
+            respondProxy(ctx, requestId, "FAIL:目标服务器未上报可转移地址，请在目标服 mapbot-common.toml 配置 alpha.transferHost/alpha.transferPort");
+            return;
+        }
+
+        String transferEndpoint = targetInfo.transferHost + ":" + targetInfo.transferPort;
+        String result = BridgeProxy.INSTANCE.sendRequestToServer(
+            sourceServerId,
+            "switch_server",
+            playerName,
+            transferEndpoint
+        );
+
+        if (result == null || result.isBlank()) {
+            respondProxy(ctx, requestId, "FAIL:源服务器无响应");
+            return;
+        }
+        respondProxy(ctx, requestId, result);
+    }
+
+    private void respondProxy(ChannelHandlerContext ctx, String requestId, String result) {
+        String response = String.format(
+            "{\"type\":\"proxy_response\",\"requestId\":\"%s\",\"result\":\"%s\"}\n",
+            requestId, escapeJson(result)
+        );
+        ctx.writeAndFlush(response);
+    }
+
+    private String readNonBlank(Object value) {
+        if (value == null) return null;
+        String s = String.valueOf(value).trim();
+        if (s.isEmpty() || "null".equalsIgnoreCase(s)) return null;
+        return s;
+    }
+
+    private long parseDurationMs(Object value) {
+        if (value == null) return 0L;
+        if (value instanceof Number n) {
+            return Math.max(0L, Math.round(n.doubleValue()));
+        }
+        String s = String.valueOf(value).trim();
+        if (s.isEmpty() || "null".equalsIgnoreCase(s)) return 0L;
+        try {
+            return Math.max(0L, Long.parseLong(s));
+        } catch (NumberFormatException ignored) {
+        }
+        try {
+            return Math.max(0L, Math.round(Double.parseDouble(s)));
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
+    }
+
+    private int parsePort(Object value, int fallback) {
+        if (value == null) return fallback;
+        if (value instanceof Number n) {
+            return n.intValue();
+        }
+        String s = String.valueOf(value).trim();
+        if (s.isEmpty() || "null".equalsIgnoreCase(s)) return fallback;
+        try {
+            return Integer.parseInt(s);
+        } catch (NumberFormatException ignored) {
+        }
+        try {
+            return (int) Math.round(Double.parseDouble(s));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private HostPort normalizeTransferEndpoint(String host, int port) {
+        if (host == null || host.isBlank()) return null;
+
+        String h = host.trim();
+        int p = port;
+        // 容错: 允许误填 host:port 或 host:port:port，连续剥离尾部端口片段
+        while (true) {
+            int colon = h.lastIndexOf(':');
+            if (colon <= 0 || colon >= h.length() - 1) {
+                break;
+            }
+            String hostPart = h.substring(0, colon).trim();
+            String portPart = h.substring(colon + 1).trim();
+            try {
+                int parsed = Integer.parseInt(portPart);
+                if (hostPart.isEmpty() || parsed <= 0 || parsed > 65535) {
+                    break;
+                }
+                h = hostPart;
+                p = parsed;
+            } catch (NumberFormatException ignored) {
+                break;
+            }
+        }
+        boolean bracketedIpv6 = h.startsWith("[") && h.endsWith("]") && h.length() > 2;
+        if (bracketedIpv6) {
+            h = h.substring(1, h.length() - 1);
+        }
+        if (!bracketedIpv6 && h.indexOf(':') >= 0) return null;
+        if (h.isBlank() || p <= 0 || p > 65535) {
+            return null;
+        }
+        String normalizedHost = bracketedIpv6 ? ("[" + h + "]") : h;
+        return new HostPort(normalizedHost, p);
+    }
+
+    private static final class HostPort {
+        private final String host;
+        private final int port;
+
+        private HostPort(String host, int port) {
+            this.host = host;
+            this.port = port;
         }
     }
 }

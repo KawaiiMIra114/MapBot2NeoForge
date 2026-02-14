@@ -32,6 +32,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import com.mapbot.logic.SignManager;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * MapBot Reforged 主模组类
@@ -100,7 +101,45 @@ public class MapBot {
                     )
                 )
         );
-        LOGGER.info("已注册游戏命令: /mapbot cdk");
+
+        event.getDispatcher().register(
+            Commands.literal("server")
+                .then(Commands.argument("server_name", StringArgumentType.word())
+                    .executes(ctx -> {
+                        String targetServer = StringArgumentType.getString(ctx, "server_name");
+                        ServerPlayer player = ctx.getSource().getPlayerOrException();
+                        var source = ctx.getSource();
+                        var server = source.getServer();
+                        String playerName = player.getName().getString();
+                        String playerUuid = player.getUUID().toString();
+
+                        source.sendSuccess(() -> Component.literal("§e[MapBot] 正在请求切换到服务器: " + targetServer), false);
+                        CompletableFuture
+                            .supplyAsync(() -> BridgeClient.INSTANCE.requestServerSwitch(targetServer, playerName, playerUuid))
+                            .whenComplete((result, throwable) -> {
+                                if (server == null) {
+                                    return;
+                                }
+                                server.execute(() -> {
+                                    if (throwable != null) {
+                                        source.sendFailure(Component.literal("§c[MapBot] 切服请求失败: " + throwable.getMessage()));
+                                        return;
+                                    }
+                                    if (result != null && result.startsWith("SUCCESS")) {
+                                        String msg = result.contains(":") ? result.substring(result.indexOf(':') + 1) : "已发送切服请求";
+                                        source.sendSuccess(() -> Component.literal("§a[MapBot] " + msg), false);
+                                        return;
+                                    }
+                                    String error = (result == null || result.isBlank()) ? "未知错误" : result.replace("FAIL:", "");
+                                    source.sendFailure(Component.literal("§c[MapBot] " + error));
+                                });
+                            });
+                        return 1;
+                    })
+                )
+        );
+
+        LOGGER.info("已注册游戏命令: /mapbot cdk, /server <server_name>");
     }
     
     /**
@@ -157,8 +196,12 @@ public class MapBot {
             LOGGER.info("目标群号: {}", groupId);
         }
 
-        // 恢复 NapCat OneBot 连接，确保 QQ 指令与回包链路可用
-        BotClient.INSTANCE.connect();
+        // Alpha 中枢模式下，QQ 指令统一由 Alpha 处理，Reforged 不再直连 OneBot
+        if (isStandaloneOneBotMode()) {
+            BotClient.INSTANCE.connect();
+        } else {
+            LOGGER.info("检测到 Alpha 中枢模式，已禁用 Reforged 直连 OneBot（避免重复处理 QQ 指令）");
+        }
 
         // 启动 Alpha Core Bridge 连接 (STEP 11/12 - 中枢模式)
         com.mapbot.network.BridgeClient.INSTANCE.connect();
@@ -178,7 +221,7 @@ public class MapBot {
             try {
                 Thread.sleep(5000);
                 long playerGroupId = BotConfig.getPlayerGroupId();
-                if (playerGroupId > 0 && BotClient.INSTANCE.isConnected()) {
+                if (isStandaloneOneBotMode() && playerGroupId > 0 && BotClient.INSTANCE.isConnected()) {
                     BotClient.INSTANCE.sendGroupMessage(playerGroupId, "早安");
                     LOGGER.info("已发送早安消息");
                 }
@@ -201,7 +244,7 @@ public class MapBot {
         
         // 发送晚安消息
         long playerGroupId = BotConfig.getPlayerGroupId();
-        if (playerGroupId > 0 && BotClient.INSTANCE.isConnected()) {
+        if (isStandaloneOneBotMode() && playerGroupId > 0 && BotClient.INSTANCE.isConnected()) {
             BotClient.INSTANCE.sendGroupMessage(playerGroupId, "晚安");
             LOGGER.info("已发送晚安消息");
             
@@ -217,5 +260,10 @@ public class MapBot {
         com.mapbot.network.BridgeClient.INSTANCE.disconnect();
         
         BotClient.INSTANCE.disconnect();
+    }
+
+    private boolean isStandaloneOneBotMode() {
+        String alphaHost = BotConfig.getAlphaHost();
+        return alphaHost == null || alphaHost.trim().isEmpty();
     }
 }

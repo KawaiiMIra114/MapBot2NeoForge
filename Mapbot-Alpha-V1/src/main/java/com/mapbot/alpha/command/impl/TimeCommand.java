@@ -55,7 +55,7 @@ public class TimeCommand implements ICommand {
 
     @Override
     public String getHelp() {
-        return "查询在线时长: #time (管理员可 #time @用户)";
+        return "查询在线时长: #time";
     }
 }
 

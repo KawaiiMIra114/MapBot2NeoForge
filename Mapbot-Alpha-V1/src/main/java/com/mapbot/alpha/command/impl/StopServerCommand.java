@@ -41,8 +41,7 @@ public class StopServerCommand implements ICommand {
                 boolean firstIsInt = isInteger(tokens[0]);
                 boolean secondIsInt = isInteger(tokens[1]);
                 if (firstIsInt == secondIsInt) {
-                    OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[错误] 参数格式: #stopserver [秒数] [serverId]");
-                    return null;
+                    return "[错误] 参数格式: #stopserver [秒数] [serverId]";
                 }
                 if (firstIsInt) {
                     countdown = Integer.parseInt(tokens[0]);
@@ -52,14 +51,12 @@ public class StopServerCommand implements ICommand {
                     countdown = Integer.parseInt(tokens[1]);
                 }
             } else {
-                OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[错误] 参数过多，格式: #stopserver [秒数] [serverId]");
-                return null;
+                return "[错误] 参数过多，格式: #stopserver [秒数] [serverId]";
             }
         }
 
         if (countdown < 0 || countdown > 3600) {
-            OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[错误] 倒计时范围: 0-3600 秒");
-            return null;
+            return "[错误] 倒计时范围: 0-3600 秒";
         }
 
         LOGGER.warn("管理员 {} 执行关服命令, 倒计时: {}s, target={}",
@@ -68,12 +65,11 @@ public class StopServerCommand implements ICommand {
         final int seconds = countdown;
         BridgeProxy.stopServer(seconds, serverId).thenAccept(result -> {
             if (result.startsWith("[错误]")) {
-                OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, result);
+                sendContextReply(senderQQ, sourceGroupId, result);
             } else if (seconds == 0) {
-                OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[系统] 正在立即关闭服务器...");
+                sendContextReply(senderQQ, sourceGroupId, "[系统] 正在立即关闭服务器...");
             } else {
-                OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, 
-                    String.format("[系统] 服务器将在 %d 秒后关闭", seconds));
+                sendContextReply(senderQQ, sourceGroupId, String.format("[系统] 服务器将在 %d 秒后关闭", seconds));
             }
         });
         return null;
@@ -86,6 +82,14 @@ public class StopServerCommand implements ICommand {
             return true;
         } catch (NumberFormatException e) {
             return false;
+        }
+    }
+
+    private static void sendContextReply(long senderQQ, long sourceGroupId, String message) {
+        if (sourceGroupId > 0) {
+            OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, message);
+        } else {
+            OneBotClient.INSTANCE.sendPrivateMessage(senderQQ, message);
         }
     }
 }

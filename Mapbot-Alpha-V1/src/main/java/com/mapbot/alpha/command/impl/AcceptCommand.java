@@ -21,6 +21,8 @@ public class AcceptCommand implements ICommand {
         if (uuid == null) {
             return "[领取失败] 请先使用 #id 绑定账号";
         }
+
+        uuid = refreshBindingUuidIfNeeded(senderQQ, uuid);
         
         // 检查是否有待领取奖励
         String itemJson = signMgr.getPendingReward(senderQQ);
@@ -48,6 +50,31 @@ public class AcceptCommand implements ICommand {
         } else {
             return "[领取失败] " + result.replace("FAIL:", "");
         }
+    }
+
+    private String refreshBindingUuidIfNeeded(long senderQQ, String currentUuid) {
+        if (currentUuid == null || currentUuid.isBlank()) return currentUuid;
+        String trimmed = currentUuid.trim();
+        if (BridgeProxy.INSTANCE.isPlayerOnline(trimmed)) {
+            return trimmed;
+        }
+
+        String playerName = BridgeProxy.INSTANCE.resolveNameByUuid(trimmed);
+        if (playerName == null || playerName.isBlank()) {
+            return trimmed;
+        }
+
+        String resolvedUuid = BridgeProxy.INSTANCE.resolveUuidByName(playerName);
+        if (resolvedUuid == null || resolvedUuid.isBlank()) {
+            return trimmed;
+        }
+        resolvedUuid = resolvedUuid.trim();
+        if (trimmed.equalsIgnoreCase(resolvedUuid)) {
+            return trimmed;
+        }
+
+        boolean updated = DataManager.INSTANCE.updateBinding(senderQQ, resolvedUuid);
+        return updated ? resolvedUuid : trimmed;
     }
     
     @Override

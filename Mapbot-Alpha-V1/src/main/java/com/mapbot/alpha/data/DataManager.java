@@ -26,6 +26,8 @@ public class DataManager {
     
     // QQ -> UUID 绑定
     private final ConcurrentHashMap<Long, String> bindings = new ConcurrentHashMap<>();
+    // UUID -> 玩家名
+    private final ConcurrentHashMap<String, String> playerNames = new ConcurrentHashMap<>();
     // UUID -> 禁言到期时间 (-1=永久, 0=未禁言)
     private final ConcurrentHashMap<String, Long> mutes = new ConcurrentHashMap<>();
     // QQ -> 权限等级 (0=普通, 1=VIP, 2=OP)
@@ -35,6 +37,7 @@ public class DataManager {
     
     private static final String REDIS_SYNC_CHANNEL = "mapbot:sync";
     private static final String REDIS_KEY_BINDINGS = "mapbot:bindings";
+    private static final String REDIS_KEY_PLAYER_NAMES = "mapbot:player_names";
     private static final String REDIS_KEY_MUTES = "mapbot:mutes";
     private static final String REDIS_KEY_PERMS = "mapbot:permissions";
     private static final String REDIS_KEY_ADMINS = "mapbot:admins";
@@ -47,6 +50,7 @@ public class DataManager {
             
             // 1. 先从本地加载 (作为备用或初始状态)
             loadBindings();
+            loadPlayerNames();
             loadMutes();
             loadPermissions();
             loadAdmins();
@@ -59,8 +63,8 @@ public class DataManager {
                 LOGGER.info("Redis 数据同步已开启");
             }
 
-            LOGGER.info("数据管理器初始化完成: {} 绑定, {} 禁言, {} 管理员", 
-                bindings.size(), mutes.size(), admins.size());
+            LOGGER.info("数据管理器初始化完成: {} 绑定, {} 玩家名, {} 禁言, {} 管理员", 
+                bindings.size(), playerNames.size(), mutes.size(), admins.size());
         } catch (Exception e) {
             LOGGER.error("数据管理器初始化失败", e);
         }
@@ -71,6 +75,7 @@ public class DataManager {
         redis.execute(jedis -> {
             // 先构造快照，再整体替换，避免“只 put 不 clear”导致脏数据残留
             Map<Long, String> newBindings = new HashMap<>();
+            Map<String, String> newPlayerNames = new HashMap<>();
             Map<String, Long> newMutes = new HashMap<>();
             Map<Long, Integer> newPermissions = new HashMap<>();
             Set<Long> newAdmins = new HashSet<>();
@@ -81,6 +86,13 @@ public class DataManager {
                     newBindings.put(Long.parseLong(k), v);
                 } catch (Exception e) {
                     LOGGER.warn("Redis 绑定数据解析失败: {}={}", k, v);
+                }
+            });
+
+            Map<String, String> pn = jedis.hgetAll(REDIS_KEY_PLAYER_NAMES);
+            pn.forEach((uuid, name) -> {
+                if (uuid != null && !uuid.isBlank() && name != null && !name.isBlank()) {
+                    newPlayerNames.put(uuid.trim(), name.trim());
                 }
             });
 
@@ -113,6 +125,8 @@ public class DataManager {
 
             bindings.clear();
             bindings.putAll(newBindings);
+            playerNames.clear();
+            playerNames.putAll(newPlayerNames);
             mutes.clear();
             mutes.putAll(newMutes);
             permissions.clear();
@@ -120,8 +134,8 @@ public class DataManager {
             admins.clear();
             admins.addAll(newAdmins);
 
-            LOGGER.info("Redis 全量同步完成: bindings={}, mutes={}, perms={}, admins={}",
-                bindings.size(), mutes.size(), permissions.size(), admins.size());
+            LOGGER.info("Redis 全量同步完成: bindings={}, names={}, mutes={}, perms={}, admins={}",
+                bindings.size(), playerNames.size(), mutes.size(), permissions.size(), admins.size());
             
             return null;
         });
@@ -144,29 +158,98 @@ public class DataManager {
     // ==================== 绑定 ====================
     
     public boolean bind(long qq, String uuid) {
+        return bind(qq, uuid, null);
+    }
+
+    public synchronized boolean bind(long qq, String uuid, String playerName) {
+        if (uuid == null || uuid.isBlank()) return false;
+        final String normalizedUuid = uuid.trim();
+        final String normalizedName = normalizePlayerName(playerName);
         // 检查 QQ 是否已绑定
         if (bindings.containsKey(qq)) return false;
         // 检查 UUID 是否已被其他 QQ 绑定
-        if (isUUIDBound(uuid)) return false;
+        if (isUUIDBound(normalizedUuid)) return false;
         
-        bindings.put(qq, uuid);
+        bindings.put(qq, normalizedUuid);
+        if (normalizedName != null) {
+            playerNames.put(normalizedUuid, normalizedName);
+        }
         saveBindings();
+        savePlayerNames();
         
         var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
         if (redis.isEnabled()) {
-            redis.execute(jedis -> jedis.hset(REDIS_KEY_BINDINGS, String.valueOf(qq), uuid));
+            final String nameToWrite = normalizedName;
+            redis.execute(jedis -> {
+                jedis.hset(REDIS_KEY_BINDINGS, String.valueOf(qq), normalizedUuid);
+                if (nameToWrite != null) {
+                    jedis.hset(REDIS_KEY_PLAYER_NAMES, normalizedUuid, nameToWrite);
+                }
+                return null;
+            });
+            broadcastSync();
+        }
+        return true;
+    }
+
+    /**
+     * 更新指定 QQ 的绑定 UUID（用于 UUID 自愈刷新）
+     */
+    public synchronized boolean updateBinding(long qq, String newUuid) {
+        if (newUuid == null || newUuid.isBlank()) return false;
+        final String normalizedUuid = newUuid.trim();
+
+        String oldUuid = bindings.get(qq);
+        if (oldUuid == null || oldUuid.isBlank()) return false;
+        if (oldUuid.equalsIgnoreCase(normalizedUuid)) return true;
+
+        Long occupier = getQQByUUID(normalizedUuid);
+        if (occupier != null && occupier != qq) {
+            return false;
+        }
+
+        bindings.put(qq, normalizedUuid);
+        if (!isUUIDStillBoundByOthers(oldUuid, qq)) {
+            playerNames.remove(oldUuid);
+        }
+        saveBindings();
+        savePlayerNames();
+
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            final String oldUuidFinal = oldUuid;
+            redis.execute(jedis -> {
+                jedis.hset(REDIS_KEY_BINDINGS, String.valueOf(qq), normalizedUuid);
+                if (oldUuidFinal != null && !oldUuidFinal.isBlank() && !isUUIDBound(oldUuidFinal)) {
+                    jedis.hdel(REDIS_KEY_PLAYER_NAMES, oldUuidFinal);
+                }
+                return null;
+            });
             broadcastSync();
         }
         return true;
     }
     
-    public boolean unbind(long qq) {
-        if (bindings.remove(qq) != null) {
+    public synchronized boolean unbind(long qq) {
+        String removedUuid = bindings.remove(qq);
+        if (removedUuid != null) {
+            boolean keepName = isUUIDBound(removedUuid);
+            if (!keepName) {
+                playerNames.remove(removedUuid);
+            }
             saveBindings();
+            savePlayerNames();
             
             var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
             if (redis.isEnabled()) {
-                redis.execute(jedis -> jedis.hdel(REDIS_KEY_BINDINGS, String.valueOf(qq)));
+                final boolean removeNameFromRedis = !keepName;
+                redis.execute(jedis -> {
+                    jedis.hdel(REDIS_KEY_BINDINGS, String.valueOf(qq));
+                    if (removeNameFromRedis) {
+                        jedis.hdel(REDIS_KEY_PLAYER_NAMES, removedUuid);
+                    }
+                    return null;
+                });
                 broadcastSync();
             }
             return true;
@@ -191,6 +274,29 @@ public class DataManager {
     
     public boolean isUUIDBound(String uuid) {
         return bindings.containsValue(uuid);
+    }
+
+    public String getPlayerName(String uuid) {
+        if (uuid == null || uuid.isBlank()) return null;
+        return playerNames.get(uuid.trim());
+    }
+
+    public void updatePlayerName(String uuid, String playerName) {
+        if (uuid == null || uuid.isBlank()) return;
+        String normalizedName = normalizePlayerName(playerName);
+        if (normalizedName == null) return;
+        String normalizedUuid = uuid.trim();
+        String old = playerNames.get(normalizedUuid);
+        if (normalizedName.equals(old)) {
+            return;
+        }
+        playerNames.put(normalizedUuid, normalizedName);
+        savePlayerNames();
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            redis.execute(jedis -> jedis.hset(REDIS_KEY_PLAYER_NAMES, normalizedUuid, normalizedName));
+            broadcastSync();
+        }
     }
     
     // ==================== 禁言 ====================
@@ -290,6 +396,13 @@ public class DataManager {
     }
 
     /**
+     * 获取全部玩家名快照 (UUID -> 玩家名)
+     */
+    public Map<String, String> getAllPlayerNames() {
+        return Map.copyOf(playerNames);
+    }
+
+    /**
      * 获取全部权限数据快照 (QQ -> Level)
      */
     public Map<Long, Integer> getAllPermissions() {
@@ -342,6 +455,31 @@ public class DataManager {
                     LOGGER.warn("忽略无效禁言数据: {}", line);
                 }
             }
+        }
+    }
+
+    private void loadPlayerNames() throws IOException {
+        Path file = dataDir.resolve("player_names.txt");
+        if (!Files.exists(file)) return;
+        for (String line : Files.readAllLines(file)) {
+            String[] parts = line.split("=", 2);
+            if (parts.length == 2) {
+                String uuid = parts[0].trim();
+                String name = normalizePlayerName(parts[1]);
+                if (!uuid.isEmpty() && name != null) {
+                    playerNames.put(uuid, name);
+                }
+            }
+        }
+    }
+
+    private void savePlayerNames() {
+        try {
+            List<String> lines = new ArrayList<>();
+            playerNames.forEach((uuid, name) -> lines.add(uuid + "=" + name));
+            Files.write(dataDir.resolve("player_names.txt"), lines);
+        } catch (Exception e) {
+            LOGGER.error("保存玩家名数据失败", e);
         }
     }
     
@@ -402,5 +540,22 @@ public class DataManager {
         } catch (Exception e) {
             LOGGER.error("保存管理员数据失败", e);
         }
+    }
+
+    private String normalizePlayerName(String name) {
+        if (name == null) return null;
+        String normalized = name.trim();
+        if (normalized.isEmpty()) return null;
+        if (!normalized.matches("^[A-Za-z0-9_]{3,16}$")) return null;
+        return normalized;
+    }
+
+    private boolean isUUIDStillBoundByOthers(String uuid, long currentQq) {
+        if (uuid == null || uuid.isBlank()) return false;
+        for (Map.Entry<Long, String> e : bindings.entrySet()) {
+            if (e.getKey() == currentQq) continue;
+            if (uuid.equalsIgnoreCase(e.getValue())) return true;
+        }
+        return false;
     }
 }

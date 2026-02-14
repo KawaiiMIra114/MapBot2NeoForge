@@ -89,17 +89,42 @@ public class InboundHandler {
                 return;
             }
             
-            switch (postType) {
-                case "message" -> handleGroupMessage(json);
-                case "notice" -> handleNoticeEvent(json);
-                case "meta_event" -> handleMetaEvent(json);
-                default -> LOGGER.debug("忽略事件: {}", postType);
-            }
-        } catch (Exception e) {
-            LOGGER.error("协议解析异常", e);
+        switch (postType) {
+            case "message" -> handleChatMessage(json);
+            case "notice" -> handleNoticeEvent(json);
+            case "meta_event" -> handleMetaEvent(json);
+            default -> LOGGER.debug("忽略事件: {}", postType);
+        }
+    } catch (Exception e) {
+        LOGGER.error("协议解析异常", e);
+    }
+}
+
+    private static void handleChatMessage(JsonObject json) {
+        String messageType = getStringOrNull(json, "message_type");
+        if (messageType == null) {
+            return;
+        }
+
+        switch (messageType) {
+            case "group" -> handleGroupMessage(json);
+            case "private" -> handlePrivateMessage(json);
+            default -> LOGGER.debug("忽略消息类型: {}", messageType);
         }
     }
-    
+
+    private static void handlePrivateMessage(JsonObject json) {
+        if (!"private".equals(getStringOrNull(json, "message_type"))) return;
+
+        String rawMessage = getStringOrNull(json, "raw_message");
+        if (rawMessage == null || rawMessage.isEmpty()) return;
+
+        long senderQQ = getLongOrZero(json, "user_id");
+        if (rawMessage.startsWith("#")) {
+            handleCommandDispatch(rawMessage.substring(1).trim(), senderQQ, 0, true);
+        }
+    }
+
     private static void handleGroupMessage(JsonObject json) {
         if (!"group".equals(getStringOrNull(json, "message_type"))) return;
         
@@ -122,7 +147,7 @@ public class InboundHandler {
         
         // 命令处理
         if (rawMessage.startsWith("#")) {
-            handleCommandDispatch(rawMessage.substring(1).trim(), senderQQ, sourceGroupId);
+            handleCommandDispatch(rawMessage.substring(1).trim(), senderQQ, sourceGroupId, false);
         } 
         // 普通消息转发到 MC
         else if (isFromPlayerGroup) {
@@ -130,7 +155,7 @@ public class InboundHandler {
         }
     }
     
-    private static void handleCommandDispatch(String fullCmd, long senderQQ, long sourceGroupId) {
+    private static void handleCommandDispatch(String fullCmd, long senderQQ, long sourceGroupId, boolean privateChat) {
         String[] parts = fullCmd.split("\\s+", 2);
         String cmdName = parts[0].toLowerCase();
         String args = parts.length > 1 ? parts[1] : "";
@@ -139,15 +164,23 @@ public class InboundHandler {
         if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
             long now = System.currentTimeMillis();
             if (COMMAND_COOLDOWNS.containsKey(senderQQ) && now - COMMAND_COOLDOWNS.get(senderQQ) < COOLDOWN_MS) {
-                OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[提示] 慢点，请等待几秒再试");
+                sendCommandFeedback(senderQQ, sourceGroupId, privateChat, "[提示] 慢点，请等待几秒再试");
                 return;
             }
             COMMAND_COOLDOWNS.put(senderQQ, now);
         }
         
         // 分发
-        if (!CommandRegistry.dispatch(cmdName, args, senderQQ, sourceGroupId)) {
-            OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, "[提示] 未知命令，输入 #help 查看帮助");
+        if (!CommandRegistry.dispatch(cmdName, args, senderQQ, sourceGroupId, privateChat)) {
+            sendCommandFeedback(senderQQ, sourceGroupId, privateChat, "[提示] 未知命令，输入 #help 查看帮助");
+        }
+    }
+
+    private static void sendCommandFeedback(long senderQQ, long sourceGroupId, boolean privateChat, String message) {
+        if (privateChat) {
+            OneBotClient.INSTANCE.sendPrivateMessage(senderQQ, message);
+        } else {
+            OneBotClient.INSTANCE.sendGroupMessage(sourceGroupId, message);
         }
     }
     

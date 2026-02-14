@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
  */
 public class MapbotAlpha {
     private static final Logger LOGGER = LoggerFactory.getLogger("Mapbot/Alpha");
-    private static final int LISTEN_PORT = 25560;
 
     public static void main(String[] args) {
         // 修复中文乱码 (问题 #1)
@@ -68,9 +67,15 @@ public class MapbotAlpha {
         OneBotClient.INSTANCE.connect(wsUrl);
         LOGGER.info("[ONEBOT] 正在连接: {}", wsUrl);
 
+        int listenPort = AlphaConfig.getListenPort();
+        int bridgePort = AlphaConfig.getBridgeListenPort();
+        LOGGER.info("[NETWORK] 智能分流端口: {}", listenPort);
+        LOGGER.info("[NETWORK] Bridge 端口: {}", bridgePort);
+        LOGGER.info("[NETWORK] MC 转发目标: {}:{}", AlphaConfig.getTargetMcHost(), AlphaConfig.getTargetMcPort());
+
         // 4. 启动 Bridge 服务器
-        BridgeServer.INSTANCE.start(25561);
-        LOGGER.info("[BRIDGE] Bridge 服务器已启动: 25561");
+        BridgeServer.INSTANCE.start(bridgePort);
+        LOGGER.info("[BRIDGE] Bridge 服务器已启动: {}", bridgePort);
         
         // 4.3. 初始化指标存储并加载历史数据
         com.mapbot.alpha.metrics.MetricsStorage.INSTANCE.init();
@@ -83,9 +88,19 @@ public class MapbotAlpha {
         // 5. (可选) 启动 MC 服务器进程
         // ProcessManager.INSTANCE.startServer("./MapBot_Reforged/run", "java -Xmx2G -jar server.jar nogui");
 
+        // 5.2. 控制台 stop/exit 触发优雅关闭
+        startConsoleStopWatcher();
+
         // 5.5. 添加退出钩子
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOGGER.info("[SYSTEM] 正在关闭，保存数据...");
+            long playerGroupId = AlphaConfig.getPlayerGroupId();
+            if (playerGroupId > 0) {
+                boolean sent = OneBotClient.INSTANCE.sendGroupMessageBlocking(playerGroupId, "吃饱睡觉。", 1200);
+                if (!sent) {
+                    LOGGER.warn("[SYSTEM] 关机通知发送失败或超时");
+                }
+            }
             com.mapbot.alpha.metrics.MetricsStorage.INSTANCE.save();
             com.mapbot.alpha.security.AuthManager.INSTANCE.saveUsers();
             com.mapbot.alpha.database.RedisManager.INSTANCE.shutdown();
@@ -106,9 +121,9 @@ public class MapbotAlpha {
                  }
              });
 
-            LOGGER.info("[SYSTEM] 核心已就绪，监听端口: {}", LISTEN_PORT);
+            LOGGER.info("[SYSTEM] 核心已就绪，监听端口: {}", listenPort);
             LOGGER.info("==============================================");
-            ChannelFuture f = b.bind(LISTEN_PORT).sync();
+            ChannelFuture f = b.bind(listenPort).sync();
             f.channel().closeFuture().sync();
         } catch (Exception e) {
             LOGGER.error("[ERROR] 核心崩溃: {}", e.getMessage());
@@ -116,5 +131,24 @@ public class MapbotAlpha {
             workerGroup.shutdownGracefully();
             bossGroup.shutdownGracefully();
         }
+    }
+
+    private static void startConsoleStopWatcher() {
+        Thread consoleWatcher = new Thread(() -> {
+            try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(System.in))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String cmd = line.trim();
+                    if ("stop".equalsIgnoreCase(cmd) || "exit".equalsIgnoreCase(cmd)) {
+                        LOGGER.info("[SYSTEM] 收到控制台停止指令: {}", cmd);
+                        System.exit(0);
+                        return;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }, "Mapbot-Alpha-ConsoleWatcher");
+        consoleWatcher.setDaemon(true);
+        consoleWatcher.start();
     }
 }

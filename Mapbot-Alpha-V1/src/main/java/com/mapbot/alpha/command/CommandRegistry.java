@@ -6,7 +6,10 @@ import com.mapbot.alpha.network.OneBotClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,70 +41,72 @@ public class CommandRegistry {
      * 分发命令
      * @return true 如果命令存在并被处理
      */
-    public static boolean dispatch(String cmdName, String args, long senderQQ, long sourceGroupId) {
+    public static boolean dispatch(String cmdName, String args, long senderQQ, long sourceGroupId, boolean privateChat) {
         String name = cmdName.toLowerCase();
-        
-        // 解析别名
+
         if (aliases.containsKey(name)) {
             name = aliases.get(name);
         }
-        
+
         ICommand cmd = commands.get(name);
         if (cmd == null) {
             return false;
         }
-        
-        // 特殊处理：addadmin 命令在无管理员时允许任何人执行
+
         if ("addadmin".equals(name) && DataManager.INSTANCE.getAdmins().isEmpty()) {
             try {
                 String result = cmd.execute(args, senderQQ, sourceGroupId);
                 if (result != null && !result.isEmpty()) {
-                    sendReply(sourceGroupId, result);
+                    sendReply(sourceGroupId, senderQQ, privateChat, result);
                 }
             } catch (Exception e) {
                 LOGGER.error("命令执行异常: #{} {}", name, args, e);
-                sendReply(sourceGroupId, "[错误] 命令执行失败: " + e.getMessage());
+                sendReply(sourceGroupId, senderQQ, privateChat, "[错误] 命令执行失败: " + e.getMessage());
             }
             return true;
         }
-        
-        // 权限检查: 管理群专属
+
         if (cmd.adminGroupOnly() && sourceGroupId != AlphaConfig.getAdminGroupId()) {
-            sendReply(sourceGroupId, "[权限] 此命令仅限管理群使用");
-            return true;
+            // 私聊仅允许管理员绕过“仅限管理群”限制，普通用户仍拒绝
+            if (!(privateChat && DataManager.INSTANCE.isAdmin(senderQQ))) {
+                sendReply(sourceGroupId, senderQQ, privateChat, "[权限] 此命令仅限管理群使用");
+                return true;
+            }
         }
-        
-        // 权限检查: 管理员
+
         if (cmd.requiresAdmin() && !DataManager.INSTANCE.isAdmin(senderQQ)) {
-            sendReply(sourceGroupId, "[权限] 此命令需要管理员权限");
+            sendReply(sourceGroupId, senderQQ, privateChat, "[权限] 此命令需要管理员权限");
             return true;
         }
-        
-        // 权限检查: 等级
+
         int userLevel = DataManager.INSTANCE.getPermission(senderQQ);
         if (userLevel < cmd.requiredPermLevel()) {
-            sendReply(sourceGroupId, "[权限] 权限不足，需要等级 " + cmd.requiredPermLevel());
+            sendReply(sourceGroupId, senderQQ, privateChat, "[权限] 权限不足，需要等级 " + cmd.requiredPermLevel());
             return true;
         }
-        
+
         try {
             String result = cmd.execute(args, senderQQ, sourceGroupId);
             if (result != null && !result.isEmpty()) {
-                sendReply(sourceGroupId, result);
+                sendReply(sourceGroupId, senderQQ, privateChat, result);
             }
         } catch (Exception e) {
             LOGGER.error("命令执行异常: #{} {}", name, args, e);
-            sendReply(sourceGroupId, "[错误] 命令执行失败: " + e.getMessage());
+            sendReply(sourceGroupId, senderQQ, privateChat, "[错误] 命令执行失败: " + e.getMessage());
         }
-        
+
         return true;
     }
     
     /**
-     * 发送回复到 QQ 群
+     * 发送命令回复，群聊/私聊根据上下文
      */
-    public static void sendReply(long groupId, String message) {
-        OneBotClient.INSTANCE.sendGroupMessage(groupId, message);
+    public static void sendReply(long groupId, long senderQQ, boolean privateChat, String message) {
+        if (privateChat) {
+            OneBotClient.INSTANCE.sendPrivateMessage(senderQQ, message);
+        } else {
+            OneBotClient.INSTANCE.sendGroupMessage(groupId, message);
+        }
     }
     
     /**
@@ -109,6 +114,24 @@ public class CommandRegistry {
      */
     public static Map<String, ICommand> getCommands() {
         return commands;
+    }
+
+    /**
+     * 获取某主命令的别名列表（已排序）
+     */
+    public static List<String> getAliasesFor(String commandName) {
+        if (commandName == null || commandName.isBlank()) {
+            return Collections.emptyList();
+        }
+        String target = commandName.toLowerCase();
+        List<String> result = new ArrayList<>();
+        for (Map.Entry<String, String> e : aliases.entrySet()) {
+            if (target.equals(e.getValue())) {
+                result.add(e.getKey());
+            }
+        }
+        Collections.sort(result);
+        return result;
     }
     
     /**

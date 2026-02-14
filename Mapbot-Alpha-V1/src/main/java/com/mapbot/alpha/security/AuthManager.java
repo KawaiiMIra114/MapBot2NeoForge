@@ -104,6 +104,9 @@ public enum AuthManager {
 
         if (bridgeAuthConfig.enabled) {
             LOGGER.info("Bridge 鉴权已启用，允许 serverId 数量: {}", bridgeAuthConfig.allowedServerIds.size());
+            if (bridgeAuthConfig.allowedServerIds.size() == 1 && bridgeAuthConfig.allowedServerIds.contains("default")) {
+                LOGGER.warn("Bridge 允许列表当前仅为默认占位值 default；若已改服名，请同步修改 {}", KEY_BRIDGE_ALLOWED);
+            }
         } else {
             LOGGER.warn("Bridge 鉴权未启用或配置不完整（默认拒绝所有 Bridge 注册）");
         }
@@ -268,6 +271,27 @@ public enum AuthManager {
 
     public boolean isBridgeAuthEnabled() {
         return bridgeAuthConfig.enabled;
+    }
+
+    /**
+     * 热重载安全配置（包含 Bridge 鉴权配置）
+     */
+    public void reloadSecurityConfig() {
+        loadSecurityConfig();
+        LOGGER.info("安全配置已热重载: {}", getBridgeAuthSummary());
+    }
+
+    /**
+     * 当前 Bridge 鉴权摘要（用于命令回显）
+     */
+    public String getBridgeAuthSummary() {
+        BridgeAuthConfig cfg = bridgeAuthConfig;
+        if (!cfg.enabled) {
+            return "Bridge鉴权: 已禁用";
+        }
+        List<String> allowed = new ArrayList<>(cfg.allowedServerIds);
+        Collections.sort(allowed);
+        return "Bridge鉴权: 已启用, 允许serverId=" + String.join(",", allowed);
     }
 
     private void syncFromRedis() {

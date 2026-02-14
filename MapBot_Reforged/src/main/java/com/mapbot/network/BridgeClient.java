@@ -36,6 +36,7 @@ public class BridgeClient {
     private static final long RECONNECT_DELAY_MS = 3000L;
     private static final long BRIDGE_FILE_MAX_BYTES = 256 * 1024L;
     private static final Set<String> BRIDGE_FILE_MUTATION_WHITELIST = Set.of("config", "world/serverconfig");
+    private static final int DEFAULT_ALPHA_BRIDGE_PORT = 25661;
     
     private Socket socket;
     private BufferedReader reader;
@@ -75,6 +76,8 @@ public class BridgeClient {
     private String alphaHost;
     private int alphaPort;
     private String alphaToken;
+    private String transferHost;
+    private int transferPort;
     
     /**
      * Task #022: 向 Alpha 发送 CDK 兑换验证请求
@@ -99,6 +102,31 @@ public class BridgeClient {
             return "INVALID:" + e.getMessage();
         }
     }
+
+    /**
+     * 请求 Alpha 执行跨服切换
+     * @return SUCCESS:* 或 FAIL:*
+     */
+    public String requestServerSwitch(String targetServer, String playerName, String playerUuid) {
+        if (!connected.get()) return "FAIL:Bridge 未连接";
+
+        try {
+            JsonObject payload = new JsonObject();
+            payload.addProperty("targetServer", targetServer == null ? "" : targetServer.trim());
+            payload.addProperty("playerName", playerName == null ? "" : playerName.trim());
+            payload.addProperty("playerUuid", playerUuid == null ? "" : playerUuid.trim());
+            payload.addProperty("sourceServerId", serverId == null ? "" : serverId);
+
+            String result = requestAlpha("switch_server_request", payload, 15000);
+            if (result == null || result.isEmpty()) {
+                return "FAIL:Alpha 未响应 (超时)";
+            }
+            return result;
+        } catch (Exception e) {
+            LOGGER.error("[Bridge] 跨服切换请求失败", e);
+            return "FAIL:" + e.getMessage();
+        }
+    }
     
     /**
      * 连接到 Alpha Core
@@ -111,6 +139,8 @@ public class BridgeClient {
         alphaHost = BotConfig.getAlphaHost();
         alphaPort = BotConfig.getAlphaPort();
         alphaToken = BotConfig.getAlphaToken();
+        transferHost = BotConfig.getTransferHost();
+        transferPort = BotConfig.getTransferPort();
         
         if (alphaHost == null || alphaHost.isEmpty()) {
             LOGGER.warn("[Bridge] Alpha Core 地址未配置，跳过连接");
@@ -121,6 +151,11 @@ public class BridgeClient {
             return;
         }
         
+        if (alphaPort >= 25560 && alphaPort <= 25566) {
+            LOGGER.warn("[Bridge] alphaPort={} 属于保留端口段 25560-25566，已自动回退到 {}", alphaPort, DEFAULT_ALPHA_BRIDGE_PORT);
+            alphaPort = DEFAULT_ALPHA_BRIDGE_PORT;
+        }
+
         running.set(true);
         messageExecutor = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "MapBot-Bridge");
@@ -168,14 +203,20 @@ public class BridgeClient {
     private void sendRegister() {
         String escapedServerId = escapeJson(serverId == null ? "" : serverId);
         String token = alphaToken == null ? "" : alphaToken.trim();
+        TransferEndpoint endpoint = normalizeTransferEndpoint(transferHost, transferPort);
         String msg;
         if (token.isEmpty()) {
             msg = String.format("{\"type\":\"register\",\"serverId\":\"%s\"}", escapedServerId);
         } else {
-            msg = String.format(
-                    "{\"type\":\"register\",\"serverId\":\"%s\",\"token\":\"%s\"}",
-                    escapedServerId, escapeJson(token)
-            );
+            StringBuilder sb = new StringBuilder();
+            sb.append("{\"type\":\"register\",\"serverId\":\"").append(escapedServerId).append("\"");
+            sb.append(",\"token\":\"").append(escapeJson(token)).append("\"");
+            if (endpoint != null) {
+                sb.append(",\"transferHost\":\"").append(escapeJson(endpoint.host)).append("\"");
+                sb.append(",\"transferPort\":").append(endpoint.port);
+            }
+            sb.append("}");
+            msg = sb.toString();
         }
         send(msg);
     }
@@ -286,7 +327,12 @@ public class BridgeClient {
                 case "has_player":     BridgeHandlers.handleHasPlayer(json, this); break;
                 case "get_status":     BridgeHandlers.handleGetStatus(json, this); break;
                 case "bind_player":    BridgeHandlers.handleBindPlayer(json, this); break;
+                case "whitelist_add":  BridgeHandlers.handleWhitelistAdd(json, this); break;
+                case "whitelist_remove": BridgeHandlers.handleWhitelistRemove(json, this); break;
                 case "resolve_uuid":   BridgeHandlers.handleResolveUuid(json, this); break;
+                case "resolve_name":   BridgeHandlers.handleResolveName(json, this); break;
+                case "reload_config":  BridgeHandlers.handleReloadConfig(json, this); break;
+                case "switch_server":  BridgeHandlers.handleSwitchServer(json, this); break;
                 case "sign_in":        BridgeHandlers.handleSignIn(json, this); break;
                 case "accept_reward":  BridgeHandlers.handleAcceptReward(json, this); break;
                 case "get_inventory":  BridgeHandlers.handleGetInventory(json, this); break;
@@ -422,6 +468,63 @@ public class BridgeClient {
         return s.replace("\\", "\\\\")
                 .replace("\"", "\\\"")
                 .replace("\n", "\\n");
+    }
+
+    private TransferEndpoint normalizeTransferEndpoint(String rawHost, int rawPort) {
+        String host = rawHost == null ? "" : rawHost.trim();
+        int port = rawPort;
+        if (host.isEmpty()) {
+            return null;
+        }
+
+        // 容错: 若用户把 host:port 或 host:port:port 写进 transferHost，自动拆分端口
+        while (true) {
+            int colon = host.lastIndexOf(':');
+            if (colon <= 0 || colon >= host.length() - 1) {
+                break;
+            }
+            String hostPart = host.substring(0, colon).trim();
+            String portPart = host.substring(colon + 1).trim();
+            try {
+                int parsed = Integer.parseInt(portPart);
+                if (hostPart.isEmpty() || parsed < 1 || parsed > 65535) {
+                    break;
+                }
+                host = hostPart;
+                port = parsed;
+            } catch (NumberFormatException ignored) {
+                break;
+            }
+        }
+
+        boolean bracketedIpv6 = host.startsWith("[") && host.endsWith("]") && host.length() > 2;
+        if (bracketedIpv6) {
+            host = host.substring(1, host.length() - 1);
+        }
+        if (!bracketedIpv6 && host.indexOf(':') >= 0) {
+            LOGGER.warn("[Bridge] transferHost={} 含非法冒号，忽略本服转移地址上报", rawHost);
+            return null;
+        }
+
+        if (port < 1 || port > 65535) {
+            LOGGER.warn("[Bridge] transferPort={} 非法，忽略本服转移地址上报", port);
+            return null;
+        }
+        if (host.isBlank()) {
+            return null;
+        }
+        String normalizedHost = bracketedIpv6 ? ("[" + host + "]") : host;
+        return new TransferEndpoint(normalizedHost, port);
+    }
+
+    private static final class TransferEndpoint {
+        private final String host;
+        private final int port;
+
+        private TransferEndpoint(String host, int port) {
+            this.host = host;
+            this.port = port;
+        }
     }
 
     // ==================== 连接管理 ====================

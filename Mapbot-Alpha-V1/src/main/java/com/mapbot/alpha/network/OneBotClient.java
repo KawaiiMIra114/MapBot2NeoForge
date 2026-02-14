@@ -11,6 +11,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * OneBot WebSocket 客户端 (Alpha Core)
@@ -25,6 +26,7 @@ public class OneBotClient implements WebSocket.Listener {
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private String serverUrl;
     private StringBuilder messageBuffer = new StringBuilder();
+    private final AtomicBoolean startupNoticeSent = new AtomicBoolean(false);
 
     public void connect(String url) {
         this.serverUrl = url;
@@ -39,6 +41,12 @@ public class OneBotClient implements WebSocket.Listener {
                     } else {
                         this.webSocket = ws;
                         LOGGER.info("OneBot 连接成功");
+                        if (startupNoticeSent.compareAndSet(false, true)) {
+                            long playerGroupId = com.mapbot.alpha.config.AlphaConfig.getPlayerGroupId();
+                            if (playerGroupId > 0) {
+                                sendGroupMessage(playerGroupId, "起床📢别过少爷生活📢");
+                            }
+                        }
                     }
                 });
     }
@@ -102,6 +110,46 @@ public class OneBotClient implements WebSocket.Listener {
         
         webSocket.sendText(json, true);
         LOGGER.debug("[发送到QQ群 {}] {}", groupId, message);
+    }
+
+    /**
+     * 发送群消息并等待发送完成（用于关机钩子等需要尽量送达的场景）
+     */
+    public boolean sendGroupMessageBlocking(long groupId, String message, long timeoutMs) {
+        if (groupId <= 0) {
+            return false;
+        }
+        if ((serverUrl == null || serverUrl.isBlank()) && webSocket == null) {
+            LOGGER.warn("无法发送消息: OneBot 地址未配置");
+            return false;
+        }
+        // 关机阶段尽量补一次连接机会，避免“恰好断线”时直接丢通知。
+        if (webSocket == null && serverUrl != null && !serverUrl.isBlank()) {
+            connect(serverUrl);
+            try {
+                Thread.sleep(250);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        if (webSocket == null) {
+            LOGGER.warn("无法发送消息: OneBot 未连接");
+            return false;
+        }
+        long timeout = timeoutMs > 0 ? timeoutMs : 1000L;
+        String json = String.format(
+            "{\"action\":\"send_group_msg\",\"params\":{\"group_id\":%d,\"message\":\"%s\"}}",
+            groupId, escapeJson(message)
+        );
+        try {
+            webSocket.sendText(json, true).orTimeout(timeout, TimeUnit.MILLISECONDS).join();
+            LOGGER.debug("[发送到QQ群 {}] {}", groupId, message);
+            return true;
+        } catch (Exception e) {
+            LOGGER.warn("发送群消息失败: groupId={}, message={}, reason={}",
+                groupId, message, e.getMessage());
+            return false;
+        }
     }
     
     /**

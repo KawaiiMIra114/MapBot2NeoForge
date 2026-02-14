@@ -8,14 +8,19 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Minecraft TCP 代理处理器
- * 将流量转发至真实的 MC 端口 (25565)
+ * 将流量转发至配置中的真实 MC 端口
  */
 public class MinecraftProxyHandler extends ChannelInboundHandlerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger("Mapbot/Network/Proxy");
     
-    private final String remoteHost = "127.0.0.1";
-    private final int remotePort = 25565;
+    private final String remoteHost;
+    private final int remotePort;
     private Channel outboundChannel;
+
+    public MinecraftProxyHandler(String remoteHost, int remotePort) {
+        this.remoteHost = (remoteHost == null || remoteHost.isBlank()) ? "127.0.0.1" : remoteHost.trim();
+        this.remotePort = remotePort;
+    }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) {

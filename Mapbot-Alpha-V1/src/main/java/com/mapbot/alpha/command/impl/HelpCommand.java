@@ -5,107 +5,234 @@ import com.mapbot.alpha.command.ICommand;
 import com.mapbot.alpha.config.AlphaConfig;
 import com.mapbot.alpha.data.DataManager;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 帮助命令
  * #help / #菜单
- * 
- * 优化：分群权限显示
- * - 玩家群：仅显示 Level 0 命令
- * - 管理群：显示当前用户权限可执行的命令
- * - #help all：显示全部命令并标注权限要求
+ *
+ * 分组展示：
+ * - 功能类
+ * - 娱乐类
+ * - 工具类
+ * - 管理类
  */
 public class HelpCommand implements ICommand {
-    
+
+    private enum Category {
+        FUNCTION("功能类"),
+        FUN("娱乐类"),
+        TOOL("工具类"),
+        ADMIN("管理类"),
+        OTHER("其他");
+
+        final String title;
+
+        Category(String title) {
+            this.title = title;
+        }
+    }
+
+    private static final Map<String, String> SUBCOMMAND_TAGS = Map.of(
+        "accept", "sign",
+        "cancelstop", "stopserver",
+        "agreeunbind", "adminunbind"
+    );
+
     @Override
     public String execute(String args, long senderQQ, long sourceGroupId) {
-        boolean showAll = "all".equalsIgnoreCase(args.trim());
-        boolean isPlayerGroup = (sourceGroupId == AlphaConfig.getPlayerGroupId());
-        boolean isAdminGroup = (sourceGroupId == AlphaConfig.getAdminGroupId());
-        
+        boolean showAll = "all".equalsIgnoreCase(args == null ? "" : args.trim());
+        boolean isPlayerGroup = sourceGroupId == AlphaConfig.getPlayerGroupId();
+        boolean isAdminGroup = sourceGroupId == AlphaConfig.getAdminGroupId();
+        boolean isPrivateContext = !isPlayerGroup && !isAdminGroup;
+
         int userLevel = DataManager.INSTANCE.getPermission(senderQQ);
         boolean isAdmin = DataManager.INSTANCE.isAdmin(senderQQ);
-        
+
         StringBuilder sb = new StringBuilder();
         sb.append("=== MapBot 命令帮助 ===\n");
-        
+
         if (showAll) {
-            // 显示全部命令并标注权限
-            sb.append("\n[可用命令]\n");
-            for (Map.Entry<String, ICommand> e : CommandRegistry.getCommands().entrySet()) {
-                ICommand cmd = e.getValue();
-                if (canExecute(cmd, userLevel, isAdmin)) {
-                    sb.append("#").append(e.getKey());
-                    String help = cmd.getHelp();
-                    if (help != null && !help.isEmpty()) {
-                        sb.append(" - ").append(help);
-                    }
-                    sb.append("\n");
-                }
-            }
-            
-            sb.append("\n[需更高权限]\n");
-            for (Map.Entry<String, ICommand> e : CommandRegistry.getCommands().entrySet()) {
-                ICommand cmd = e.getValue();
-                if (!canExecute(cmd, userLevel, isAdmin)) {
-                    sb.append("#").append(e.getKey());
-                    String help = cmd.getHelp();
-                    if (help != null && !help.isEmpty()) {
-                        sb.append(" - ").append(help);
-                    }
-                    
-                    // 标注权限要求
-                    if (cmd.requiresAdmin()) {
-                        sb.append(" [需 Admin]");
-                    } else if (cmd.requiredPermLevel() > 0) {
-                        sb.append(" [需 Level ").append(cmd.requiredPermLevel()).append("]");
-                    }
-                    sb.append("\n");
-                }
-            }
-        } else if (isPlayerGroup) {
-            // 玩家群：仅显示 Level 0 命令
-            for (Map.Entry<String, ICommand> e : CommandRegistry.getCommands().entrySet()) {
-                ICommand cmd = e.getValue();
-                if (cmd.requiredPermLevel() == 0 && !cmd.requiresAdmin() && !cmd.adminGroupOnly()) {
-                    sb.append("#").append(e.getKey());
-                    String help = cmd.getHelp();
-                    if (help != null && !help.isEmpty()) {
-                        sb.append(" - ").append(help);
-                    }
-                    sb.append("\n");
-                }
-            }
-            sb.append("\n[提示] 输入 #help all 查看全部命令");
-        } else if (isAdminGroup) {
-            // 管理群：显示当前用户可执行的命令
-            for (Map.Entry<String, ICommand> e : CommandRegistry.getCommands().entrySet()) {
-                ICommand cmd = e.getValue();
-                if (canExecute(cmd, userLevel, isAdmin)) {
-                    sb.append("#").append(e.getKey());
-                    String help = cmd.getHelp();
-                    if (help != null && !help.isEmpty()) {
-                        sb.append(" - ").append(help);
-                    }
-                    sb.append("\n");
-                }
-            }
-            sb.append("\n[提示] 输入 #help all 查看全部命令");
-        } else {
-            // 其他群：显示基础命令
-            return CommandRegistry.getHelpText();
+            Set<Category> categoryFilter = categoriesForContext(isPlayerGroup, isAdminGroup, true);
+            renderAll(sb, userLevel, isAdmin, isAdminGroup, isPrivateContext, categoryFilter);
+            return sb.toString().trim();
         }
-        
-        return sb.toString().trim();
+
+        if (isPlayerGroup) {
+            renderAvailable(sb, userLevel, isAdmin, false, false, EnumSet.of(Category.FUNCTION, Category.FUN));
+            sb.append("\n[提示] 输入 #help all 查看全部命令");
+            return sb.toString().trim();
+        }
+
+        if (isAdminGroup) {
+            renderAvailable(sb, userLevel, isAdmin, true, false, EnumSet.of(Category.ADMIN));
+            sb.append("\n[提示] 输入 #help all 查看全部命令");
+            return sb.toString().trim();
+        }
+
+        // 私聊：按“私聊上下文 + 当前权限”展示
+        if (isPrivateContext) {
+            renderAvailable(sb, userLevel, isAdmin, false, true, EnumSet.allOf(Category.class));
+            sb.append("\n[提示] 输入 #help all 查看全部命令");
+            return sb.toString().trim();
+        }
+
+        return CommandRegistry.getHelpText();
     }
-    
-    private boolean canExecute(ICommand cmd, int userLevel, boolean isAdmin) {
+
+    private Set<Category> categoriesForContext(boolean isPlayerGroup, boolean isAdminGroup, boolean showAll) {
+        if (isPlayerGroup) {
+            // 玩家群无论简版/完整版都只展示功能+娱乐
+            return EnumSet.of(Category.FUNCTION, Category.FUN);
+        }
+        if (isAdminGroup && !showAll) {
+            // 管理群默认只展示管理命令；#help all 再展示全部
+            return EnumSet.of(Category.ADMIN);
+        }
+        return EnumSet.allOf(Category.class);
+    }
+
+    private void renderAll(
+        StringBuilder sb,
+        int userLevel,
+        boolean isAdmin,
+        boolean inAdminGroup,
+        boolean privateContext,
+        Set<Category> categoryFilter
+    ) {
+        sb.append("\n[可用命令]\n");
+        renderByCategory(sb, userLevel, isAdmin, inAdminGroup, privateContext, true, categoryFilter);
+
+        sb.append("\n[暂不可用]\n");
+        renderByCategory(sb, userLevel, isAdmin, inAdminGroup, privateContext, false, categoryFilter);
+    }
+
+    private void renderAvailable(
+        StringBuilder sb,
+        int userLevel,
+        boolean isAdmin,
+        boolean inAdminGroup,
+        boolean privateContext,
+        Set<Category> categoryFilter
+    ) {
+        sb.append("\n[可用命令]\n");
+        renderByCategory(sb, userLevel, isAdmin, inAdminGroup, privateContext, true, categoryFilter);
+    }
+
+    private void renderByCategory(
+        StringBuilder sb,
+        int userLevel,
+        boolean isAdmin,
+        boolean inAdminGroup,
+        boolean privateContext,
+        boolean available,
+        Set<Category> categoryFilter
+    ) {
+        Map<Category, List<String>> grouped = groupCommandsByCategory();
+        for (Category category : Category.values()) {
+            if (!categoryFilter.contains(category)) continue;
+            List<String> names = grouped.get(category);
+            if (names == null || names.isEmpty()) continue;
+
+            List<String> lines = new ArrayList<>();
+            for (String name : names) {
+                ICommand cmd = CommandRegistry.getCommands().get(name);
+                if (cmd == null) continue;
+                boolean canUse = canExecute(cmd, userLevel, isAdmin, inAdminGroup, privateContext);
+                if (canUse != available) continue;
+
+                String line = formatLine(name, cmd);
+                if (!canUse) {
+                    line += " " + permissionTag(cmd);
+                }
+                lines.add(line);
+            }
+
+            if (lines.isEmpty()) continue;
+            sb.append("\n[").append(category.title).append("]\n");
+            for (String line : lines) {
+                sb.append(line).append("\n");
+            }
+        }
+    }
+
+    private Map<Category, List<String>> groupCommandsByCategory() {
+        Map<Category, List<String>> grouped = new EnumMap<>(Category.class);
+        for (Category c : Category.values()) {
+            grouped.put(c, new ArrayList<>());
+        }
+
+        List<String> names = new ArrayList<>(CommandRegistry.getCommands().keySet());
+        names.sort(Comparator.naturalOrder());
+        for (String name : names) {
+            grouped.get(resolveCategory(name)).add(name);
+        }
+        return grouped;
+    }
+
+    private Category resolveCategory(String commandName) {
+        String cmd = commandName.toLowerCase(Locale.ROOT);
+        return switch (cmd) {
+            case "help", "list", "status", "myperm", "id", "unbind", "playtime", "time" -> Category.FUNCTION;
+            case "sign", "accept", "cdk" -> Category.FUN;
+            case "mute", "unmute", "setperm", "addadmin", "removeadmin",
+                 "adminunbind", "agreeunbind", "stopserver", "cancelstop",
+                 "inv", "location", "reload" -> Category.ADMIN;
+            default -> Category.OTHER;
+        };
+    }
+
+    private String formatLine(String commandName, ICommand cmd) {
+        StringBuilder line = new StringBuilder();
+        line.append("#").append(commandName);
+
+        String help = cmd.getHelp();
+        if (help != null && !help.isEmpty()) {
+            line.append(" - ").append(help);
+        }
+
+        List<String> aliases = CommandRegistry.getAliasesFor(commandName);
+        if (!aliases.isEmpty()) {
+            line.append(" (别名: ");
+            for (int i = 0; i < aliases.size(); i++) {
+                if (i > 0) line.append(", ");
+                line.append("#").append(aliases.get(i));
+            }
+            line.append(")");
+        }
+
+        String parent = SUBCOMMAND_TAGS.get(commandName);
+        if (parent != null && !parent.isBlank()) {
+            line.append(" [附属 #").append(parent).append("]");
+        }
+
+        return line.toString();
+    }
+
+    private String permissionTag(ICommand cmd) {
+        if (cmd.requiresAdmin()) return "[需 Admin]";
+        if (cmd.requiredPermLevel() > 0) return "[需 Level " + cmd.requiredPermLevel() + "]";
+        if (cmd.adminGroupOnly()) return "[需 管理群]";
+        return "";
+    }
+
+    private boolean canExecute(ICommand cmd, int userLevel, boolean isAdmin, boolean inAdminGroup, boolean privateContext) {
+        if (cmd.adminGroupOnly() && !inAdminGroup) {
+            if (!(privateContext && isAdmin)) {
+                return false;
+            }
+        }
         if (cmd.requiresAdmin() && !isAdmin) return false;
-        if (userLevel < cmd.requiredPermLevel()) return false;
-        return true;
+        return userLevel >= cmd.requiredPermLevel();
     }
-    
+
     @Override
     public String getHelp() {
         return "显示命令帮助 (#help all 查看全部)";

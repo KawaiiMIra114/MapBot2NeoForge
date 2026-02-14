@@ -1,5 +1,6 @@
 package com.mapbot.alpha.network;
 
+import com.mapbot.alpha.config.AlphaConfig;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -57,7 +58,10 @@ public class ProtocolDetector extends ByteToMessageDecoder {
     }
 
     private void switchToMinecraft(ChannelHandlerContext ctx) {
-        ctx.pipeline().addLast(new MinecraftProxyHandler());
+        ctx.pipeline().addLast(new MinecraftProxyHandler(
+            AlphaConfig.getTargetMcHost(),
+            AlphaConfig.getTargetMcPort()
+        ));
         ctx.pipeline().remove(this);
     }
 }

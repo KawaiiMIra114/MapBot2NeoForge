@@ -14,6 +14,12 @@ import org.slf4j.LoggerFactory;
 public class AlphaConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger("Mapbot/Config");
     public static final AlphaConfig INSTANCE = new AlphaConfig();
+
+    private static final int RESERVED_PORT_MIN = 25560;
+    private static final int RESERVED_PORT_MAX = 25566;
+    private static final int SMART_GATEWAY_PORT = 25560;
+    private static final int DEFAULT_BRIDGE_PORT = 25661;
+    private static final int DEFAULT_TARGET_MC_PORT = 25570;
     
     private final Properties props = new Properties();
     private final Path configPath = Paths.get("config", "alpha.properties");
@@ -21,6 +27,10 @@ public class AlphaConfig {
     // 连接配置
     private String wsUrl = "ws://127.0.0.1:7000";
     private int reconnectInterval = 5;
+    private int listenPort = SMART_GATEWAY_PORT;
+    private int bridgeListenPort = DEFAULT_BRIDGE_PORT;
+    private String targetMcHost = "127.0.0.1";
+    private int targetMcPort = DEFAULT_TARGET_MC_PORT;
     
     // Redis 配置
     private String redisHost = "127.0.0.1";
@@ -55,6 +65,20 @@ public class AlphaConfig {
                 
                 wsUrl = props.getProperty("connection.wsUrl", wsUrl);
                 reconnectInterval = parseIntProperty("connection.reconnectInterval", reconnectInterval);
+                listenPort = parseIntProperty(
+                    "connection.listenPort",
+                    parseIntProperty("server.listenPort", listenPort)
+                );
+                bridgeListenPort = parseIntProperty(
+                    "bridge.listenPort",
+                    parseIntProperty("connection.bridgePort", bridgeListenPort)
+                );
+                targetMcHost = readStringProperty("minecraft.targetHost", readStringProperty("server.targetMcHost", targetMcHost));
+                targetMcPort = parseIntProperty(
+                    "minecraft.targetPort",
+                    parseIntProperty("server.targetMcPort", targetMcPort)
+                );
+                boolean portsChanged = normalizePorts();
                 
                 redisHost = props.getProperty("redis.host", redisHost);
                 redisPort = parseIntProperty("redis.port", redisPort);
@@ -70,6 +94,10 @@ public class AlphaConfig {
                 
                 // 同步管理员到 DataManager
                 syncAdminsToDataManager();
+                if (portsChanged) {
+                    save();
+                    LOGGER.info("检测到端口配置异常，已自动修正并写回 {}", configPath);
+                }
                 
                 LOGGER.info("配置已加载: playerGroup={}, adminGroup={}, botQQ={}, redisEnabled={}", 
                     playerGroupId, adminGroupId, botQQ, redisEnabled);
@@ -105,6 +133,10 @@ public class AlphaConfig {
 
             merged.setProperty("connection.wsUrl", wsUrl);
             merged.setProperty("connection.reconnectInterval", String.valueOf(reconnectInterval));
+            merged.setProperty("connection.listenPort", String.valueOf(listenPort));
+            merged.setProperty("bridge.listenPort", String.valueOf(bridgeListenPort));
+            merged.setProperty("minecraft.targetHost", targetMcHost);
+            merged.setProperty("minecraft.targetPort", String.valueOf(targetMcPort));
 
             merged.setProperty("redis.host", redisHost);
             merged.setProperty("redis.port", String.valueOf(redisPort));
@@ -132,6 +164,10 @@ public class AlphaConfig {
     // Getters
     public static String getWsUrl() { return INSTANCE.wsUrl; }
     public static int getReconnectInterval() { return INSTANCE.reconnectInterval; }
+    public static int getListenPort() { return INSTANCE.listenPort; }
+    public static int getBridgeListenPort() { return INSTANCE.bridgeListenPort; }
+    public static String getTargetMcHost() { return INSTANCE.targetMcHost; }
+    public static int getTargetMcPort() { return INSTANCE.targetMcPort; }
     public static long getPlayerGroupId() { return INSTANCE.playerGroupId; }
     public static long getAdminGroupId() { return INSTANCE.adminGroupId; }
     public static long getOpGroupId() { return INSTANCE.adminGroupId; }
@@ -204,5 +240,86 @@ public class AlphaConfig {
         if ("false".equals(normalized)) return false;
         LOGGER.warn("配置项 {} 值非法: {}, 使用默认值 {}", key, value, fallback);
         return fallback;
+    }
+
+    private String readStringProperty(String key, String fallback) {
+        String value = props.getProperty(key);
+        if (value == null || value.isBlank()) return fallback;
+        return value.trim();
+    }
+
+    private boolean normalizePorts() {
+        boolean changed = false;
+        if (listenPort < 1 || listenPort > 65535) {
+            LOGGER.warn("listenPort={} 非法，已回退到 {}", listenPort, SMART_GATEWAY_PORT);
+            listenPort = SMART_GATEWAY_PORT;
+            changed = true;
+        }
+
+        if (listenPort >= RESERVED_PORT_MIN && listenPort <= RESERVED_PORT_MAX && listenPort != SMART_GATEWAY_PORT) {
+            LOGGER.warn("listenPort={} 位于保留段且非智能分流口 25560，已回退到 {}", listenPort, SMART_GATEWAY_PORT);
+            listenPort = SMART_GATEWAY_PORT;
+            changed = true;
+        }
+
+        int sanitizedBridgePort = sanitizeServicePort("bridge.listenPort", bridgeListenPort, DEFAULT_BRIDGE_PORT);
+        if (sanitizedBridgePort != bridgeListenPort) changed = true;
+        bridgeListenPort = sanitizedBridgePort;
+        int sanitizedTargetMcPort = sanitizeServicePort("minecraft.targetPort", targetMcPort, DEFAULT_TARGET_MC_PORT);
+        if (sanitizedTargetMcPort != targetMcPort) changed = true;
+        targetMcPort = sanitizedTargetMcPort;
+
+        if (targetMcHost == null || targetMcHost.isBlank()) {
+            targetMcHost = "127.0.0.1";
+            changed = true;
+        }
+
+        if (bridgeListenPort == listenPort) {
+            int adjusted = findAvailableServicePort(DEFAULT_BRIDGE_PORT, listenPort, targetMcPort);
+            LOGGER.warn("bridge.listenPort 与 listenPort 冲突，已调整为 {}", adjusted);
+            bridgeListenPort = adjusted;
+            changed = true;
+        }
+        if (targetMcPort == listenPort || targetMcPort == bridgeListenPort) {
+            int adjusted = findAvailableServicePort(DEFAULT_TARGET_MC_PORT, listenPort, bridgeListenPort);
+            LOGGER.warn("minecraft.targetPort 与现有端口冲突，已调整为 {}", adjusted);
+            targetMcPort = adjusted;
+            changed = true;
+        }
+        return changed;
+    }
+
+    private int sanitizeServicePort(String key, int configured, int fallback) {
+        int port = configured;
+        if (port < 1 || port > 65535) {
+            LOGGER.warn("{}={} 非法，已回退到 {}", key, port, fallback);
+            return fallback;
+        }
+        if (port >= RESERVED_PORT_MIN && port <= RESERVED_PORT_MAX) {
+            LOGGER.warn("{}={} 命中保留端口段 25560-25566，已回退到 {}", key, port, fallback);
+            return fallback;
+        }
+        return port;
+    }
+
+    private int findAvailableServicePort(int preferred, int... occupiedPorts) {
+        int port = Math.max(1, preferred);
+        while (port <= 65535) {
+            if (isValidServicePort(port, occupiedPorts)) {
+                return port;
+            }
+            port++;
+        }
+        // 理论上不会触发，兜底返回默认值
+        return preferred;
+    }
+
+    private boolean isValidServicePort(int port, int... occupiedPorts) {
+        if (port < 1 || port > 65535) return false;
+        if (port >= RESERVED_PORT_MIN && port <= RESERVED_PORT_MAX) return false;
+        for (int occupied : occupiedPorts) {
+            if (port == occupied) return false;
+        }
+        return true;
     }
 }

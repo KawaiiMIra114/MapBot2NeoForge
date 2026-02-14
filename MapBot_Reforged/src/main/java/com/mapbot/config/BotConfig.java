@@ -38,6 +38,8 @@ public class BotConfig {
     public final ModConfigSpec.ConfigValue<String> alphaHost;
     public final ModConfigSpec.IntValue alphaPort;
     public final ModConfigSpec.ConfigValue<String> alphaToken;
+    public final ModConfigSpec.ConfigValue<String> transferHost;
+    public final ModConfigSpec.IntValue transferPort;
 
     static {
         Pair<BotConfig, ModConfigSpec> pair = new ModConfigSpec.Builder()
@@ -99,13 +101,24 @@ public class BotConfig {
         
         alphaPort = builder
                 .comment("Alpha Core Bridge 端口")
-                .comment("默认使用 25561")
-                .defineInRange("alphaPort", 25561, 1, 65535);
+                .comment("除智能分流口 25560 外，请避开 25560-25566 保留端口段")
+                .comment("默认使用 25661")
+                .defineInRange("alphaPort", 25661, 1, 65535);
 
         alphaToken = builder
                 .comment("Alpha Core Bridge 鉴权令牌")
                 .comment("需与 Alpha 端 auth.bridge.token 配置一致")
                 .define("alphaToken", "");
+
+        transferHost = builder
+                .comment("本服对外可转移地址（用于跨服 /transfer）")
+                .comment("填写玩家客户端可访问到的主机名/IP，例如 mc.example.com")
+                .comment("留空表示不参与跨服转移地址上报")
+                .define("transferHost", "");
+
+        transferPort = builder
+                .comment("本服对外可转移端口（用于跨服 /transfer）")
+                .defineInRange("transferPort", 25565, 1, 65535);
         
         builder.pop();
 
@@ -208,5 +221,19 @@ public class BotConfig {
      */
     public static String getAlphaToken() {
         return INSTANCE.alphaToken.get();
+    }
+
+    /**
+     * 获取本服对外可转移主机
+     */
+    public static String getTransferHost() {
+        return INSTANCE.transferHost.get();
+    }
+
+    /**
+     * 获取本服对外可转移端口
+     */
+    public static int getTransferPort() {
+        return INSTANCE.transferPort.get();
     }
 }

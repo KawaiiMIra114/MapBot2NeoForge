@@ -113,6 +113,10 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             }
             // 跨服文件 API (STEP 9)
             if (path.startsWith("/api/remote/")) {
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.OPERATOR)) {
+                    sendForbidden(ctx, "Permission denied. OPERATOR required.");
+                    return;
+                }
                 RemoteFileApiHandler.handle(ctx, req);
                 return;
             }

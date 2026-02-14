@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
@@ -52,6 +53,7 @@ public class BridgeProxy {
         if (query == null) return null;
         String q = query.trim();
         if (q.isEmpty()) return null;
+        String qLower = q.toLowerCase(java.util.Locale.ROOT);
 
         var servers = ServerRegistry.INSTANCE.getAllServers();
         if (servers.isEmpty()) return null;
@@ -59,11 +61,16 @@ public class BridgeProxy {
         // 1) 完整匹配
         var exact = ServerRegistry.INSTANCE.getServer(q);
         if (exact != null) return exact.serverId;
+        for (var s : servers) {
+            if (s.serverId != null && s.serverId.equalsIgnoreCase(q)) {
+                return s.serverId;
+            }
+        }
 
         // 2) 唯一前缀匹配
         String matched = null;
         for (var s : servers) {
-            if (s.serverId != null && s.serverId.startsWith(q)) {
+            if (s.serverId != null && s.serverId.toLowerCase(java.util.Locale.ROOT).startsWith(qLower)) {
                 if (matched != null) {
                     return null; // 多个匹配，拒绝自动选择
                 }
@@ -138,6 +145,8 @@ public class BridgeProxy {
             this.timeoutCount = timeoutCount;
         }
     }
+
+    private record ResolvedIdentity(String uuid, String name) {}
     
     /**
      * 完成请求 (由 BridgeMessageHandler 调用)
@@ -153,52 +162,109 @@ public class BridgeProxy {
      * 获取在线玩家列表
      */
     public String getOnlinePlayerList() {
-        String result = sendRequest("get_players", null, null);
-        if (result == null || result.isEmpty()) {
-            return "[服务器] 无法获取在线列表";
+        List<String> serverIds = getSortedOnlineServerIds();
+        if (serverIds.isEmpty()) {
+            return "[在线] 当前无在线服务器";
         }
-        return result;
+
+        FanoutBatchResult batch = fanOutRequests(serverIds, "get_players", null, null, FANOUT_TIMEOUT);
+        StringBuilder sb = new StringBuilder("[在线列表]");
+        int responded = 0;
+
+        for (String serverId : serverIds) {
+            sb.append("\n\n[").append(serverId).append("]");
+            String result = batch.responses.get(serverId);
+            if (result == null || result.isBlank()) {
+                sb.append("\n[错误] 请求超时或无响应");
+                continue;
+            }
+            responded++;
+            sb.append("\n").append(result.trim());
+        }
+
+        if (responded == 0) {
+            sb.append("\n\n[错误] 所有服务器均未响应");
+        }
+        return sb.toString();
     }
     
     /**
      * 解析玩家并绑定
      */
     public String resolveAndBind(String playerName, long senderQQ) {
-        String result = sendRequest("bind_player", playerName, String.valueOf(senderQQ));
-        if (result == null) {
-            return "[错误] 服务器无响应";
+        String normalizedName = playerName == null ? "" : playerName.trim();
+        if (normalizedName.isEmpty()) {
+            return "[错误] 玩家名为空";
         }
-        
-        if (result.startsWith("SUCCESS:")) {
-            String[] parts = result.split(":", 3);
-            if (parts.length >= 3) {
-                String uuid = parts[1];
-                String name = parts[2];
+        List<String> onlineServers = getSortedOnlineServerIds();
+        if (onlineServers.isEmpty()) {
+            return "[错误] 当前无在线服务器";
+        }
 
-                // P0: 绑定数据统一存储在 Alpha（避免 Reforged 端写本地数据）
-                if (DataManager.INSTANCE.isUUIDBound(uuid)) {
-                    Long occupier = DataManager.INSTANCE.getQQByUUID(uuid);
-                    if (occupier != null && occupier != senderQQ) {
-                        return "FAIL:OCCUPIED:" + occupier;
-                    }
-                }
+        ResolvedIdentity identity = resolveIdentityByName(normalizedName, onlineServers);
+        if (identity == null) {
+            return "[绑定失败] 玩家不存在或服务器无法解析该玩家";
+        }
 
-                boolean ok = DataManager.INSTANCE.bind(senderQQ, uuid);
-                if (!ok) {
-                    Long occupier = DataManager.INSTANCE.getQQByUUID(uuid);
-                    if (occupier != null && occupier != senderQQ) {
-                        return "FAIL:OCCUPIED:" + occupier;
-                    }
-                    return "[绑定失败] 绑定写入失败（可能已绑定或冲突）";
-                }
+        String uuid = identity.uuid();
+        String name = identity.name();
 
-                return "[绑定成功] " + name;
+        // P0: 绑定数据统一存储在 Alpha（避免 Reforged 端写本地数据）
+        if (DataManager.INSTANCE.isUUIDBound(uuid)) {
+            Long occupier = DataManager.INSTANCE.getQQByUUID(uuid);
+            if (occupier != null && occupier != senderQQ) {
+                return "FAIL:OCCUPIED:" + occupier;
             }
-        } else if (result.startsWith("FAIL:")) {
-            return result.substring(5);
         }
-        
-        return result;
+
+        boolean ok = DataManager.INSTANCE.bind(senderQQ, uuid, name);
+        if (!ok) {
+            Long occupier = DataManager.INSTANCE.getQQByUUID(uuid);
+            if (occupier != null && occupier != senderQQ) {
+                return "FAIL:OCCUPIED:" + occupier;
+            }
+            return "[绑定失败] 绑定写入失败（可能已绑定或冲突）";
+        }
+
+        String syncResult = syncWhitelistAddToServers(onlineServers, name);
+        LOGGER.info("绑定完成: qq={}, uuid={}, name={}", senderQQ, uuid, name);
+        return "[绑定成功] " + name + " (" + uuid + ")\n" + syncResult;
+    }
+
+    /**
+     * 新服务器注册后，将当前绑定快照同步到该服白名单（尽力而为，不阻断注册流程）
+     */
+    public void syncWhitelistSnapshotToServer(String serverId) {
+        if (serverId == null || serverId.isBlank()) return;
+        var target = ServerRegistry.INSTANCE.getServer(serverId);
+        if (target == null || target.channel == null || !target.channel.isActive()) return;
+
+        Map<Long, String> allBindings = DataManager.INSTANCE.getAllBindings();
+        if (allBindings.isEmpty()) return;
+
+        int success = 0;
+        int skipped = 0;
+        int failed = 0;
+        for (String uuid : allBindings.values()) {
+            if (uuid == null || uuid.isBlank()) continue;
+            String name = DataManager.INSTANCE.getPlayerName(uuid);
+            if (name == null || name.isBlank()) {
+                name = resolveNameByUuid(uuid);
+            }
+            if (name == null || name.isBlank()) {
+                skipped++;
+                continue;
+            }
+            DataManager.INSTANCE.updatePlayerName(uuid, name);
+            String result = sendRequestToServer(serverId, "whitelist_add", name.trim(), null);
+            if (isWhitelistSyncSuccess(result)) {
+                success++;
+            } else {
+                failed++;
+            }
+        }
+        LOGGER.info("白名单快照同步完成: serverId={}, success={}, skipped={}, failed={}",
+            serverId, success, skipped, failed);
     }
     
     /**
@@ -210,6 +276,40 @@ public class BridgeProxy {
             return "[服务器] 无法获取状态";
         }
         return result;
+    }
+
+    /**
+     * 重载所有在线子服的 MapBot 配置/数据
+     */
+    public String reloadSubServerConfigs() {
+        List<String> serverIds = getSortedOnlineServerIds();
+        if (serverIds.isEmpty()) {
+            return "[子服重载] 无在线服务器";
+        }
+
+        FanoutBatchResult batch = fanOutRequests(serverIds, "reload_config", null, null, FANOUT_TIMEOUT);
+        int success = 0;
+        java.util.List<String> failedServers = new java.util.ArrayList<>();
+
+        for (String serverId : serverIds) {
+            String result = batch.responses.get(serverId);
+            if (isSuccess(result)) {
+                success++;
+                continue;
+            }
+            if (result == null || result.isBlank()) {
+                failedServers.add(serverId + "(超时)");
+            } else {
+                failedServers.add(serverId + "(" + result.trim() + ")");
+            }
+        }
+
+        StringBuilder summary = new StringBuilder();
+        summary.append("[子服重载] 成功 ").append(success).append("/").append(serverIds.size());
+        if (!failedServers.isEmpty()) {
+            summary.append("\n[子服重载] 失败: ").append(String.join(", ", failedServers));
+        }
+        return summary.toString();
     }
     
     /**
@@ -239,12 +339,106 @@ public class BridgeProxy {
      */
     public String resolveUuidByName(String playerName) {
         if (playerName == null || playerName.trim().isEmpty()) return null;
-        var servers = ServerRegistry.INSTANCE.getAllServers();
-        if (servers.isEmpty()) return null;
-        var server = servers.iterator().next();
+        java.util.List<String> targets = new java.util.ArrayList<>(getOnlineServerIds());
+        if (targets.isEmpty()) return null;
+        java.util.Collections.sort(targets);
 
-        String uuid = sendRequestToServer(server.serverId, "resolve_uuid", playerName.trim(), null);
-        return (uuid == null || uuid.isEmpty()) ? null : uuid;
+        String normalizedName = playerName.trim();
+        for (String serverId : targets) {
+            String uuid = sendRequestToServer(serverId, "resolve_uuid", normalizedName, null);
+            if (uuid != null && !uuid.isBlank()) {
+                return uuid.trim();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 通过 UUID 反查玩家名（用于绑定 UUID 自愈刷新）
+     */
+    public String resolveNameByUuid(String uuid) {
+        if (uuid == null || uuid.trim().isEmpty()) return null;
+        java.util.List<String> targets = getSortedOnlineServerIds();
+        if (targets.isEmpty()) return null;
+
+        String normalizedUuid = uuid.trim();
+        for (String serverId : targets) {
+            String name = sendRequestToServer(serverId, "resolve_name", normalizedUuid, null);
+            if (name != null && !name.isBlank()) {
+                return name.trim();
+            }
+        }
+        return null;
+    }
+
+    private static List<String> getSortedOnlineServerIds() {
+        List<String> targets = new java.util.ArrayList<>(getOnlineServerIds());
+        Collections.sort(targets);
+        return targets;
+    }
+
+    private ResolvedIdentity resolveIdentityByName(String playerName, List<String> onlineServers) {
+        for (String serverId : onlineServers) {
+            String uuid = sendRequestToServer(serverId, "resolve_uuid", playerName, null);
+            if (uuid == null || uuid.isBlank()) continue;
+            String normalizedUuid = uuid.trim();
+
+            String resolvedName = sendRequestToServer(serverId, "resolve_name", normalizedUuid, null);
+            if (resolvedName == null || resolvedName.isBlank()) {
+                resolvedName = playerName;
+            } else {
+                resolvedName = resolvedName.trim();
+            }
+            return new ResolvedIdentity(normalizedUuid, resolvedName);
+        }
+        return null;
+    }
+
+    private String syncWhitelistAddToServers(List<String> serverIds, String playerName) {
+        if (serverIds == null || serverIds.isEmpty()) {
+            return "[白名单同步] 无在线服务器";
+        }
+        FanoutBatchResult batch = fanOutRequests(serverIds, "whitelist_add", playerName, null, FANOUT_TIMEOUT);
+
+        int success = 0;
+        java.util.List<String> failedServers = new java.util.ArrayList<>();
+        for (String serverId : serverIds) {
+            String result = batch.responses.get(serverId);
+            if (isWhitelistSyncSuccess(result)) {
+                success++;
+                continue;
+            }
+            if (result == null || result.isBlank()) {
+                failedServers.add(serverId + "(超时)");
+            } else {
+                failedServers.add(serverId + "(" + result + ")");
+            }
+        }
+
+        StringBuilder summary = new StringBuilder();
+        summary.append("[白名单同步] 成功 ").append(success).append("/").append(serverIds.size());
+        if (failedServers.isEmpty()) {
+            LOGGER.info("白名单同步成功: player={}, success={}/{}", playerName, success, serverIds.size());
+            return summary.toString();
+        }
+        summary.append("\n[白名单同步] 失败: ").append(String.join(", ", failedServers));
+        LOGGER.warn("白名单同步部分失败: player={}, success={}/{}, failed={}",
+            playerName, success, serverIds.size(), failedServers);
+        return summary.toString();
+    }
+
+    private boolean isWhitelistSyncSuccess(String result) {
+        if (result == null) return false;
+        String trimmed = result.trim();
+        return trimmed.equalsIgnoreCase("SUCCESS")
+            || trimmed.equalsIgnoreCase("SUCCESS:ALREADY")
+            || trimmed.startsWith("SUCCESS:");
+    }
+
+    private boolean isSuccess(String result) {
+        if (result == null) return false;
+        String trimmed = result.trim();
+        return trimmed.equalsIgnoreCase("SUCCESS") || trimmed.startsWith("SUCCESS:");
     }
     
     /**
