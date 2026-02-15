@@ -1,0 +1,58 @@
+preflight_read_manifest — Step-06 C1
+======================================
+RUN_ID: 20260215T193300Z
+执行时间: 2026-02-15T19:33:00+08:00
+
+## 已读取文件
+1. Project_Docs/Control/MASTER_PROMPT.md ✓
+2. Project_Docs/Control/TASKS/TASK_STEP_06_C1.md (新建) ✓
+3. Project_Docs/Re_Step/RE_STEP_06_C1_线程模型与故障模型评审.md (279行) ✓
+4. Project_Docs/Architecture/THREADING_MODEL.md (174行) ✓
+5. Project_Docs/Architecture/FAILURE_MODEL.md (187行) ✓
+6. Project_Docs/Contracts/BRIDGE_MESSAGE_CONTRACT.md ✓
+7. Project_Docs/Contracts/DATA_CONSISTENCY_CONTRACT.md ✓
+8. Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md ✓
+
+## 前置产物检查 (Step05 6/6)
+Step05 Artifacts 目录: 存在 ✓
+- 01_Consistency_Model_Mapping.md: 存在 (3794B) ✓
+- 02_Conflict_and_Idempotency_Matrix.md: 存在 (2704B) ✓
+- 03_Replay_Recovery_Flow.md: 存在 (3146B) ✓
+- 04_SLO_Metrics_Alert_Profile.md: 存在 (4096B) ✓
+- 05_B3_Negative_Test_Cases.md: 存在 (3999B) ✓
+- 06_Solo_Review_Log_B3.md: 存在 (3510B) ✓
+备注: 命名与 RE_STEP_06 要求不同（RE_STEP 定义 vs 实际版本），但 6/6 产物齐全。
+
+## 代码覆盖追踪 (线程+故障)
+### 线程越界扫描 (网络包 → MC API)
+- getCurrentServer(): BridgeHandlers L44, BridgeClient L254/L265 = 3处
+- getPlayerList(): BridgeHandlers 15处, BridgeClient L256 = 16处
+- 大部分在 server.execute() 闭包内（安全）
+- 高风险: BridgeClient L254/L256 心跳线程直接调用（High）
+- 高风险: BridgeHandlers L111/L152 部分调用在 execute 外（需确认）
+
+### 禁止模式扫描
+- new Thread(): Reforged 9处 + Alpha 7处 = 16处
+  - 高风险: BridgeHandlers L849 匿名线程+sleep（关服倒计时）
+  - 中风险: DataManager L309 匿名线程无名
+  - 低风险: BotClient L50, BridgeClient L162/L230 有命名
+- Thread.sleep(): BridgeHandlers L860, BridgeClient L195, MapBot L222/L253, OneBotClient L130 = 5处
+
+### 主线程回切保护
+- server.execute(): BridgeHandlers 18处 + 命令类 12处 = 30+处（良好覆盖）
+
+### 并发安全容器
+- AtomicBoolean: BridgeClient L45/L46 (connected/running) ✓
+- ConcurrentHashMap: BridgeClient L52/L72/L73/L74 ✓
+- volatile: BotClient L43/L44/L45 ✓
+
+### 故障状态机扫描
+- PENDING: 仅 SignManager (KEY_PENDING) = 签到待领取
+- DEGRADED: 未实现 ❌
+- COMPENSATED: 未实现 ❌
+- FAILED_TIMEOUT: 未实现 ❌
+- FAILED_DISCONNECT: 未实现 ❌
+- request_id: 未统一实现 ❌
+
+## Preflight 结论
+输入齐全，前置产物 6/6，代码追踪完成。可开始产物生成。

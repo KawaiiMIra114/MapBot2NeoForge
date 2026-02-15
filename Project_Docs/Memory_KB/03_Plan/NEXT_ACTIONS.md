@@ -1,16 +1,15 @@
 # Next Actions (Execution Order)
 
-> C1 端到端集成验证已完成。以下为后续行动计划。
+> Step-06 C1 已完成 (CONDITIONAL PASS)。Step-07 C2 前置门禁已满足。
 
-1. 进入 C2（如有定义），或标记 Re_Step 流程全链完成
-   - C1 已确认: 全部核心链路可达、编译通过、协议一致、权限配置闭环
-
-2. P1 整改推进 (2026-03-05 窗口)
-   - entity_version + CAS → DataManager 写入路径
-   - CONSISTENCY-409 统一错误码
-   - SLO 指标基础框架 (Counter/Histogram)
-   - 防雪崩基础 (inflight 限额 + 指数退避)
-
-3. 运行时验证 (可选)
-   - 部署到测试环境进行实际运行验证
-   - 执行 B3 负面测试用例 (05_B3_Negative_Test_Cases)
+1. 执行 Step-07 C2 安全边界与版本兼容评审
+   - 前置: Step-06 Artifacts 6/6 ✓
+   - SEC-01~SEC-04 高风险项需在评审中进一步分析
+2. 完成 C2 后进入 D 阶段 (重构实现)
+   - D1: 线程安全修复 (TH-01/TH-02/FP-01/FP-02)
+   - D2: 故障状态机落地 (FM-01~FM-07)
+   - D3: 安全边界修复 (SEC-01~SEC-04)
+3. 运行时验证 (T/F 系列实验)
+   - T-2/T-3 可即时执行
+   - T-1 修复后执行
+   - F-1/F-2/F-3 D 阶段后执行
