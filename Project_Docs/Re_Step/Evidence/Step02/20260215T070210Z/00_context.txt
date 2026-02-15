@@ -1,0 +1,6 @@
+step=Step02
+run_id=20260215T070210Z
+generated_at_utc=2026-02-15T07:02:10Z
+doc_path=/mnt/d/axm/mcs/MapBot2NeoForge/Project_Docs/Re_Step/RE_STEP_02_A2_基线采样与基线对比体系.md
+executor=supervisor
+sampling_window_hours=0

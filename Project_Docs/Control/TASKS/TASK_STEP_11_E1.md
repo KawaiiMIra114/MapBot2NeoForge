@@ -22,11 +22,11 @@ E1 命令语义统一重构（中控模式）
 
 ## 强制输出文档
 目录：`Project_Docs/Re_Step/Artifacts/Step11/`
-1. `01_E1_Command_Refactor_Scope.md`
-2. `02_CommandRegistry_and_Dispatch_Design.md`
-3. `03_Permission_and_ErrorFeedback_Standard.md`
-4. `04_Help_and_DocGen_Design.md`
-5. `05_E1_Integration_Test_Report.md`
+1. `01_Command_Semantics_Inventory.md`
+2. `02_Authorization_and_Visibility_Unification.md`
+3. `03_Command_Alias_and_Deprecation_Plan.md`
+4. `04_Reply_and_Error_Semantics_Standard.md`
+5. `05_E1_Regression_and_Negative_Test_Report.md`
 6. `06_Solo_Review_Log_E1.md`
 
 ## 强制证据输出

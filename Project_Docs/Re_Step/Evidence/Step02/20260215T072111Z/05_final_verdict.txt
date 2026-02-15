@@ -1,0 +1,7 @@
+step=Step02
+run_id=20260215T072111Z
+gate_mode=snapshot
+verdict=GO
+entry_decision=GO B1
+inputs_exit=0
+outputs_exit=0

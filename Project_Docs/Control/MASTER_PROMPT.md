@@ -26,11 +26,22 @@
 - 发现阻断项设为 `BLOCKED` 并写 `BlockReason`。
 - 门禁通过并提交后，推进到下一步并设为 `READY`。
 7. 仅当“编译通过 + 复查通过 + 门禁通过”三者同时满足，才允许提交 GitHub。
+8. 提交前必须执行“交付完整性校验”（必须留证据）：
+- 强制证据文件清单零缺失。
+- `CURRENT_STATE.md` 中当前 Step 的 Commit 不得为 `(pending)`。
+- `CURRENT_STEP.md` 切到下一步前，下一步 `TaskFile` 必须存在。
+ - 必须运行脚本：`python3 Project_Docs/Control/scripts/validate_delivery.py ...`，且退出码必须为 0。
+9. 任一校验失败，`Verdict` 必须为 `NO-GO`，且禁止推进 `CURRENT_STEP`。
 
 ## 提交规则
 1. 先 `git add` 仅相关文件。
 2. `git commit` 必须包含：Step ID、核心修复点、证据目录。
 3. `git push` 到当前分支（默认 main），并记录提交号到 Memory_KB。
+4. 提交后必须二次核验：
+- `git rev-parse --short HEAD` 与 `CURRENT_STATE.md` 一致。
+- 证据目录与任务包强制证据清单一致。
+- `CURRENT_STEP.md` 指向的下一步任务包存在。
+ - 再次运行 `validate_delivery.py`，结果必须仍为 PASS。
 
 ## 输出格式（固定）
 - Verdict: PASS/FAIL

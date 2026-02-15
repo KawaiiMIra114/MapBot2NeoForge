@@ -9,3 +9,4 @@
 - Build & Review Result:
 - Git Commit/Push Result:
 - CURRENT_STEP Update:
+- Delivery Integrity Check:

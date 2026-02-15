@@ -1,0 +1,9 @@
+step=Step02
+run_id=20260215T071238Z
+gate_mode=provisional
+verdict=PASS-PROVISIONAL
+entry_decision=GO B1(开发)
+min_metric_sample_count=2
+sampling_window_minutes=3
+api_status_check=SKIP_NO_TOKEN
+formal_target=sampling_window_hours>=24 && min_sample>=30 && api_status_check=PASS

@@ -1,0 +1,6 @@
+step=Step04
+scope=B2 权限与配置契约映射
+run_id=20260215T081808Z
+artifact_dir=Project_Docs/Re_Step/Artifacts/Step04
+evidence_dir=Project_Docs/Re_Step/Evidence/Step04/20260215T081808Z
+utc=2026-02-15T08:18:08Z

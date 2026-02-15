@@ -36,7 +36,15 @@ C2 安全边界与版本兼容评审（中控模式）
 - `build_alpha.log`, `build_alpha.exit`
 - `build_reforged.log`, `build_reforged.exit`
 - `review_scope.log`, `review_scope.exit`
-- `gate01..gate06`（log+exit）
+- `gate01_prev_step.log`, `gate01_prev_step.exit`
+- `gate02_artifacts.log`, `gate02_artifacts.exit`
+- `gate03_build_alpha.log`, `gate03_build_alpha.exit`
+- `gate04_build_reforged.log`, `gate04_build_reforged.exit`
+- `gate05_review_scope.log`, `gate05_review_scope.exit`
+- `gate06_memory_kb_sync.log`, `gate06_memory_kb_sync.exit`
+- `gate09_evidence_completeness.log`, `gate09_evidence_completeness.exit`
+- `gate10_commit_not_pending.log`, `gate10_commit_not_pending.exit`
+- `gate11_next_taskfile_exists.log`, `gate11_next_taskfile_exists.exit`
 - `gate_summary.txt`
 - `final_verdict.md`
 
@@ -66,7 +74,7 @@ C2 安全边界与版本兼容评审（中控模式）
 1. 6 份 Artifacts 齐全。
 2. 编译双端通过。
 3. 复查无阻断项。
-4. Gate 全 PASS。
+4. gate01..gate11 全 PASS。
 5. Memory_KB 已回写。
 
 ## 提交规则

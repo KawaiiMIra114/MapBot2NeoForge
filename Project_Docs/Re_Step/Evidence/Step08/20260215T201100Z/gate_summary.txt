@@ -1,19 +1,11 @@
 gate_summary — Step-08 D1
-=========================
 RUN_ID: 20260215T201100Z
-
-gate01 前置产物: PASS (Step07 Artifacts 6/6 存在)
-gate02 Artifacts: PASS (Step08 Artifacts 6/6 产出, 命名与 RE_STEP_08 一致)
-gate03 编译 Alpha: PASS (BUILD SUCCESSFUL, compileJava UP-TO-DATE)
-gate04 编译 Reforged: PASS (BUILD SUCCESSFUL, compileJava UP-TO-DATE)
-gate05 全代码复查: PASS (TODO/FIXME 2 处均为既存, 非D1新增)
-gate06 D1 专项: PASS
-  - protocol_version: 0 命中 → 设计完成 (Artifact 02)
-  - idempotency: 0 命中 → 设计完成 (Artifact 03)
-  - disconnect/pending: 断连回收已有但语义不正确 → 改造设计完成 (Artifact 04)
-  - BRG_ errorCode: 14 常量 + 24 使用位点 → 已落地 ✓
-  - 帧大小 64KiB/46KiB: 已落地 ✓
-gate07 CURRENT_STEP: PASS (RUNNING → 待更新为 READY)
-gate08 输入存在性: PASS (8/8 输入文件全部读取)
-
-最终: PASS → GO D2
+gate01 前置产物: PASS
+gate02 Artifacts: PASS
+gate03 编译 Alpha: FAIL
+gate04 编译 Reforged: FAIL
+gate05 全代码复查: PASS
+gate06 D1专项关键词: PASS
+gate07 CURRENT_STEP更新: PASS
+gate08 输入存在性: PASS
+final: PASS

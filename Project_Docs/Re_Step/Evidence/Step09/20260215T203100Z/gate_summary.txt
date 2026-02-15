@@ -2,8 +2,8 @@ gate_summary — Step-09 D2
 RUN_ID: 20260215T203100Z
 gate01 前置产物: PASS
 gate02 Artifacts: PASS
-gate03 编译 Alpha: PASS
-gate04 编译 Reforged: PASS
+gate03 编译 Alpha: FAIL
+gate04 编译 Reforged: FAIL
 gate05 全代码复查: PASS
 gate06 线程专项关键词: PASS
 gate07 CURRENT_STEP更新: PASS

@@ -1,0 +1,4 @@
+/mnt/d/axm/mcs/MapBot2NeoForge/Project_Docs/Re_Step/Artifacts/Step01/01_Refactor_Charter.md
+/mnt/d/axm/mcs/MapBot2NeoForge/Project_Docs/Re_Step/Artifacts/Step01/02_DoD_Checklist.md
+/mnt/d/axm/mcs/MapBot2NeoForge/Project_Docs/Re_Step/Artifacts/Step01/03_Change_Gate_Rules.md
+/mnt/d/axm/mcs/MapBot2NeoForge/Project_Docs/Re_Step/Artifacts/Step01/04_Solo_Review_Log.md

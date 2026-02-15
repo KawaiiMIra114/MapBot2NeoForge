@@ -1,0 +1,92 @@
+generated_at=2026-02-15T12:24:59Z
+### Project_Docs/Contracts/BRIDGE_MESSAGE_CONTRACT.md
+38:- `MAY` 追加扩展字段（如 `traceId`、`protocolVersion`），接收端忽略未知字段。
+50:| `error` | string | 失败时可选 | `register_ack`/`file_response` 失败原因。 |
+52:| `idempotencyKey` | string | 可选 | 重试去重键（见第 7 条）。 |
+53:| `protocolVersion` | string | 可选 | 协议版本标记，默认视为 `bridge.v1`。 |
+68:| `error` | implemented | `register_ack/file_response` 使用 | `SHOULD`（失败场景） |
+71:| `idempotencyKey` | planned | 合同预留，代码未统一去重 | `MAY` |
+72:| `protocolVersion` | planned | 合同预留，未协商 | `MAY` |
+93:- `MUST` 首帧为 `register`，否则 Alpha 返回 `register_ack(success=false,error=register_required)` 并断开连接。
+94:- `MUST` 注册鉴权失败时返回 `register_ack(success=false,error=unauthorized)` 并断开。
+108:| Alpha 文件代理请求（`BridgeFileProxy`） | 10 秒 | `MUST` 返回 `Request timeout`。 |
+122:- `MAY` 在请求中携带 `idempotencyKey`。
+123:- `SHOULD` 对变更型请求重试时复用同一 `idempotencyKey`，避免“新键重放同一业务”。
+125:- `MAY` 在未携带 `idempotencyKey` 时使用 `requestId` 做弱关联（仅追踪，不保证去重）。
+132:- `MAY` 引入 `protocolVersion` 做能力协商；未携带时按 `bridge.v1` 处理。
+144:- `MUST` 超限统一映射为 `BRG_VALIDATION_205`（消息体超过合同上限）。
+151:| `v1.1.x` | 合同生效：发送端按 64 KiB/46 KiB 预检 | 超限走 `BRG_VALIDATION_205`，避免链路层失败。 |
+167:- `P0-2` 变更型请求无去重：先实现 `idempotencyKey` 去重缓存与重复请求幂等回包。
+168:- `P1-1` 错误返回双栈未完全落地：补齐 `errorCode` 结构化输出并推进字符串退场。
+### Project_Docs/Contracts/BRIDGE_ERROR_CODE_CONTRACT.md
+33:- `MUST` 使用格式：`BRG_<LAYER>_<NNN>`。
+34:- `MUST` 满足正则：`^BRG_(AUTH|VALIDATION|TRANSPORT|EXECUTION|TIMEOUT|INTERNAL)_[0-9]{3}$`。
+40:### 2. 分层模型（auth/validation/transport/execution/timeout/internal）
+43:| `auth` | 鉴权/访问控制失败 | `BRG_AUTH_100~199` | 默认不重试，需修配置或权限。 |
+44:| `validation` | 参数缺失、格式不合法、协议前置条件不满足 | `BRG_VALIDATION_200~299` | 修请求后重试。 |
+45:| `transport` | 连接不可达、对端离线、通道异常 | `BRG_TRANSPORT_300~399` | 可重试，需退避。 |
+46:| `execution` | 指令/业务执行失败（非超时） | `BRG_EXECUTION_400~499` | 视业务可重试，默认人工确认。 |
+47:| `timeout` | 请求等待超时或保活超时 | `BRG_TIMEOUT_500~599` | 可重试；变更操作需幂等保护。 |
+48:| `internal` | 未分类异常、代码缺陷、未知错误 | `BRG_INTERNAL_900~999` | 不盲重试，先告警并排障。 |
+53:| `BRG_AUTH_101` | auth | `unauthorized` | Bridge 鉴权失败，请联系管理员核对令牌与 serverId。 |
+54:| `BRG_AUTH_102` | auth | `Access denied: path outside server directory` / `path not in mutation whitelist` | 文件操作被拒绝，路径不在允许范围。 |
+55:| `BRG_VALIDATION_201` | validation | `register_required` | 连接初始化失败：必须先发送注册消息。 |
+56:| `BRG_VALIDATION_202` | validation | `invalid_json` / `empty_message` | 请求格式错误，请检查消息结构。 |
+57:| `BRG_VALIDATION_203` | validation | `FAIL:玩家名为空` / `FAIL:目标转移地址为空` | 请求参数不完整，请补充后重试。 |
+58:| `BRG_VALIDATION_204` | validation | `FAIL:玩家名格式非法` | 玩家名格式非法，仅支持 3-16 位字母数字下划线。 |
+59:| `BRG_VALIDATION_205` | validation | `Payload too large` / `File too large` | 消息体超过协议上限，请缩小内容后重试。 |
+60:| `BRG_TRANSPORT_301` | transport | `Server not connected:*` / `[错误] 服务器离线:*` | 目标服务器离线，请稍后再试。 |
+61:| `BRG_TRANSPORT_302` | transport | `Bridge 未连接` / `服务器未就绪` | Bridge 通道未就绪，请稍后重试。 |
+62:| `BRG_EXECUTION_401` | execution | `FAIL:命令执行失败` / `[错误] 指令执行失败或语法错误` | 执行失败，请检查命令和服务器状态。 |
+63:| `BRG_EXECUTION_402` | execution | `FAIL:OFFLINE` / `FAIL:未知物品` | 业务执行失败，请按提示修正后重试。 |
+64:| `BRG_TIMEOUT_501` | timeout | `Request timeout` / `[错误] 请求超时` | 请求超时，请稍后重试。 |
+65:| `BRG_TIMEOUT_502` | timeout | `FAIL:跨服执行超时，请稍后重试` | 跨服操作超时，请稍后重试。 |
+66:| `BRG_INTERNAL_901` | internal | `FAIL:<exception message>` | 系统内部错误，请联系维护者。 |
+67:| `BRG_INTERNAL_999` | internal | 未命中映射规则的未知错误 | 未知内部错误，请联系维护者并附带 requestId。 |
+70:- `MUST` 优先级 1：若响应包含合法 `errorCode`，以 `errorCode` 为准。
+71:- `MUST` 优先级 2：若无 `errorCode`，使用字符串映射表（第 3 节）推导标准错误码。
+72:- `MUST` 优先级 3：若 `errorCode` 与字符串映射冲突，保留 `errorCode` 并记录 `mappingConflict=true` 审计标记。
+73:- `MUST` 优先级 4：若结构化字段和映射均失效，回退到 `BRG_INTERNAL_999`。
+81:| `v1.1.x` | 双栈强制：结构化 + 字符串并行 | 新增/改造接口 `MUST` 带 `errorCode`。 |
+83:| `v2.0.0+` | 结构化单栈：移除机器解析对字符串依赖 | `MUST` 以 `errorCode` 作为唯一机器判定依据。 |
+91:- `MUST` 管理端文案至少包含：`errorCode`、是否可重试、下一步建议。
+98:  - `errorCode`
+108:  - `idempotencyKey`
+112:  - `protocolVersion`
+127:- BE-02 分层完整：六层（auth/validation/transport/execution/timeout/internal）均至少有一个注册错误码。
+128:- BE-03 映射覆盖：高频原始错误（`unauthorized/register_required/Request timeout/FAIL:*`）映射覆盖率 100%。
+129:- BE-04 双栈优先级：构造“`errorCode` 与字符串冲突”样例，验证优先级 1 生效且记录冲突标记。
+131:  - `v1.1.x`：新增接口必须携带 `errorCode`。
+133:- BE-06 文案安全：用户可见文案不得出现 `token`、`auth.bridge.token`、绝对路径、堆栈片段。
+134:- BE-07 审计完整度：`errorCode/layer/requestId/type/direction` 五字段非空率达到 100%。
+140:| 2026-02-14 | 1.1.0 | 增加双栈映射优先级、字符串错误退场计划、`BRG_VALIDATION_205` 与 `BRG_INTERNAL_999`。 | A1 合同-协议层 |
+### Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md
+1:# OBSERVABILITY_SLO_CONTRACT
+6:| Contract-ID | A2-OBS-SLO |
+27:- `SLO`：服务目标（可承诺）。
+35:| `auth_decision_total` | Counter | `decision`, `role`, `command_category` | 鉴权允许/拒绝总量 |
+36:| `auth_decision_latency_ms` | Histogram | `command_category` | 鉴权延迟分布 |
+42:### 5.2 SLI/SLO
+43:| SLI | 目标 SLO | 统计窗口 |
+46:| 鉴权延迟 `p95(auth_decision_latency_ms)` | `<= 50ms` | 7 天滚动 |
+54:| `auth_decision_latency_ms p95` | `> 40ms` 持续 10 分钟 | `> 50ms` 持续 5 分钟 |
+73:- 当前 `policy_version`、`schema.version`、`snapshot_version`
+79:- SLO 违约必须触发改进工单并指定 `owner` 级责任人。
+84:- SLO 目标收紧前需提供最近 30 天基线数据与容量评估。
+93:1. 告警等级列必须存在：`rg -n "^\\| 监控项 \\| Warning \\| Critical \\|$" Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md`
+94:2. 鉴权延迟阈值必须存在：`rg -n "auth_decision_latency_ms p95.*40ms.*50ms" Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md`
+95:3. Critical RCA 义务必须存在：`rg -n "Critical.*事后记录" Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md`
+96:4. 排障版本证据必须存在：`rg -n "policy_version.*schema.version.*snapshot_version" Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md`
+99:- 前置条件：`auth_decision_latency_ms` 连续 15 分钟保持 `p95<=35ms`，鉴权错误率 `<0.3%`。
+### Project_Docs/Contracts/DATA_CONSISTENCY_CONTRACT.md
+13:| 依赖合同 | COMMAND_AUTHORIZATION_CONTRACT, CONFIG_SCHEMA_CONTRACT, OBSERVABILITY_SLO_CONTRACT |
+27:- `entity_version`：单实体单调递增版本号。
+35:| 命令授权策略 | `authorization_policy_store` | 决定命令是否可执行的唯一依据 |
+43:- 每个事实源实体必须维护 `entity_version:uint64`，每次成功写入 `+1`。
+44:- 每个快照必须包含 `snapshot_version` 与 `snapshot_checksum`。
+45:- 读请求响应应携带 `version_hint` 便于客户端做幂等与重试判断。
+48:- 写入必须携带 `expected_version`，采用乐观并发控制（CAS）。
+58:- 每条事件必须具备 `idempotency_key`，重复事件仅执行一次。
+73:- 冲突事件记录（含 `expected_version` 与 `actual_version`）
+90:2. CAS 先决条件必须存在：`rg -n "写入必须携带.*expected_version" Project_Docs/Contracts/DATA_CONSISTENCY_CONTRACT.md`
+95:- 前置条件：目标实体当前 `entity_version=10`，单写请求携带 `expected_version=10`。

@@ -24,6 +24,7 @@
 4. 每步结束必须回写 `Project_Docs/Memory_KB/`。
 5. 禁止跳步、禁止口头放行。
 6. 如任务包与 `Project_Docs/Re_Step/RE_STEP_*.md` 冲突，以 `RE_STEP` 为准并立即回补任务包。
+7. PASS 前必须通过机器验收脚本（`validate_delivery.py`），不得用人工总结替代。
 
 ## 5. 如何切换到下一步
 1. 新建下一个任务包：`Project_Docs/Control/TASKS/TASK_STEP_xx_xx.md`。
@@ -54,4 +55,15 @@
 10. 最终仅输出：Verdict、Blocking Issues、Fix Actions、Next Step Decision、Files Changed、Evidence Path、Build & Review Result、Git Commit/Push Result。
 
 ## 7. 当前限制
-当前仅落地了 `TASK_STEP_07_C2.md`。后续步骤需按模板补齐任务包后再执行。
+任务包按阶段持续补齐。未创建任务包的步骤不得执行。
+
+## 8. 强制机器验收命令（提交前与提交后都要跑）
+```bash
+python3 Project_Docs/Control/scripts/validate_delivery.py \
+  --task "Project_Docs/Control/TASKS/<TASK_FILE>.md" \
+  --evidence-dir "Project_Docs/Re_Step/Evidence/Step<NN>/<RUN_ID>" \
+  --current-state "Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md" \
+  --current-step "Project_Docs/Control/CURRENT_STEP.md" \
+  --step-label "Step-<NN>"
+```
+退出码必须为 `0` 才允许 PASS。

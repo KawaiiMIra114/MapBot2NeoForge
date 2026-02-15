@@ -1,0 +1,30 @@
+﻿preflight_read_manifest  Step-11 E1
+RUN_ID: 20260215T213000Z
+== 强制输入读取 (顺序) ==
+[OK] MASTER_PROMPT.md
+[OK] Control/README.md
+[OK] TASKS/README.md
+[OK] CURRENT_STEP.md (Status: RUNNING)
+[OK] TASK_STEP_11_E1.md (已修订Artifact命名对齐RE_STEP)
+[OK] RE_STEP_11_E1_命令语义统一重构.md (278行)
+[OK] validate_delivery.py (232行)
+[OK] CURRENT_STATE.md
+[OK] NEXT_ACTIONS.md
+
+== 规范优先级确认 ==
+TASK vs RE_STEP 命名冲突: 已按RE_STEP权威修订TASK
+
+== Step10 前置产物 (6/6) ==
+[OK] 01_D3_CAS_WritePath_Design.md
+[OK] 02_Snapshot_EventLog_Recovery_Design.md
+[OK] 03_Atomic_Persistence_Standard.md
+[OK] 04_Compensation_and_Replay_Closure.md
+[OK] 05_D3_FaultInjection_Test_Report.md
+[OK] 06_Solo_Review_Log_D3.md
+
+== E1专项扫描 ==
+命令注册/分发: 142+ matches (CommandRegistry, register, dispatch, alias)
+权限/角色: 182+ matches (ContractRole, permission, role, forbidden)
+帮助/文档: 57+ matches (help, 菜单, getHelp, command list)
+
+result: ALL INPUTS VERIFIED

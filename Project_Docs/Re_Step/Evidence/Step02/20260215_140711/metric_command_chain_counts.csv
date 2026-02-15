@@ -1,0 +1,6 @@
+command,input_hits,process_hits,output_hits,log_hits
+bind,10,4,10,41
+unbind,4,6,2,41
+status,5,7,13,41
+list,3,4,3,41
+reload,2,5,22,41

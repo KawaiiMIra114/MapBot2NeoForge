@@ -1,0 +1,9 @@
+﻿code_coverage  Step-11 E1
+RUN_ID: 20260215T213000Z
+CommandRegistry: 24 commands registered, 13 aliases
+ContractRole: 3 levels (USER/ADMIN/OWNER)
+ICommand.getRequiredPermission: implemented in all 24 commands
+ICommand.getHelp: implemented in all 24 commands
+HelpCommand: scene-based display (player/admin/private)
+Alias: registerAlias with dedup
+coverage_result: BASELINE ESTABLISHED

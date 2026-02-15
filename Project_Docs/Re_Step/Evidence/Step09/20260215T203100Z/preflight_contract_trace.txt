@@ -1,0 +1,67 @@
+generated_at=2026-02-15T12:49:31Z
+### Project_Docs/Contracts/BRIDGE_MESSAGE_CONTRACT.md
+7:| Version | 1.1.0 |
+11:| Source of Truth | `Project_Docs/Contracts/BRIDGE_MESSAGE_CONTRACT.md`; 实现参考 `Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/*`, `MapBot_Reforged/src/main/java/com/mapbot/network/*` |
+24:## Definitions
+29:- 变更型请求（Mutation）：会产生状态副作用的请求（如 `whitelist_add`、`give_item`、`file_write`）。
+38:- `MAY` 追加扩展字段（如 `traceId`、`protocolVersion`），接收端忽略未知字段。
+53:| `protocolVersion` | string | 可选 | 协议版本标记，默认视为 `bridge.v1`。 |
+72:| `protocolVersion` | planned | 合同预留，未协商 | `MAY` |
+78:  - `command`, `qq_message`, `get_players`, `has_player`, `get_status`, `bind_player`, `whitelist_add`, `whitelist_remove`, `resolve_uuid`, `resolve_name`, `reload_config`, `switch_server`, `sign_in`, `accept_reward`, `get_inventory`, `get_location`, `execute_command`, `broadcast`, `get_playtime`, `get_cdk`, `stop_server`, `cancel_stop`, `file_list`, `file_read`, `file_write`, `file_delete`, `file_mkdir`, `file_upload`, `roll_loot`, `give_item`。
+108:| Alpha 文件代理请求（`BridgeFileProxy`） | 10 秒 | `MUST` 返回 `Request timeout`。 |
+132:- `MAY` 引入 `protocolVersion` 做能力协商；未携带时按 `bridge.v1` 处理。
+170:## Verification and Acceptance Criteria
+203:| Date | Version | Change | Author |
+### Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md
+1:# OBSERVABILITY_SLO_CONTRACT
+6:| Contract-ID | A2-OBS-SLO |
+27:- `SLO`：服务目标（可承诺）。
+35:| `auth_decision_total` | Counter | `decision`, `role`, `command_category` | 鉴权允许/拒绝总量 |
+36:| `auth_decision_latency_ms` | Histogram | `command_category` | 鉴权延迟分布 |
+42:### 5.2 SLI/SLO
+43:| SLI | 目标 SLO | 统计窗口 |
+46:| 鉴权延迟 `p95(auth_decision_latency_ms)` | `<= 50ms` | 7 天滚动 |
+54:| `auth_decision_latency_ms p95` | `> 40ms` 持续 10 分钟 | `> 50ms` 持续 5 分钟 |
+73:- 当前 `policy_version`、`schema.version`、`snapshot_version`
+79:- SLO 违约必须触发改进工单并指定 `owner` 级责任人。
+84:- SLO 目标收紧前需提供最近 30 天基线数据与容量评估。
+93:1. 告警等级列必须存在：`rg -n "^\\| 监控项 \\| Warning \\| Critical \\|$" Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md`
+94:2. 鉴权延迟阈值必须存在：`rg -n "auth_decision_latency_ms p95.*40ms.*50ms" Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md`
+95:3. Critical RCA 义务必须存在：`rg -n "Critical.*事后记录" Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md`
+96:4. 排障版本证据必须存在：`rg -n "policy_version.*schema.version.*snapshot_version" Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md`
+99:- 前置条件：`auth_decision_latency_ms` 连续 15 分钟保持 `p95<=35ms`，鉴权错误率 `<0.3%`。
+### Project_Docs/Architecture/THREADING_MODEL.md
+10:| Applicable-Version | v5.7.x（参考 `Project_Docs/CURRENT_STATUS.md`） |
+40:- 锁顺序固定: `cache lock -> session lock -> persistence lock`，不得反序申请。
+53:- [ ] 压测: 并发注入高频群消息与游戏事件，确认无 `ConcurrentModificationException`/死锁。
+54:- [ ] 观测: 日志中可区分 `main/io/worker` 线程名，便于追踪越界调用。
+68:2. `ConcurrentModificationException` = 0。
+78:1. 启动 TPS 监控并注入高频命令流（`list/status/inv/location` 混合）。
+81:rg -n "\\.get\\(.*TimeUnit|\\.join\\(|Thread\\.sleep\\(" MapBot_Reforged/src/main/java/com/mapbot/network Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge
+104:3. 锁顺序违规样本 = 0（`cache -> session -> persistence`）。
+113:| 心跳线程访问游戏对象 | Bridge 心跳线程直接读取 `ServerLifecycleHooks.getCurrentServer()` 与 `getPlayerList()` | 心跳线程仅读取主线程快照对象，不直接触碰 MC 对象 | `MapBot_Reforged/src/main/java/com/mapbot/network/BridgeClient.java:233`, `MapBot_Reforged/src/main/java/com/mapbot/network/BridgeClient.java:253`, `MapBot_Reforged/src/main/java/com/mapbot/network/BridgeClient.java:255` | High | 2026-02-28 | Reforged Maintainer |
+114:| 关服倒计时线程模型 | 倒计时通过 `new Thread` + `Thread.sleep` 手写生命周期 | 统一由调度器管理，支持中断、停服清理和线程命名规范 | `MapBot_Reforged/src/main/java/com/mapbot/network/BridgeHandlers.java:849`, `MapBot_Reforged/src/main/java/com/mapbot/network/BridgeHandlers.java:860` | Medium | 2026-03-07 | Reforged Maintainer |
+126:- 日志中标记线程名（`main/io/worker/scheduler`）用于审计。
+130:- 在非主线程直接调用 `server.getPlayerList().*`、`player.connection.*`、`level().*`。
+141:rg -n "ServerLifecycleHooks\\.getCurrentServer\\(|getPlayerList\\(|player\\.connection\\.|level\\(" MapBot_Reforged/src/main/java/com/mapbot/network
+142:rg -n "Thread\\.sleep\\(|new Thread\\(" MapBot_Reforged/src/main/java Mapbot-Alpha-V1/src/main/java
+143:rg -n "\\.get\\(.*TimeUnit|\\.join\\(" MapBot_Reforged/src/main/java/com/mapbot/network Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge
+146:- `com.mapbot.network` 包命中 `getCurrentServer/getPlayerList/level/player.connection` 直接判失败（除显式豁免清单）。
+### Project_Docs/Architecture/FAILURE_MODEL.md
+10:| Applicable-Version | v5.7.x（参考 `Project_Docs/CURRENT_STATUS.md`） |
+23:- `Retry Pollution`: 无幂等控制的重复重试导致重复扣减、重复发放或状态覆盖。
+61:### 3.6 断连后 pending 请求处理规范（强制）
+62:#### 3.6.1 最大滞留时间（Max Retention）
+71:- 每个超时/断连失败必须产生结构化事件：`request_id`, `action`, `server_id`, `state_from`, `state_to`, `elapsed_ms`, `error_code`。
+78:#### 3.6.3 补偿动作（Compensation）
+90:- 任何状态迁移必须写审计日志，禁止静默丢弃 pending 记录。
+121:- [ ] 观测检查: 日志与指标可区分 timeout/disconnect/retry/compensate 四类事件。
+125:- 目标: 验证 timeout/disconnect 分类准确，且系统能进入并退出 `DEGRADED` 模式。
+141:### 实验 F-2: pending 滞留与补偿闭环实验
+142:- 目标: 验证 pending 请求不会超时滞留，超限后会失败上报并触发补偿。
+145:2. 在执行中断开 Alpha 与子服连接，制造大量 pending。
+154:1. 立即清理超期 pending 并切换到保护模式（仅只读）。
+178:| 去重窗口与幂等索引 | 仅有 `pendingRequests`，无显式“已处理请求去重窗口” | 增加去重索引（TTL）并对重复 `request_id` 拒绝副作用重放 | `Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeProxy.java:34`, `Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeProxy.java:767` | High | 2026-03-05 | Alpha Core Maintainer |
+179:| 半成功状态机 | 多服发放仅返回字符串 `SUCCESS/FAIL`，无 `PREPARED/COMMITTED/COMPENSATED` 持久状态 | 引入持久化状态机并可对账恢复 | `Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeProxy.java:533`, `Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeProxy.java:575` | High | 2026-03-12 | Alpha Core Maintainer |
+180:| 断连后 pending 统一处置 | 超时后主要返回错误字符串，缺少统一失败码、补偿任务和告警阈值 | 落地 3.6 规范：滞留上限 + 失败上报 + 补偿闭环 | `Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeProxy.java:732`, `Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeProxy.java:779` | High | 2026-03-12 | SRE + Alpha Core Maintainer |
+185:| 去重窗口缺失 | 允许 `request_id` 去重仅覆盖“单进程内 pending”；重启后可能丢失去重上下文 | 2026-03-05 | 逾期后冻结涉及跨服发奖/绑定的高风险变更，并升级 Sev-2 跟踪 |

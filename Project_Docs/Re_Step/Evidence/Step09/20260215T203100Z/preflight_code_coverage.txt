@@ -1,0 +1,5 @@
+generated_at=2026-02-15T12:50:04Z
+alpha_java_files=55
+reforged_java_files=44
+alpha_thread_hits=46
+reforged_thread_hits=92

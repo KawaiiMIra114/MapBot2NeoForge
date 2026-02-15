@@ -1,0 +1,22 @@
+[read-inputs] generated_at=2026-02-15T15:26:45+08:00
+Project_Docs/SYSTEM_REFACTOR_DEVELOPMENT_TASKLIST.md
+Project_Docs/SYSTEM_CRITIQUE_AND_REFACTOR_PAPER_V1.md
+Project_Docs/Contracts/CONTRACT_INDEX.md
+Project_Docs/Contracts/BRIDGE_MESSAGE_CONTRACT.md
+Project_Docs/Contracts/BRIDGE_ERROR_CODE_CONTRACT.md
+Project_Docs/Architecture/THREADING_MODEL.md
+Project_Docs/Architecture/FAILURE_MODEL.md
+Project_Docs/Architecture/VERSIONING_AND_COMPATIBILITY.md
+Project_Docs/Re_Step/Artifacts/Step02/01_Baseline_Environment_Manifest.md
+Project_Docs/Re_Step/Artifacts/Step02/02_Baseline_Config_Snapshots.md
+Project_Docs/Re_Step/Artifacts/Step02/03_Baseline_Metrics_Report.md
+Project_Docs/Re_Step/Artifacts/Step02/04_Baseline_Behavior_Trace.md
+Project_Docs/Re_Step/Artifacts/Step02/05_Baseline_Comparator_Spec.md
+Project_Docs/Re_Step/Artifacts/Step02/06_Solo_Review_Log_A2.md
+Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeServer.java
+Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeMessageHandler.java
+Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeProxy.java
+Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/BridgeFileProxy.java
+Mapbot-Alpha-V1/src/main/java/com/mapbot/alpha/bridge/ServerRegistry.java
+MapBot_Reforged/src/main/java/com/mapbot/network/BridgeClient.java
+MapBot_Reforged/src/main/java/com/mapbot/network/BridgeHandlers.java

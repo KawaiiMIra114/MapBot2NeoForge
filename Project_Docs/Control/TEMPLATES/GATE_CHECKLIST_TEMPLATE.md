@@ -8,5 +8,8 @@
 - gate06_memory_kb_sync: PASS/FAIL
 - gate07_current_step_updated: PASS/FAIL
 - gate08_required_inputs_exist: PASS/FAIL
+- gate09_evidence_completeness: PASS/FAIL
+- gate10_commit_not_pending: PASS/FAIL
+- gate11_next_taskfile_exists: PASS/FAIL
 
 结论：GO/NO-GO

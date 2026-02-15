@@ -31,6 +31,7 @@
 
 ## 4. 证据目录规范
 - 路径：`Project_Docs/Re_Step/Evidence/Step<NN>/{RUN_ID}/`
+- 强制要求：证据清单必须逐项列出，禁止使用 `gate01~gate11`、`a+b`、`..` 等简写。
 - 至少包含：
   - `preflight_read_manifest.txt`
   - `build_*.log` + `build_*.exit`
@@ -43,6 +44,7 @@
 2. 编译与复查未全通过时禁止提交。
 3. 提交信息必须含 `Step ID` 与 `Evidence Path`。
 4. 提交后必须回写 Memory_KB 当前状态。
+5. 交付完整性校验未通过时禁止提交（证据缺失、Commit pending、下一步任务包不存在）。
 
 ## 6. 创建新任务包步骤
 1. 复制模板：`Project_Docs/Control/TEMPLATES/STEP_TASK_TEMPLATE.md`
@@ -64,3 +66,18 @@
 2. 任务包里的输入路径全部存在。
 3. 编译命令可执行（`gradlew` 或 `gradlew.bat`）。
 4. 证据目录可创建且可写。
+
+## 9. 提交前强制校验（必须落证据）
+1. 强制证据文件“逐项存在性”检查，输出 missing 列表（必须为空）。
+2. `CURRENT_STATE.md` 当前 Step 的 Commit 字段不得为 `(pending)`。
+3. `CURRENT_STEP.md` 若已推进到下一步，则 `TaskFile` 文件必须存在。
+4. 任一失败必须输出 `NO-GO`，并回填阻断项，不得口头放行。
+5. 必须执行并留存机器验收脚本结果：
+```bash
+python3 Project_Docs/Control/scripts/validate_delivery.py \
+  --task "Project_Docs/Control/TASKS/<TASK_FILE>.md" \
+  --evidence-dir "Project_Docs/Re_Step/Evidence/Step<NN>/<RUN_ID>" \
+  --current-state "Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md" \
+  --current-step "Project_Docs/Control/CURRENT_STEP.md" \
+  --step-label "Step-<NN>"
+```

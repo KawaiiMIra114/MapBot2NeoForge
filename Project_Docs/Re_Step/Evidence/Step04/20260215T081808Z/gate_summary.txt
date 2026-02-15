@@ -1,0 +1,8 @@
+run_id=20260215T081808Z
+evidence_dir=Project_Docs/Re_Step/Evidence/Step04/20260215T081808Z
+gate01_prev_artifacts exit=0
+gate02_sections exit=0
+gate03_linecount exit=0
+gate04_api exit=0
+gate05_b2_artifacts exit=0
+gate06_blocking exit=1
