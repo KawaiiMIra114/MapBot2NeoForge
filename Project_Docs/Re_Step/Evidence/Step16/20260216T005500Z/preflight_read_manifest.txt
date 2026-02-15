@@ -1,0 +1,16 @@
+﻿preflight_read_manifest  Step-16 G1
+RUN_ID: 20260216T005500Z
+== 强制输入读取 ==
+[OK] RE_STEP_16_G1_契约与集成测试体系建设.md (299行)
+[OK] TASK_STEP_16_G1.md (修订对齐 RE_STEP)
+[OK] CURRENT_STEP.md (RUNNING)
+[OK] CURRENT_STATE.md, NEXT_ACTIONS.md
+[OK] BRIDGE_MESSAGE_CONTRACT.md, BRIDGE_ERROR_CODE_CONTRACT.md
+[OK] COMMAND_AUTHORIZATION_CONTRACT.md, DATA_CONSISTENCY_CONTRACT.md
+[OK] FAILURE_MODEL.md, THREADING_MODEL.md, OPERATIONS_RUNBOOK.md
+== Step15 前置 (5/5) ==
+[OK] 01-05 全部存在且非空
+== G1专项扫描 ==
+编译: Alpha PASS (822ms), Reforged PASS (5s)
+代码扫描: 2 existing, 0 new
+result: ALL INPUTS VERIFIED

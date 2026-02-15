@@ -14,10 +14,11 @@
 - Step-13: `CONDITIONAL PASS` (E3 管理面API语义统一, 17 差距, 2026-02-15)
 - Step-14: `CONDITIONAL PASS` (F1 可观测与告警落地, 18 差距, 2026-02-15)
 - Step-15: `CONDITIONAL PASS` (F2 运维手册联调与验证, 10 差距, 2026-02-15)
+- Step-16: `CONDITIONAL PASS` (G1 契约与集成测试体系建设, 10 差距, 2026-02-16)
 
 ## Current Step
-- Active: Step-16 G1 测试与发布门禁 → READY
-- Previous: Step-15 F2 CONDITIONAL PASS (20260215T221900Z)
+- Active: Step-17 G2 测试自动化实现与发布 → READY
+- Previous: Step-16 G1 CONDITIONAL PASS (20260216T005500Z)
 
 ## Gap Backlog (累计)
 - C1→C2 累计: 54 项 (27 High / 22 Medium / 5 Low)
@@ -29,7 +30,8 @@
 - E3 新增: 17 项 (7 High / 8 Medium / 2 Low)
 - F1 新增: 18 项 (6 High / 11 Medium / 1 Low)
 - F2 新增: 10 项 (1 High / 7 Medium / 2 Low)
-- 总计: 149 项 (60 High / 73 Medium / 16 Low)
+- G1 新增: 10 项 (3 High / 5 Medium / 2 Low)
+- 总计: 159 项 (63 High / 78 Medium / 18 Low)
 
 ## Key Evidence
 | Step | Commit | Evidence |
@@ -44,3 +46,4 @@
 | Step-13 | 582ffb2 | Evidence/Step13/20260215T215300Z |
 | Step-14 | 1a2420b | Evidence/Step14/20260215T220800Z |
 | Step-15 | a6c958b | Evidence/Step15/20260215T221900Z |
+| Step-16 | (pending) | Evidence/Step16/20260216T005500Z |
