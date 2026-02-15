@@ -38,7 +38,14 @@ F2 运维手册联调与验证（中控模式）
 - `build_alpha.log`, `build_alpha.exit`
 - `build_reforged.log`, `build_reforged.exit`
 - `review_scope.log`, `review_scope.exit`
-- `gate01_prev_step.log` ~ `gate11_next_taskfile_exists.log` + `.exit`
+- `gate01_prev_step.log`, `gate01_prev_step.exit`
+- `gate02_artifacts.log`, `gate02_artifacts.exit`
+- `gate03_build_alpha.log`, `gate03_build_alpha.exit`
+- `gate04_build_reforged.log`, `gate04_build_reforged.exit`
+- `gate05_review_scope.log`, `gate05_review_scope.exit`
+- `gate06_obs_keywords.log`, `gate06_obs_keywords.exit`
+- `gate07_current_step_updated.log`, `gate07_current_step_updated.exit`
+- `gate08_required_inputs_exist.log`, `gate08_required_inputs_exist.exit`
 - `gate_summary.txt`
 - `final_verdict.md`
 
