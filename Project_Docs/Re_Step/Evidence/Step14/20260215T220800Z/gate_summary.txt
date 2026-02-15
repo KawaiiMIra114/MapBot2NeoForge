@@ -1,0 +1,4 @@
+﻿== Step-14 F1 Gate Summary ==
+gate01-08: ALL PASS
+gate09-11: PENDING (validate_delivery.py)
+overall: CONDITIONAL PASS -> GO F2

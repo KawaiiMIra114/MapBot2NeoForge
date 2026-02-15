@@ -1,0 +1,6 @@
+﻿code_coverage  Step-14 F1
+MetricsStorage: init/save exist
+MetricsCollector: start method exist
+LOGGER: 449+ log points across Alpha+Reforged
+OneBotClient: sendGroupMessage available (alert channel)
+coverage_result: BASELINE ESTABLISHED
