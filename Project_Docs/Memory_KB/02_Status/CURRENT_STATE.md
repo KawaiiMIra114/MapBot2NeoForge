@@ -13,10 +13,11 @@
 - Step-12: `CONDITIONAL PASS` (E2 关键业务链路重构, 10 差距, 2026-02-15)
 - Step-13: `CONDITIONAL PASS` (E3 管理面API语义统一, 17 差距, 2026-02-15)
 - Step-14: `CONDITIONAL PASS` (F1 可观测与告警落地, 18 差距, 2026-02-15)
+- Step-15: `CONDITIONAL PASS` (F2 运维手册联调与验证, 10 差距, 2026-02-15)
 
 ## Current Step
-- Active: Step-15 F2 运维联调与最终集成验证 → READY
-- Previous: Step-14 F1 CONDITIONAL PASS (20260215T220800Z)
+- Active: Step-16 G1 测试与发布门禁 → READY
+- Previous: Step-15 F2 CONDITIONAL PASS (20260215T221900Z)
 
 ## Gap Backlog (累计)
 - C1→C2 累计: 54 项 (27 High / 22 Medium / 5 Low)
@@ -27,7 +28,8 @@
 - E2 新增: 10 项 (4 High / 6 Medium / 0 Low)
 - E3 新增: 17 项 (7 High / 8 Medium / 2 Low)
 - F1 新增: 18 项 (6 High / 11 Medium / 1 Low)
-- 总计: 139 项 (59 High / 66 Medium / 14 Low)
+- F2 新增: 10 项 (1 High / 7 Medium / 2 Low)
+- 总计: 149 项 (60 High / 73 Medium / 16 Low)
 
 ## Key Evidence
 | Step | Commit | Evidence |
@@ -41,3 +43,4 @@
 | Step-12 | ebe95be | Evidence/Step12/20260215T214100Z |
 | Step-13 | 582ffb2 | Evidence/Step13/20260215T215300Z |
 | Step-14 | 1a2420b | Evidence/Step14/20260215T220800Z |
+| Step-15 | (pending) | Evidence/Step15/20260215T221900Z |

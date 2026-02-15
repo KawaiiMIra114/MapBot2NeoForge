@@ -1,0 +1,16 @@
+﻿preflight_read_manifest  Step-15 F2
+RUN_ID: 20260215T221900Z
+== 强制输入读取 ==
+[OK] MASTER_PROMPT.md, Control/README.md, TASKS/README.md
+[OK] CURRENT_STEP.md (RUNNING)
+[OK] TASK_STEP_15_F2.md (修订对齐 RE_STEP)
+[OK] RE_STEP_15_F2_运维手册联调与验证.md (296行)
+[OK] validate_delivery.py (232行)
+[OK] CURRENT_STATE.md, NEXT_ACTIONS.md
+[OK] DEPLOYMENT_RUNBOOK.md, OPERATIONS_RUNBOOK.md, INCIDENT_RESPONSE_PLAYBOOK.md
+[OK] UPGRADE_MIGRATION_GUIDE.md, OBSERVABILITY_SLO_CONTRACT.md
+== Step14 前置 (5/5) ==
+[OK] 01-05 全部存在
+== F2专项扫描 ==
+reload/deploy/shutdown/healthCheck: 17 files matched
+result: ALL INPUTS VERIFIED
