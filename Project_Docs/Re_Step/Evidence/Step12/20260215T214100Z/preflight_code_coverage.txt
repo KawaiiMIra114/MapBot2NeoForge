@@ -1,0 +1,9 @@
+﻿code_coverage  Step-12 E2
+RUN_ID: 20260215T214100Z
+BindCommand: bind() + whitelist add (权威先行)
+UnbindCommand: unbind() + whitelist remove (全服闭环)
+ForceUnbindCommand: adminunbind (强制解绑)
+AgreeUnbindCommand: approve unbind request
+BridgeHandlers: handleBindPlayer/WhitelistAdd/WhitelistRemove/SwitchServer
+CompletableFuture: 5秒超时回执 (switch_server)
+coverage_result: BASELINE ESTABLISHED

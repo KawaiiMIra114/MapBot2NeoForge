@@ -1,0 +1,30 @@
+﻿preflight_read_manifest  Step-12 E2
+RUN_ID: 20260215T214100Z
+== 强制输入读取 (顺序) ==
+[OK] MASTER_PROMPT.md
+[OK] Control/README.md
+[OK] TASKS/README.md
+[OK] CURRENT_STEP.md (Status: RUNNING)
+[OK] TASK_STEP_12_E2.md (已修订Artifact命名对齐RE_STEP)
+[OK] RE_STEP_12_E2_关键业务链路重构.md (284行)
+[OK] validate_delivery.py (232行)
+[OK] CURRENT_STATE.md
+[OK] NEXT_ACTIONS.md
+
+== 规范优先级确认 ==
+TASK vs RE_STEP 命名冲突 (6/6): 已按RE_STEP权威修订TASK
+
+== Step11 前置产物 (6/6) ==
+[OK] 01_Command_Semantics_Inventory.md
+[OK] 02_Authorization_and_Visibility_Unification.md
+[OK] 03_Command_Alias_and_Deprecation_Plan.md
+[OK] 04_Reply_and_Error_Semantics_Standard.md
+[OK] 05_E1_Regression_and_Negative_Test_Report.md
+[OK] 06_Solo_Review_Log_E1.md
+
+== E2专项扫描 ==
+bind/unbind/whitelist/transfer: 262+ matches
+关键链路入口: BindCommand, UnbindCommand, ForceUnbindCommand, AgreeUnbindCommand
+Bridge处理: handleBindPlayer, handleWhitelistAdd/Remove, handleSwitchServer
+
+result: ALL INPUTS VERIFIED

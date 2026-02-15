@@ -22,11 +22,11 @@ E2 关键业务链路重构（中控模式）
 
 ## 强制输出文档
 目录：`Project_Docs/Re_Step/Artifacts/Step12/`
-1. `01_E2_Event_Handler_Scope.md`
-2. `02_BridgeHandler_Dispatch_Design.md`
-3. `03_Error_Handling_and_Rollback_Standard.md`
-4. `04_Event_Flow_Consistency_Design.md`
-5. `05_E2_Integration_Test_Report.md`
+1. `01_E2_CriticalFlow_StateModel.md`
+2. `02_BindFlow_AuthoritativeWrite_and_Fanout.md`
+3. `03_UnbindFlow_GlobalCleanup_Closure.md`
+4. `04_SwitchServer_StrongAck_Design.md`
+5. `05_E2_Observability_and_Compensation_Report.md`
 6. `06_Solo_Review_Log_E2.md`
 
 ## 强制证据输出
@@ -43,7 +43,7 @@ E2 关键业务链路重构（中控模式）
 - `gate03_build_alpha.log`, `gate03_build_alpha.exit`
 - `gate04_build_reforged.log`, `gate04_build_reforged.exit`
 - `gate05_review_scope.log`, `gate05_review_scope.exit`
-- `gate06_event_keywords.log`, `gate06_event_keywords.exit`
+- `gate06_business_flow_keywords.log`, `gate06_business_flow_keywords.exit`
 - `gate07_current_step_updated.log`, `gate07_current_step_updated.exit`
 - `gate08_required_inputs_exist.log`, `gate08_required_inputs_exist.exit`
 - `gate09_evidence_completeness.log`, `gate09_evidence_completeness.exit`
