@@ -1,0 +1,35 @@
+# Preflight Code Coverage
+# RUN_ID: 20260215T165400Z
+
+## 一致性相关路径
+| 代码路径 | 覆盖范围 | 关键发现 |
+|---|---|---|
+| DataManager.bind() L160-193 | FULL | 无entity_version/CAS，UUID冲突仅返回false |
+| DataManager.unbind() L233-258 | FULL | 无版本控制，直接删除 |
+| DataManager.mute() L304-313 | FULL | 无冲突检测 |
+| DataManager.syncFromRedis() L73-142 | OUTLINE | Redis→内存全量覆盖，无版对比 |
+| BridgeProxy.giveItemToOnlineServers() L533-581 | FULL | 半成功仅返回字符串，无状态机 |
+| BridgeProxy.pendingRequests L34 | FULL | ConcurrentHashMap，无TTL去重窗口 |
+| BridgeProxy.sendRequestToServer() L769-812 | FULL | 超时后返回null，无结构化错误码 |
+
+## 指标/SLO相关路径
+| 代码路径 | 覆盖范围 | 关键发现 |
+|---|---|---|
+| MetricsCollector 全文 L1-163 | FULL | 仅采集TPS/内存/玩家数，缺SLO核心指标 |
+| MetricsStorage 全文 L1-171 | FULL | JSON文件持久化，无告警机制 |
+| AuthManager.hasContractPermission() | FULL | 无latency计时/counter |
+| AlphaConfig.reload() | FULL | 有configVersion但无counter指标 |
+
+## 告警/恢复相关路径
+| 代码路径 | 覆盖范围 | 关键发现 |
+|---|---|---|
+| 全局搜索 "alert"/"告警" | GREP | Alpha代码中无告警触发逻辑 |
+| 全局搜索 "DEGRADED" | GREP | 无降级模式实现 |
+| 全局搜索 "COMPENSAT" | GREP | 无补偿任务实现 |
+| 全局搜索 "replay"/"回放" | GREP | 无事件回放实现 |
+
+## 总体覆盖率结论
+- 一致性链路覆盖: ~30% (基础CRUD有，高级一致性缺)
+- SLO指标覆盖: ~15% (仅性能监控，缺业务SLO)
+- 告警/恢复覆盖: ~5% (几乎空白)
+- 错误码覆盖: ~80% (BridgeErrorMapper 较完整)

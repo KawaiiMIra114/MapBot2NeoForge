@@ -1,0 +1,55 @@
+# Preflight Contract Trace
+# RUN_ID: 20260215T165400Z
+
+## A2-DATA-CONSISTENCY → Implementation Trace
+| 合同条款 | 预期实现位点 | 实际状态 |
+|---|---|---|
+| 5.1 事实源定义 | DataManager/RedisManager | PARTIAL: Redis+本地文件双存储，但无 event_log |
+| 5.2 entity_version | DataManager.bind/unbind/mute | MISSING: 无版本号字段 |
+| 5.3 CAS/CONSISTENCY-409 | DataManager 写入路径 | MISSING: 无 expected_version 检查 |
+| 5.4 回放策略 | 无实现 | MISSING: 无 event_log + idempotency_key |
+| 5.5 失败恢复 | AlphaConfig.reload() | PARTIAL: 配置有事务reload，数据无快照恢复 |
+| 5.6 一致性级别 | AuthManager/DataManager | PARTIAL: 鉴权强一致(内存)，数据最终一致(Redis) |
+
+## A2-OBS-SLO → Implementation Trace
+| 合同条款 | 预期实现位点 | 实际状态 |
+|---|---|---|
+| 5.1 auth_decision_total | AuthManager | MISSING: 无Counter指标 |
+| 5.1 auth_decision_latency_ms | AuthManager | MISSING: 无Histogram指标 |
+| 5.1 config_reload_total | AlphaConfig.reload() | MISSING: 有configVersion但无Counter |
+| 5.1 consistency_conflict_total | DataManager | MISSING: 无冲突计数 |
+| 5.1 replay_lag_seconds | 无实现 | MISSING: 无回放机制 |
+| 5.1 audit_log_write_total | 各审计路径 | MISSING: 无统一审计计数 |
+| 5.2 SLI/SLO目标 | MetricsCollector | MISSING: 当前仅采 TPS/内存/玩家数 |
+| 5.3 告警阈值 | 无实现 | MISSING: 无阈值判定和告警触发 |
+| 5.4 故障分级 | 无实现 | MISSING: 无S1-S4分级逻辑 |
+
+## MB2N-BRIDGE-MESSAGE → Implementation Trace
+| 合同条款 | 预期实现位点 | 实际状态 |
+|---|---|---|
+| 1. 传输封包 | BridgeServer/BridgeProxy | IMPLEMENTED |
+| 3. 分类 | BridgeMessageHandler | IMPLEMENTED |
+| 4. 状态机 | BridgeRegistrationAuthHandler | IMPLEMENTED |
+| 5. 超时策略 | BridgeProxy.TIMEOUT=10s | IMPLEMENTED |
+| 6. 重试策略 | BridgeProxy | PARTIAL: 无统一重试器 |
+| 7. 幂等键 | BridgeProxy | PLANNED/MISSING: idempotencyKey 未生产 |
+| 9. 消息体大小 | BridgeErrorMapper.isFrameTooLarge | IMPLEMENTED |
+
+## MB2N-BRIDGE-ERROR-CODE → Implementation Trace
+| 合同条款 | 预期实现位点 | 实际状态 |
+|---|---|---|
+| 1. 命名规则 | BridgeErrorMapper | IMPLEMENTED |
+| 2. 分层模型 | BridgeErrorMapper constants | IMPLEMENTED |
+| 3. 基线错误码 | BridgeErrorMapper.mapRawToCode | IMPLEMENTED |
+| 4. 双栈映射 | BridgeErrorMapper.map() | IMPLEMENTED |
+| 7. 审计字段 | BridgeErrorMapper.ErrorMeta | PARTIAL: 缺 direction/sourceServerId/targetServerId |
+
+## ARCH-A4-FAILURE-MODEL → Implementation Trace
+| 合同条款 | 预期实现位点 | 实际状态 |
+|---|---|---|
+| 3.1 超时策略 | BridgeProxy.TIMEOUT | PARTIAL: 无分类超时(查询2s/变更3s) |
+| 3.2 断连策略 | BridgeClient 重连 | PARTIAL: 有重连但无DEGRADED模式 |
+| 3.3 半成功处理 | BridgeProxy.giveItemToOnlineServers | MISSING: 无PREPARED/COMMITTED状态机 |
+| 3.4 重试污染防护 | BridgeProxy.pendingRequests | PARTIAL: requestId去重但仅pending期间 |
+| 3.5 恢复策略 | 无实现 | MISSING: 无冷启动恢复顺序 |
+| 3.6 pending处置 | BridgeProxy 超时处理 | PARTIAL: 无分类滞留上限/补偿 |

@@ -1,0 +1,52 @@
+# Preflight Read Manifest
+# RUN_ID: 20260215T165400Z
+# Generated: 2026-02-15T16:54:00+08:00
+
+## Memory_KB (5/5 DONE)
+- [x] Project_Docs/Memory_KB/README.md (37 lines)
+- [x] Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md (15 lines)
+- [x] Project_Docs/Memory_KB/03_Plan/NEXT_ACTIONS.md (23 lines)
+- [x] Project_Docs/Memory_KB/05_Evidence/EVIDENCE_REGISTRY.md (57 lines)
+- [x] Project_Docs/Memory_KB/08_ChangeLog/DECISION_LOG.md (60 lines)
+
+## Contracts (5/5 DONE)
+- [x] Project_Docs/Contracts/DATA_CONSISTENCY_CONTRACT.md (103 lines)
+- [x] Project_Docs/Contracts/OBSERVABILITY_SLO_CONTRACT.md (107 lines)
+- [x] Project_Docs/Contracts/BRIDGE_MESSAGE_CONTRACT.md (207 lines)
+- [x] Project_Docs/Contracts/BRIDGE_ERROR_CODE_CONTRACT.md (142 lines)
+- [x] Project_Docs/Contracts/CONTRACT_INDEX.md (71 lines)
+
+## Architecture (3/3 DONE)
+- [x] Project_Docs/Architecture/FAILURE_MODEL.md (187 lines)
+- [x] Project_Docs/Architecture/THREADING_MODEL.md (174 lines)
+- [x] Project_Docs/Architecture/SYSTEM_CONTEXT.md (158 lines)
+
+## Code (Alpha + Reforged) DONE
+### Alpha (55 Java files)
+- [x] bridge/BridgeProxy.java (814 lines) - FULL READ
+- [x] bridge/BridgeServer.java (163 lines) - FULL READ
+- [x] bridge/BridgeErrorMapper.java (142 lines) - FULL READ
+- [x] bridge/BridgeMessageHandler.java - OUTLINE READ
+- [x] bridge/ServerRegistry.java - OUTLINE READ
+- [x] metrics/MetricsCollector.java (163 lines) - FULL READ
+- [x] metrics/MetricsStorage.java (171 lines) - FULL READ
+- [x] data/DataManager.java (562 lines) - OUTLINE+PARTIAL READ
+- [x] config/AlphaConfig.java - FULL READ (prior session)
+- [x] config/ConfigSchema.java - FULL READ (prior session)
+- [x] security/AuthManager.java - FULL READ (prior session)
+- [x] security/ContractRole.java - FULL READ (prior session)
+- [x] network/HttpRequestDispatcher.java - FULL READ (prior session)
+- [x] command/impl/ReloadCommand.java - FULL READ (prior session)
+- [x] logic/SignManager.java - OUTLINE READ
+- [x] logic/PlaytimeStore.java - OUTLINE READ
+- [x] logic/InboundHandler.java - OUTLINE READ
+- [x] database/RedisManager.java - OUTLINE READ
+
+### Reforged network (5 Java files)
+- [x] BridgeClient.java - OUTLINE READ
+- [x] BridgeHandlers.java - OUTLINE READ
+- [x] BridgeErrorMapper.java - OUTLINE READ
+- [x] BotClient.java - OUTLINE READ
+- [x] MainTest.java - OUTLINE READ
+
+## Verdict: ALL PREFLIGHT READS COMPLETE
