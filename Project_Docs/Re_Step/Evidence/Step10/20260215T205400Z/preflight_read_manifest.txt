@@ -1,0 +1,70 @@
+preflight_read_manifest — Step-10 D3
+======================================
+RUN_ID: 20260215T205400Z
+执行时间: 2026-02-15T20:54:00+08:00
+
+## 规则确认清单
+1. ✅ 以 RE_STEP_10 为权威，任务包冲突时先修任务包再执行
+2. ✅ 每个编号工作项后执行双端编译 + 全代码复查 + D3专项复查
+3. ✅ 所有证据落盘到 Evidence/Step10/20260215T205400Z/
+4. ✅ 未通过门禁禁止提交
+5. ✅ 提交后必须回写 Memory_KB
+6. ✅ 交付完整性三项硬门禁 (证据零缺失/commit非pending/下步TaskFile存在)
+7. ✅ 任一失败 NO-GO 并写阻断项+修复动作
+
+## 已读取文件 (11/11)
+1.  Control/MASTER_PROMPT.md (53行) ✓
+2.  Control/README.md (58行) ✓
+3.  Control/TASKS/README.md (74行) ✓
+4.  Control/TEMPLATES/GATE_CHECKLIST_TEMPLATE.md (16行) ✓
+5.  Control/TEMPLATES/STEP_REPORT_TEMPLATE.md (13行) ✓
+6.  Control/CURRENT_STEP.md (10行, Step10 D3 READY→RUNNING) ✓
+7.  Control/TASKS/TASK_STEP_10_D3.md (110行) ✓
+8.  Re_Step/RE_STEP_10_D3_数据一致性与恢复重构.md (279行) ✓
+9.  SYSTEM_CRITIQUE_AND_REFACTOR_PAPER_V1.md (前步已读) ✓
+10. SYSTEM_REFACTOR_DEVELOPMENT_TASKLIST.md (前步已读) ✓
+11. Memory_KB/README.md (37行) ✓
+
+## 前置产物检查 (Step09 6/6)
+- 01_D2_Threading_Refactor_Scope.md ✓
+- 02_IO_to_MainThread_Route_Plan.md ✓
+- 03_Blocking_Call_Removal_List.md ✓
+- 04_Snapshot_Read_and_Scheduler_Shutdown.md ✓
+- 05_D2_Stress_and_Boundary_Test_Report.md ✓
+- 06_Solo_Review_Log_D2.md ✓
+前置门禁: PASS (6/6)
+
+## D3 专项代码扫描
+
+### CAS/版本
+- compareAndSet: 1 处 (OneBotClient:44 startupNoticeSent, 非数据一致性相关)
+- version: 2 处 (BridgeMessageHandler:84 register版本, AlphaConfig:122 配置版本)
+- CONSISTENCY-409: 0 命中
+- conflict: 0 命中
+结论: 无实际 CAS 写入保护 → 需设计
+
+### 恢复/回放
+- restore: 3 处 (MetricsCollector restoreTps/Memory/PlayersHistory — 仅指标恢复)
+- snapshot: 0 命中
+- event_log: 0 命中
+- replay: 0 命中
+结论: 仅 Metrics 有恢复, 无通用恢复框架
+
+### 原子持久化
+- tmp + ATOMIC_MOVE: 1 处 (SignManager:233/241 — 唯一良好样例)
+- atomic swap: AlphaConfig:230 + ReloadCommand:12 (文档描述, 需验证实现)
+- backup: 0 命中
+结论: 仅 SignManager 有原子写, 其他文件操作未保护
+
+### 补偿闭环
+- PENDING: 2 处 (SignManager KEY_PENDING 签到待领, InboundHandler PENDING_REPLY_CONTEXTS)
+- COMMITTED/COMPENSATED: 0 命中
+- compensat: 0 命中
+结论: 无通用补偿状态机
+
+## Preflight 结论
+前置门禁 PASS。D3 关键差距:
+1. CAS 写入保护 = 0 (需全新设计)
+2. 通用恢复框架 = 0 (现仅有 Metrics restore)
+3. 原子持久化 = 1/N (仅 SignManager, 其他需覆盖)
+4. 补偿状态机 = 0 (需全新设计)
