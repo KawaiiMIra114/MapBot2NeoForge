@@ -29,3 +29,7 @@ Thumbs.db
 *.log
 *.tmp
 *.swp
+
+# Runtime state files
+**/config/metrics_history.json
+**/session.lock

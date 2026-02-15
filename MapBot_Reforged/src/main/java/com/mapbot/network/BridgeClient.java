@@ -34,7 +34,8 @@ public class BridgeClient {
     public static final BridgeClient INSTANCE = new BridgeClient();
     private static final Gson GSON = new GsonBuilder().create();
     private static final long RECONNECT_DELAY_MS = 3000L;
-    private static final long BRIDGE_FILE_MAX_BYTES = 256 * 1024L;
+    private static final long BRIDGE_FILE_MAX_BYTES = BridgeErrorMapper.FRAME_MAX_BYTES;
+    private static final long BRIDGE_BASE64_RAW_MAX_BYTES = BridgeErrorMapper.BASE64_RAW_MAX_BYTES;
     private static final Set<String> BRIDGE_FILE_MUTATION_WHITELIST = Set.of("config", "world/serverconfig");
     private static final int DEFAULT_ALPHA_BRIDGE_PORT = 25661;
     
@@ -393,15 +394,23 @@ public class BridgeClient {
         }
 
         String reason = "unknown";
+        String errorCode = null;
+        String rawError = null;
         try {
             if (json.has("error") && !json.get("error").isJsonNull()) {
                 reason = json.get("error").getAsString();
             }
+            if (json.has("errorCode") && !json.get("errorCode").isJsonNull()) {
+                errorCode = json.get("errorCode").getAsString();
+            }
+            if (json.has("rawError") && !json.get("rawError").isJsonNull()) {
+                rawError = json.get("rawError").getAsString();
+            }
         } catch (Exception ignored) {
         }
 
-        LOGGER.error("[Bridge] 注册被 Alpha 拒绝: reason={}, serverId={}. 请检查 config/mapbot-common.toml 的 alpha.alphaToken 是否与 Alpha 端 auth.bridge.token 一致",
-                reason, serverId);
+        LOGGER.error("[Bridge] 注册被 Alpha 拒绝: reason={}, errorCode={}, rawError={}, serverId={}. 请检查 config/mapbot-common.toml 的 alpha.alphaToken 是否与 Alpha 端 auth.bridge.token 一致",
+                reason, errorCode, rawError, serverId);
         running.set(false);
         connected.set(false);
         handleDisconnect();
@@ -412,6 +421,10 @@ public class BridgeClient {
      */
     long getBridgeFileMaxBytes() {
         return BRIDGE_FILE_MAX_BYTES;
+    }
+
+    long getBridgeBase64RawMaxBytes() {
+        return BRIDGE_BASE64_RAW_MAX_BYTES;
     }
 
     /**
@@ -453,11 +466,24 @@ public class BridgeClient {
      * 发送代理响应到 Alpha Core
      */
     void sendProxyResponse(String requestId, String result) {
-        String response = String.format(
-            "{\"type\":\"proxy_response\",\"requestId\":\"%s\",\"result\":\"%s\"}",
-            requestId, escapeJson(result)
-        );
-        send(response);
+        String normalizedResult = result == null ? "" : result;
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\"type\":\"proxy_response\",\"requestId\":\"")
+                .append(escapeJson(requestId))
+                .append("\",\"result\":\"")
+                .append(escapeJson(normalizedResult))
+                .append("\"");
+
+        if (BridgeErrorMapper.looksLikeError(normalizedResult)) {
+            BridgeErrorMapper.ErrorMeta meta = BridgeErrorMapper.map(null, normalizedResult, false);
+            sb.append(",\"errorCode\":\"").append(meta.errorCode).append("\"");
+            sb.append(",\"rawError\":\"").append(escapeJson(meta.rawError)).append("\"");
+            sb.append(",\"retryable\":").append(meta.retryable);
+            sb.append(",\"mappingConflict\":").append(meta.mappingConflict);
+        }
+        sb.append("}");
+
+        send(sb.toString());
     }
     
     /**
@@ -558,15 +584,24 @@ public class BridgeClient {
     /**
      * 发送消息
      */
-    public synchronized void send(String msg) {
-        if (!connected.get() || writer == null) return;
-        
+    public synchronized boolean send(String msg) {
+        if (!connected.get() || writer == null) return false;
+
+        String payload = msg == null ? "" : msg;
+        if (BridgeErrorMapper.isFrameTooLarge(payload)) {
+            LOGGER.warn("[Bridge] 发送前门禁拒绝: errorCode={}, bytesLimit={}, serverId={}",
+                    BridgeErrorMapper.BRG_VALIDATION_205, BridgeErrorMapper.FRAME_MAX_BYTES, serverId);
+            return false;
+        }
+
         try {
-            writer.write(msg);
+            writer.write(payload);
             writer.newLine();
             writer.flush();
+            return true;
         } catch (IOException e) {
             LOGGER.error("[Bridge] 发送消息失败", e);
+            return false;
         }
     }
     
@@ -733,7 +768,10 @@ public class BridgeClient {
             }
         }
 
-        send(req.toString());
+        if (!send(req.toString())) {
+            pendingRequests.remove(requestId);
+            return "FAIL:" + BridgeErrorMapper.BRG_VALIDATION_205;
+        }
 
         try {
             return future.get(timeoutMs, TimeUnit.MILLISECONDS);

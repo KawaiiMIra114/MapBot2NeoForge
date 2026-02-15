@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Base64;
 import java.util.concurrent.*;
 
 /**
@@ -73,7 +74,12 @@ public class BridgeFileProxy {
     private static FileResponse sendRequest(String serverId, String action, String path, Map<String, Object> fields) {
         ServerRegistry.ServerInfo server = ServerRegistry.INSTANCE.getServer(serverId);
         if (server == null || !server.isOnline()) {
-            return new FileResponse(null, "Server not connected: " + serverId);
+            BridgeErrorMapper.ErrorMeta meta = BridgeErrorMapper.map(
+                BridgeErrorMapper.BRG_TRANSPORT_301,
+                "Server not connected: " + serverId,
+                true
+            );
+            return new FileResponse(null, meta.rawError, meta.errorCode, meta.rawError, meta.retryable, meta.mappingConflict);
         }
         
         String requestId = UUID.randomUUID().toString().substring(0, 8);
@@ -89,17 +95,59 @@ public class BridgeFileProxy {
             if (fields != null && !fields.isEmpty()) {
                 req.putAll(fields);
             }
-            
-            server.channel.writeAndFlush(com.mapbot.alpha.utils.JsonUtils.toJson(req) + "\n");
+
+            if ("file_upload".equals(action)) {
+                String encoding = String.valueOf(req.getOrDefault("encoding", "")).trim().toLowerCase();
+                if ("base64".equals(encoding)) {
+                    String content = String.valueOf(req.getOrDefault("content", ""));
+                    byte[] raw;
+                    try {
+                        raw = Base64.getDecoder().decode(content);
+                    } catch (IllegalArgumentException ex) {
+                        BridgeErrorMapper.ErrorMeta meta = BridgeErrorMapper.map(
+                            BridgeErrorMapper.BRG_VALIDATION_202,
+                            "invalid_base64_payload",
+                            false
+                        );
+                        return new FileResponse(null, meta.rawError, meta.errorCode, meta.rawError, meta.retryable, meta.mappingConflict);
+                    }
+                    if (raw.length > BridgeErrorMapper.BASE64_RAW_MAX_BYTES) {
+                        BridgeErrorMapper.ErrorMeta meta = BridgeErrorMapper.map(
+                            BridgeErrorMapper.BRG_VALIDATION_205,
+                            "base64_raw_size_exceeded",
+                            false
+                        );
+                        return new FileResponse(null, meta.rawError, meta.errorCode, meta.rawError, meta.retryable, meta.mappingConflict);
+                    }
+                }
+            }
+
+            String json = com.mapbot.alpha.utils.JsonUtils.toJson(req);
+            if (BridgeErrorMapper.isFrameTooLarge(json)) {
+                BridgeErrorMapper.ErrorMeta meta = BridgeErrorMapper.map(
+                    BridgeErrorMapper.BRG_VALIDATION_205,
+                    "frame_too_large",
+                    false
+                );
+                return new FileResponse(null, meta.rawError, meta.errorCode, meta.rawError, meta.retryable, meta.mappingConflict);
+            }
+
+            server.channel.writeAndFlush(json + "\n");
             
             // 等待响应
             return future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             LOGGER.warn("文件请求超时: {} -> {}", serverId, path);
-            return new FileResponse(null, "Request timeout");
+            BridgeErrorMapper.ErrorMeta meta = BridgeErrorMapper.map(
+                BridgeErrorMapper.BRG_TIMEOUT_501,
+                "Request timeout",
+                true
+            );
+            return new FileResponse(null, meta.rawError, meta.errorCode, meta.rawError, meta.retryable, meta.mappingConflict);
         } catch (Exception e) {
             LOGGER.error("文件请求失败", e);
-            return new FileResponse(null, e.getMessage());
+            BridgeErrorMapper.ErrorMeta meta = BridgeErrorMapper.map(null, e.getMessage(), false);
+            return new FileResponse(null, meta.rawError, meta.errorCode, meta.rawError, meta.retryable, meta.mappingConflict);
         } finally {
             pendingRequests.remove(requestId);
         }
@@ -108,11 +156,20 @@ public class BridgeFileProxy {
     /**
      * 完成请求 (由 BridgeMessageHandler 调用)
      */
-    public static void completeRequest(String requestId, String content, String error) {
+    public static void completeRequest(
+        String requestId,
+        String content,
+        String error,
+        String errorCode,
+        String rawError,
+        boolean retryable,
+        boolean mappingConflict
+    ) {
         CompletableFuture<FileResponse> future = pendingRequests.get(requestId);
         if (future != null) {
             if (error != null && !error.isEmpty()) {
-                future.complete(new FileResponse(null, error));
+                BridgeErrorMapper.ErrorMeta meta = BridgeErrorMapper.map(errorCode, rawError == null ? error : rawError, retryable);
+                future.complete(new FileResponse(null, error, meta.errorCode, meta.rawError, meta.retryable, mappingConflict || meta.mappingConflict));
             } else {
                 future.complete(new FileResponse(content, null));
             }
@@ -125,10 +182,29 @@ public class BridgeFileProxy {
     public static class FileResponse {
         public final String content;
         public final String error;
+        public final String errorCode;
+        public final String rawError;
+        public final boolean retryable;
+        public final boolean mappingConflict;
         
         public FileResponse(String content, String error) {
+            this(content, error, null, null, false, false);
+        }
+
+        public FileResponse(
+            String content,
+            String error,
+            String errorCode,
+            String rawError,
+            boolean retryable,
+            boolean mappingConflict
+        ) {
             this.content = content;
             this.error = error;
+            this.errorCode = errorCode;
+            this.rawError = rawError;
+            this.retryable = retryable;
+            this.mappingConflict = mappingConflict;
         }
         
         public boolean isSuccess() {

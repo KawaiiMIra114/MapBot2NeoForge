@@ -6,6 +6,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LineBasedFrameDecoder;
+import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -43,6 +44,8 @@ public class BridgeServer {
                         p.addLast(new IdleStateHandler(60, 0, 0, TimeUnit.SECONDS));
                         // 行分隔解码
                         p.addLast(new LineBasedFrameDecoder(65536));
+                        // 帧超限时返回结构化错误并断连
+                        p.addLast(new BridgeFrameSizeGuardHandler());
                         p.addLast(new StringDecoder(StandardCharsets.UTF_8));
                         p.addLast(new StringEncoder(StandardCharsets.UTF_8));
                         // 首帧 register 强制鉴权，通过后再放行到 BridgeMessageHandler
@@ -74,24 +77,43 @@ public class BridgeServer {
         LOGGER.info("Bridge 服务器已停止");
     }
 
+    private static class BridgeFrameSizeGuardHandler extends ChannelInboundHandlerAdapter {
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            if (cause instanceof TooLongFrameException) {
+                LOGGER.warn("Bridge 入站帧超限: from={}", ctx.channel().remoteAddress());
+                String response = com.mapbot.alpha.utils.JsonUtils.toJson(
+                    BridgeErrorMapper.registerAckFailurePayload(
+                        "frame_too_large",
+                        BridgeErrorMapper.BRG_VALIDATION_205,
+                        false
+                    )
+                ) + "\n";
+                ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+                return;
+            }
+            ctx.fireExceptionCaught(cause);
+        }
+    }
+
     private static class BridgeRegistrationAuthHandler extends SimpleChannelInboundHandler<String> {
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, String msg) {
             String payload = msg == null ? "" : msg.trim();
             if (payload.isEmpty()) {
-                reject(ctx, null, "empty_message");
+                reject(ctx, null, "empty_message", BridgeErrorMapper.BRG_VALIDATION_202);
                 return;
             }
 
             java.util.Map<String, Object> data = com.mapbot.alpha.utils.JsonUtils.fromJson(payload, java.util.Map.class);
             if (data == null) {
-                reject(ctx, null, "invalid_json");
+                reject(ctx, null, "invalid_json", BridgeErrorMapper.BRG_VALIDATION_202);
                 return;
             }
 
             String type = String.valueOf(data.get("type"));
             if (!"register".equals(type)) {
-                reject(ctx, null, "register_required");
+                reject(ctx, null, "register_required", BridgeErrorMapper.BRG_VALIDATION_201);
                 return;
             }
 
@@ -103,7 +125,7 @@ public class BridgeServer {
                     toSafeString(data.get("secret"))
             );
             if (!com.mapbot.alpha.security.AuthManager.INSTANCE.isBridgeRegistrationAuthorized(serverId, token)) {
-                reject(ctx, serverId, "unauthorized");
+                reject(ctx, serverId, "unauthorized", BridgeErrorMapper.BRG_AUTH_101);
                 return;
             }
 
@@ -112,10 +134,12 @@ public class BridgeServer {
             ctx.fireChannelRead(msg);
         }
 
-        private static void reject(ChannelHandlerContext ctx, String serverId, String reason) {
+        private static void reject(ChannelHandlerContext ctx, String serverId, String reason, String explicitErrorCode) {
             LOGGER.warn("拒绝未授权 Bridge 注册: serverId={}, from={}, reason={}",
                     serverId, ctx.channel().remoteAddress(), reason);
-            String response = "{\"type\":\"register_ack\",\"success\":false,\"error\":\"" + reason + "\"}\n";
+            String response = com.mapbot.alpha.utils.JsonUtils.toJson(
+                BridgeErrorMapper.registerAckFailurePayload(reason, explicitErrorCode, false)
+            ) + "\n";
             ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
 

@@ -727,6 +727,18 @@ public class BridgeProxy {
         if (arg2 != null) req.put("arg2", arg2);
         
         String json = com.mapbot.alpha.utils.JsonUtils.toJson(req);
+        if (BridgeErrorMapper.isFrameTooLarge(json)) {
+            INSTANCE.pendingRequests.remove(requestId);
+            LOGGER.warn("异步请求被发送前门禁拒绝: action={}, serverId={}, requestId={}, errorCode={}",
+                action, serverId, requestId, BridgeErrorMapper.BRG_VALIDATION_205);
+            return CompletableFuture.completedFuture(
+                BridgeErrorMapper.toCompatErrorResult(
+                    BridgeErrorMapper.BRG_VALIDATION_205,
+                    "frame_too_large",
+                    false
+                )
+            );
+        }
         server.channel.writeAndFlush(json + "\n");
         
         return future.orTimeout(TIMEOUT, TimeUnit.SECONDS)
@@ -771,8 +783,20 @@ public class BridgeProxy {
         req.put("requestId", requestId);
         if (arg1 != null) req.put("arg1", arg1);
         if (arg2 != null) req.put("arg2", arg2);
-        
-        server.channel.writeAndFlush(com.mapbot.alpha.utils.JsonUtils.toJson(req) + "\n");
+
+        String json = com.mapbot.alpha.utils.JsonUtils.toJson(req);
+        if (BridgeErrorMapper.isFrameTooLarge(json)) {
+            pendingRequests.remove(requestId);
+            LOGGER.warn("同步请求被发送前门禁拒绝: action={}, serverId={}, requestId={}, errorCode={}",
+                action, serverId, requestId, BridgeErrorMapper.BRG_VALIDATION_205);
+            return BridgeErrorMapper.toCompatErrorResult(
+                BridgeErrorMapper.BRG_VALIDATION_205,
+                "frame_too_large",
+                false
+            );
+        }
+
+        server.channel.writeAndFlush(json + "\n");
         
         try {
             return future.get(TIMEOUT, TimeUnit.SECONDS);

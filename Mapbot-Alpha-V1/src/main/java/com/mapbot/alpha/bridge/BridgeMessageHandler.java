@@ -147,6 +147,10 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
     private void handleFileResponse(java.util.Map<String, Object> data) {
         String requestId = String.valueOf(data.get("requestId"));
         String error = String.valueOf(data.getOrDefault("error", ""));
+        String errorCode = readNonBlank(data.get("errorCode"));
+        String rawError = readNonBlank(data.get("rawError"));
+        boolean retryable = parseBoolean(data.get("retryable"));
+        boolean mappingConflict = parseBoolean(data.get("mappingConflict"));
         
         // 文件列表可能是 "files" 字段 (Array)
         Object filesObj = data.get("files");
@@ -157,7 +161,15 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
             result = String.valueOf(data.getOrDefault("content", ""));
         }
         
-        com.mapbot.alpha.bridge.BridgeFileProxy.completeRequest(requestId, result, error);
+        com.mapbot.alpha.bridge.BridgeFileProxy.completeRequest(
+            requestId,
+            result,
+            error,
+            errorCode,
+            rawError,
+            retryable,
+            mappingConflict
+        );
     }
     
     private void handleStatusUpdate(java.util.Map<String, Object> data) {
@@ -395,6 +407,13 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         } catch (NumberFormatException ignored) {
             return fallback;
         }
+    }
+
+    private boolean parseBoolean(Object value) {
+        if (value == null) return false;
+        if (value instanceof Boolean b) return b;
+        String s = String.valueOf(value).trim();
+        return "true".equalsIgnoreCase(s) || "1".equals(s);
     }
 
     private HostPort normalizeTransferEndpoint(String host, int port) {

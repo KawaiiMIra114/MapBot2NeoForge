@@ -66,7 +66,7 @@ public class RemoteFileApiHandler {
             // 现在 content 直接是 JSON 数组格式
             sendJson(ctx, HttpResponseStatus.OK, resp.content != null ? resp.content : "[]");
         } else {
-            sendProxyError(ctx, resp.error);
+            sendProxyError(ctx, resp);
         }
     }
     
@@ -75,7 +75,7 @@ public class RemoteFileApiHandler {
         if (resp.isSuccess()) {
             sendJson(ctx, HttpResponseStatus.OK, "{\"content\":\"" + escapeJson(resp.content) + "\"}");
         } else {
-            sendProxyError(ctx, resp.error);
+            sendProxyError(ctx, resp);
         }
     }
     
@@ -92,7 +92,7 @@ public class RemoteFileApiHandler {
         if (resp.isSuccess()) {
             sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
         } else {
-            sendProxyError(ctx, resp.error);
+            sendProxyError(ctx, resp);
         }
     }
     
@@ -101,7 +101,7 @@ public class RemoteFileApiHandler {
         if (resp.isSuccess()) {
             sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
         } else {
-            sendProxyError(ctx, resp.error);
+            sendProxyError(ctx, resp);
         }
     }
 
@@ -117,7 +117,7 @@ public class RemoteFileApiHandler {
         if (resp.isSuccess()) {
             sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
         } else {
-            sendProxyError(ctx, resp.error);
+            sendProxyError(ctx, resp);
         }
     }
 
@@ -135,16 +135,34 @@ public class RemoteFileApiHandler {
         if (resp.isSuccess()) {
             sendJson(ctx, HttpResponseStatus.OK, "{\"success\": true}");
         } else {
-            sendProxyError(ctx, resp.error);
+            sendProxyError(ctx, resp);
         }
     }
 
-    private static void sendProxyError(ChannelHandlerContext ctx, String rawError) {
+    private static void sendProxyError(ChannelHandlerContext ctx, BridgeFileProxy.FileResponse response) {
+        String rawError = response == null ? null : response.error;
+        String errorCode = response == null ? null : response.errorCode;
+        String normalizedRaw = response != null && response.rawError != null ? response.rawError : rawError;
+        boolean retryable = response != null && response.retryable;
+        boolean mappingConflict = response != null && response.mappingConflict;
+
         String error = rawError == null || rawError.isBlank() ? "Remote file action failed" : rawError;
         if ("Unknown action".equalsIgnoreCase(error)) {
             error = "Remote server bridge does not support this file action yet";
         }
-        sendJson(ctx, HttpResponseStatus.BAD_REQUEST, "{\"error\":\"" + escapeJson(error) + "\"}");
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\"error\":\"").append(escapeJson(error)).append("\"");
+        if (errorCode != null && !errorCode.isBlank()) {
+            sb.append(",\"errorCode\":\"").append(escapeJson(errorCode)).append("\"");
+        }
+        if (normalizedRaw != null && !normalizedRaw.isBlank()) {
+            sb.append(",\"rawError\":\"").append(escapeJson(normalizedRaw)).append("\"");
+        }
+        sb.append(",\"retryable\":").append(retryable);
+        sb.append(",\"mappingConflict\":").append(mappingConflict);
+        sb.append("}");
+        sendJson(ctx, HttpResponseStatus.BAD_REQUEST, sb.toString());
     }
     
     private static String getQueryParam(String uri, String key) {

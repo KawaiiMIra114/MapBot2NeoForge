@@ -904,9 +904,15 @@ public final class BridgeHandlers {
         String type = getString(json, "type");
         String requestId = getString(json, "requestId");
         String path = getString(json, "path");
-        
+
         if (!path.isEmpty() && !client.isPathSafe(path)) {
-            client.send(String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Access denied: path outside server directory\"}", requestId));
+            sendFileResponse(requestId, buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_AUTH_102,
+                    "Access denied: path outside server directory",
+                    false,
+                    client
+            ), client);
             LOGGER.warn("拒绝不安全的文件操作路径: {}", path);
             return;
         }
@@ -916,35 +922,102 @@ public final class BridgeHandlers {
                 || "file_mkdir".equals(type)
                 || "file_upload".equals(type))
                 && !client.isMutationPathAllowed(path)) {
-            client.send(String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Access denied: path not in mutation whitelist\"}", requestId));
+            sendFileResponse(requestId, buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_AUTH_102,
+                    "Access denied: path not in mutation whitelist",
+                    false,
+                    client
+            ), client);
             LOGGER.warn("拒绝变更操作，路径不在白名单: type={}, path={}", type, path);
             return;
         }
-        
+
         try {
             String response;
             switch (type) {
-                case "file_list":  response = handleFileList(requestId, path, client); break;
-                case "file_read":  response = handleFileRead(requestId, path, client); break;
-                case "file_write": response = handleFileWrite(requestId, path, getString(json, "content"), client); break;
-                case "file_delete":response = handleFileDelete(requestId, path, client); break;
-                case "file_mkdir": response = handleFileMkdir(requestId, path, client); break;
+                case "file_list":
+                    response = handleFileList(requestId, path, client);
+                    break;
+                case "file_read":
+                    response = handleFileRead(requestId, path, client);
+                    break;
+                case "file_write":
+                    response = handleFileWrite(requestId, path, getString(json, "content"), client);
+                    break;
+                case "file_delete":
+                    response = handleFileDelete(requestId, path, client);
+                    break;
+                case "file_mkdir":
+                    response = handleFileMkdir(requestId, path, client);
+                    break;
                 case "file_upload":
                     response = handleFileUpload(requestId, path, getString(json, "content"), getString(json, "encoding"), client);
                     break;
                 default:
-                    response = String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Unknown action\"}", requestId);
+                    response = buildFileErrorResponse(
+                            requestId,
+                            BridgeErrorMapper.BRG_VALIDATION_202,
+                            "unknown_file_action",
+                            false,
+                            client
+                    );
             }
-            client.send(response);
+            sendFileResponse(requestId, response, client);
         } catch (Exception e) {
-            client.send(String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"%s\"}", requestId, e.getMessage()));
+            sendFileResponse(requestId, buildFileErrorResponse(
+                    requestId,
+                    null,
+                    e.getMessage(),
+                    false,
+                    client
+            ), client);
         }
+    }
+
+    private static void sendFileResponse(String requestId, String response, BridgeClient client) {
+        if (client.send(response)) {
+            return;
+        }
+        LOGGER.warn("file_response 发送被门禁拒绝，回退统一错误: requestId={}", requestId);
+        client.send(buildFileErrorResponse(
+                requestId,
+                BridgeErrorMapper.BRG_VALIDATION_205,
+                "frame_too_large",
+                false,
+                client
+        ));
+    }
+
+    private static String buildFileErrorResponse(
+            String requestId,
+            String explicitErrorCode,
+            String rawError,
+            boolean retryable,
+            BridgeClient client
+    ) {
+        BridgeErrorMapper.ErrorMeta meta = BridgeErrorMapper.map(explicitErrorCode, rawError, retryable);
+        return String.format(
+                "{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"%s\",\"errorCode\":\"%s\",\"rawError\":\"%s\",\"retryable\":%s,\"mappingConflict\":%s}",
+                client.escapeJson(requestId),
+                client.escapeJson(meta.rawError),
+                meta.errorCode,
+                client.escapeJson(meta.rawError),
+                meta.retryable,
+                meta.mappingConflict
+        );
     }
 
     private static String handleFileList(String requestId, String path, BridgeClient client) throws IOException {
         File dir = client.resolveSafePath(path);
         if (!dir.isDirectory()) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Not a directory\"}", requestId);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_VALIDATION_202,
+                    "Not a directory",
+                    false,
+                    client
+            );
         }
         StringBuilder sb = new StringBuilder("[");
         File[] files = dir.listFiles();
@@ -958,20 +1031,36 @@ public final class BridgeHandlers {
             }
         }
         sb.append("]");
-        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"files\":%s}", requestId, sb);
+        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"files\":%s}",
+                client.escapeJson(requestId), sb);
     }
 
     private static String handleFileRead(String requestId, String path, BridgeClient client) throws IOException {
         File file = client.resolveSafePath(path);
         if (!file.isFile()) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Not a file\"}", requestId);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_VALIDATION_202,
+                    "Not a file",
+                    false,
+                    client
+            );
         }
         long maxBytes = client.getBridgeFileMaxBytes();
         if (file.length() > maxBytes) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"File too large (max %d bytes)\"}", requestId, maxBytes);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_VALIDATION_205,
+                    "size_limit_exceeded:file_read",
+                    false,
+                    client
+            );
         }
         String content = java.nio.file.Files.readString(file.toPath(), StandardCharsets.UTF_8);
-        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"%s\"}", requestId, client.escapeJson(content));
+        return String.format(
+                "{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"%s\"}",
+                client.escapeJson(requestId), client.escapeJson(content)
+        );
     }
 
     private static String handleFileWrite(String requestId, String path, String content, BridgeClient client) throws IOException {
@@ -980,39 +1069,75 @@ public final class BridgeHandlers {
         byte[] contentBytes = safeContent.getBytes(StandardCharsets.UTF_8);
         long maxBytes = client.getBridgeFileMaxBytes();
         if (contentBytes.length > maxBytes) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Payload too large (max %d bytes)\"}", requestId, maxBytes);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_VALIDATION_205,
+                    "size_limit_exceeded:file_write",
+                    false,
+                    client
+            );
         }
 
         File parent = file.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Create parent directory failed\"}", requestId);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_EXECUTION_402,
+                    "Create parent directory failed",
+                    false,
+                    client
+            );
         }
         java.nio.file.Files.write(file.toPath(), contentBytes);
-        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"ok\"}", requestId);
+        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"ok\"}", client.escapeJson(requestId));
     }
 
     private static String handleFileDelete(String requestId, String path, BridgeClient client) throws IOException {
         File file = client.resolveSafePath(path);
         if (!file.isFile()) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Not a file\"}", requestId);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_VALIDATION_202,
+                    "Not a file",
+                    false,
+                    client
+            );
         }
         boolean deleted = file.delete();
         if (deleted) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"ok\"}", requestId);
+            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"ok\"}", client.escapeJson(requestId));
         } else {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Delete failed\"}", requestId);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_EXECUTION_402,
+                    "Delete failed",
+                    false,
+                    client
+            );
         }
     }
 
     private static String handleFileMkdir(String requestId, String path, BridgeClient client) throws IOException {
         File dir = client.resolveSafePath(path);
         if (dir.exists() && !dir.isDirectory()) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Path exists but is not a directory\"}", requestId);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_VALIDATION_202,
+                    "Path exists but is not a directory",
+                    false,
+                    client
+            );
         }
         if (!dir.exists() && !dir.mkdirs()) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Create directory failed\"}", requestId);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_EXECUTION_402,
+                    "Create directory failed",
+                    false,
+                    client
+            );
         }
-        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"ok\"}", requestId);
+        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"ok\"}", client.escapeJson(requestId));
     }
 
     private static String handleFileUpload(String requestId, String path, String content, String encoding, BridgeClient client) throws IOException {
@@ -1022,25 +1147,58 @@ public final class BridgeHandlers {
             try {
                 payload = Base64.getDecoder().decode(content == null ? "" : content);
             } catch (IllegalArgumentException e) {
-                return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Invalid base64 payload\"}", requestId);
+                return buildFileErrorResponse(
+                        requestId,
+                        BridgeErrorMapper.BRG_VALIDATION_202,
+                        "Invalid base64 payload",
+                        false,
+                        client
+                );
+            }
+            if (payload.length > client.getBridgeBase64RawMaxBytes()) {
+                return buildFileErrorResponse(
+                        requestId,
+                        BridgeErrorMapper.BRG_VALIDATION_205,
+                        "base64_raw_size_exceeded",
+                        false,
+                        client
+                );
             }
         } else if (normalizedEncoding.isEmpty() || "utf-8".equals(normalizedEncoding) || "utf8".equals(normalizedEncoding)) {
             payload = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8);
         } else {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Unsupported encoding: %s\"}", requestId, client.escapeJson(normalizedEncoding));
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_VALIDATION_202,
+                    "Unsupported encoding: " + normalizedEncoding,
+                    false,
+                    client
+            );
         }
 
         long maxBytes = client.getBridgeFileMaxBytes();
         if (payload.length > maxBytes) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Payload too large (max %d bytes)\"}", requestId, maxBytes);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_VALIDATION_205,
+                    "size_limit_exceeded:file_upload",
+                    false,
+                    client
+            );
         }
 
         File file = client.resolveSafePath(path);
         File parent = file.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
-            return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"error\":\"Create parent directory failed\"}", requestId);
+            return buildFileErrorResponse(
+                    requestId,
+                    BridgeErrorMapper.BRG_EXECUTION_402,
+                    "Create parent directory failed",
+                    false,
+                    client
+            );
         }
         java.nio.file.Files.write(file.toPath(), payload);
-        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"ok\"}", requestId);
+        return String.format("{\"type\":\"file_response\",\"requestId\":\"%s\",\"content\":\"ok\"}", client.escapeJson(requestId));
     }
 }
