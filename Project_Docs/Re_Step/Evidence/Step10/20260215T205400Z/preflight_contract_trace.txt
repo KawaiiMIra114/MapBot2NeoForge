@@ -1,0 +1,7 @@
+﻿contract_trace  Step-10 D3
+RUN_ID: 20260215T205400Z
+DATA_CONSISTENCY_CONTRACT.md: referenced in Artifact 01/02/04
+OBSERVABILITY_SLO_CONTRACT.md: referenced in Artifact 02/05
+FAILURE_MODEL.md: referenced in Artifact 02/03/05
+DATA_FLOW_AND_STATE.md: referenced in Artifact 01
+trace_result: ALL CONTRACTS REFERENCED

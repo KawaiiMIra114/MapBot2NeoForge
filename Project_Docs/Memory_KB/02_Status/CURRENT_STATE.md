@@ -8,7 +8,7 @@
 - Step-07: `CONDITIONAL PASS` (C2 安全/版本评审, 26 差距, 2026-02-15)
 - Step-08: `PASS` (D1 Bridge 通道核心重构设计, 5 差距, 2026-02-15)
 - Step-09: `CONDITIONAL PASS` (D2 线程与执行模型重构, 15 差距, 2026-02-15)
-- Step-10: `CONDITIONAL PASS` (D3 数据一致性与恢复重构, 12 差距, 2026-02-15)
+- Step-10: `CONDITIONAL PASS` (D3 数据一致性与恢复重构, 12 差距, 2026-02-15, 复验通过)
 
 ## Current Step
 - Active: Step-11 E1 命令语义统一重构 → READY
@@ -28,4 +28,4 @@
 | Step-07 | b41da2a | Evidence/Step07/20260215T195000Z |
 | Step-08 | d2e4b8d | Evidence/Step08/20260215T201100Z |
 | Step-09 | d797838 | Evidence/Step09/20260215T203100Z |
-| Step-10 | 47153f8 | Evidence/Step10/20260215T205400Z |
+| Step-10 | 1553846 | Evidence/Step10/20260215T205400Z |

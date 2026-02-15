@@ -1,0 +1,7 @@
+﻿code_coverage  Step-10 D3
+RUN_ID: 20260215T205400Z
+CAS/version: compareAndSet 1, version 2, CONSISTENCY-409 0, conflict 0
+snapshot/restore: restore 3, snapshot 0, event_log 0, replay 0
+atomic/persist: tmp+ATOMIC_MOVE 1, atomic_swap 2, backup 0
+compensation: PENDING 2, COMMITTED 0, COMPENSATED 0
+coverage_result: BASELINE ESTABLISHED
