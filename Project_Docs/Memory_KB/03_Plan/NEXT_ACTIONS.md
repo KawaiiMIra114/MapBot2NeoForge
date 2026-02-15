@@ -1,15 +1,12 @@
 # Next Actions (Execution Order)
 
-> Step-07 C2 已完成 (CONDITIONAL PASS)。C 阶段评审全部结束。进入 D 阶段重构。
+> Step-08 D1 已完成 (PASS)。Step-09 D2 前置门禁已满足。
 
-1. 执行 Step-08 D1 Bridge 通道核心重构
-   - 前置: Step-06 + Step-07 Artifacts 全部 ✓
-   - 按 Gap Backlog 优先级开始修复
-2. D1 重点修:
-   - SB-02 密钥从仓库移除 (紧急, 截止 2026-02-21)
-   - TH-01/TH-02 线程安全修复 (截止 2026-02-28)
-   - SB-01 硬编码移除 (截止 2026-02-28)
-3. 后续:
-   - D2: 故障状态机落地
-   - D3: 安全传输+轮换
-   - E: 弃用+灰度基础设施
+1. 执行 Step-09 D2 线程与执行模型重构
+   - 前置: Step-08 Artifacts 6/6 ✓
+   - D1 设计待编码: protocol_version + idempotency + disconnect
+2. 后续: D3 数据一致性重构
+3. E1-E3 业务层重构
+4. Gap Backlog 高风险修复 (30 High 项)
+   - SEC-01~04 密钥安全 (截止 2026-02-21)
+   - TM-01~03 线程越界 (截止 2026-02-28)

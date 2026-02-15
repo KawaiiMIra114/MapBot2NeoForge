@@ -1,0 +1,57 @@
+preflight_read_manifest — Step-08 D1
+======================================
+RUN_ID: 20260215T201100Z
+执行时间: 2026-02-15T20:11:00+08:00
+
+## 已读取文件 (8/8)
+1. Project_Docs/Control/MASTER_PROMPT.md (44行) ✓
+2. Project_Docs/Control/README.md (58行) ✓
+3. Project_Docs/Control/TASKS/README.md (67行) ✓
+4. Project_Docs/Control/CURRENT_STEP.md (10行) ✓
+5. Project_Docs/Control/TASKS/TASK_STEP_08_D1.md (107行) ✓
+6. Project_Docs/Re_Step/RE_STEP_08_D1_Bridge通道核心重构.md (279行) ✓
+7. Project_Docs/SYSTEM_CRITIQUE_AND_REFACTOR_PAPER_V1.md (375行) ✓
+8. Project_Docs/SYSTEM_REFACTOR_DEVELOPMENT_TASKLIST.md (265行) ✓
+
+## 前置产物检查 (Step07 6/6)
+- 01_Security_Boundary_Review.md ✓
+- 02_Token_Rotation_and_Rollback_Blueprint.md ✓
+- 03_Protocol_Version_Governance.md ✓
+- 04_Deprecation_and_GrayRelease_Gates.md ✓
+- 05_C2_Risk_Register.md ✓
+- 06_Solo_Review_Log_C2.md ✓
+前置门禁: PASS (6/6)
+
+## D1 专项代码扫描
+### protocol_version (协议版本)
+- Alpha: 0 命中 → 需新增
+- Reforged: 0 命中 → 需新增
+
+### idempotency/dedup (幂等去重)
+- 全代码: 0 命中 → 需新增
+
+### disconnect/pending (断连回收)
+- handleDisconnect: BridgeClient L558 定义, L189/L416/L652 调用
+- pendingRequests: 20 处 (BridgeProxy 9, BridgeFileProxy 4, BridgeClient 7)
+- 断连处理: complete("") 而非 completeExceptionally → 需改为 FAILED_DISCONNECT
+- BridgeFileProxy: 断连无 pending 回收 → 需添加
+
+### errorCode/BRG_ (错误码)
+- BridgeErrorMapper: 14 个 BRG_ 常量已定义 ✓
+- 双栈映射: map() 方法 + 正则校验 ✓
+- 使用位点: BridgeServer(4), BridgeProxy(6), BridgeFileProxy(12), BridgeMessageHandler(2)
+- 判定: ✅ 已落地
+
+### 帧大小门禁
+- FRAME_MAX_BYTES = 64 * 1024 (Alpha L14 + Reforged L12) ✓
+- BASE64_RAW_MAX_BYTES = 46 * 1024 (Alpha L15 + Reforged L13) ✓
+- 超限映射: BRG_VALIDATION_205 ✓
+- 判定: ✅ 已落地
+
+## Preflight 结论
+前置门禁 PASS。输入齐全。D1 实际代码改动范围:
+1. protocol_version 协商 (新增)
+2. idempotency 去重缓存 (新增)
+3. disconnect fast-fail (改进: complete → completeExceptionally)
+4. 错误码 (已落地, 仅需验证覆盖度)
+5. 帧大小门禁 (已落地, 仅需验证使用位点)
