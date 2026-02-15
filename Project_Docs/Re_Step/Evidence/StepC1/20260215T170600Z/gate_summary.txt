@@ -1,0 +1,14 @@
+gate_summary — Step-C1
+======================
+RUN_ID: 20260215T170600Z
+
+Gate01 Preflight: PASS (前置+编译+证据)
+Gate02 Core Paths: PASS (5/5 命令链路)
+Gate03 Auth Config: PASS (8+8+2 权限配置)
+Gate04 Protocol Error: PASS (首帧+双栈+mappingConflict+isFrameTooLarge)
+Gate05 Consistency SLO: PASS (冲突+超时+观测基础, 已知P1差距不阻塞)
+
+新发现: 0 个
+已知差距: 2 个 (P1, B3已标注)
+
+Verdict: PASS → GO C2

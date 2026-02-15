@@ -1,0 +1,33 @@
+# Preflight Scope — Step-C1
+# RUN_ID: 20260215T170600Z
+
+## 验证范围
+
+### 1. 端到端主链路
+QQ 指令 → Alpha InboundHandler → CommandRegistry → BridgeProxy → BridgeServer TCP → Reforged BridgeClient → MC 执行 → 回执
+
+### 2. 关键命令集
+| 命令 | 类型 | 入口 | 核心实现 | Bridge 动作 |
+|---|---|---|---|---|
+| #bind | 变更 | BindCommand | BridgeProxy.resolveAndBind() | resolve_uuid, whitelist_add |
+| #unbind | 变更 | UnbindCommand | DataManager.unbind() | whitelist_remove |
+| #status | 查询 | StatusCommand | BridgeProxy.getServerStatus() | get_status |
+| #list | 查询 | ListCommand | BridgeProxy.getOnlinePlayerList() | get_players |
+| #reload | 变更 | ReloadCommand | AlphaConfig.reload() + BridgeProxy.reloadSubServerConfigs() | reload_config |
+
+### 3. 权限与配置链路
+- ContractRole {USER, ADMIN, OWNER} 映射
+- 越权路径 → HTTP 403 + AUTH-403 + errorCode
+- ConfigSchema fail-closed (未知键/非法值)
+- reload 事务闭环 (parse → validate → staging → swap → audit → rollback)
+
+### 4. 协议与错误链路
+- BridgeServer.BridgeRegistrationAuthHandler: register 首帧约束
+- BridgeErrorMapper: errorCode/rawError/mappingConflict 双栈
+- BridgeErrorMapper.isFrameTooLarge: BRG_VALIDATION_205
+
+### 5. 一致性与观测
+- DataManager: 绑定冲突检测 (FAIL:OCCUPIED)
+- BridgeProxy: 超时处理 (10s统一)
+- MetricsCollector: TPS/内存/玩家数采集
+- 日志可追溯性 (LOGGER 覆盖)
