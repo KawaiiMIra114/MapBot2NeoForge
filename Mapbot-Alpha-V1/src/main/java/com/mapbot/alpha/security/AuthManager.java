@@ -372,6 +372,39 @@ public enum AuthManager {
         if (info == null || requiredRole == null) return false;
         return info.role.ordinal() >= requiredRole.ordinal();
     }
+
+    /**
+     * 基于合同角色模型的鉴权判断 (Step-04 B2)。
+     * 全链路唯一推荐的鉴权入口。
+     * 未知角色映射失败时返回 false 并记录审计日志。
+     */
+    public boolean hasContractPermission(String token, ContractRole required) {
+        if (required == null) return false;
+        TokenInfo info = getTokenInfo(token);
+        if (info == null) return false;
+
+        java.util.Optional<ContractRole> mapped = ContractRole.fromLegacy(info.role);
+        if (mapped.isEmpty()) {
+            LOGGER.warn("[AUDIT] 鉴权拒绝: 未知角色映射失败 user={} legacyRole={} required={}",
+                    info.username, info.role, required);
+            return false;
+        }
+        return mapped.get().hasAtLeast(required);
+    }
+
+    /**
+     * 获取 Token 对应的合同角色。
+     * 未知角色返回 empty 并记录审计。
+     */
+    public java.util.Optional<ContractRole> getContractRole(String token) {
+        TokenInfo info = getTokenInfo(token);
+        if (info == null) return java.util.Optional.empty();
+        java.util.Optional<ContractRole> mapped = ContractRole.fromLegacy(info.role);
+        if (mapped.isEmpty()) {
+            LOGGER.warn("[AUDIT] 角色映射失败: user={} legacyRole={}", info.username, info.role);
+        }
+        return mapped;
+    }
     
     /**
      * 登出

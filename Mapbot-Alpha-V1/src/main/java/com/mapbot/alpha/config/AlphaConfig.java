@@ -2,6 +2,7 @@ package com.mapbot.alpha.config;
 
 import java.io.*;
 import java.nio.file.*;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Properties;
 import org.slf4j.Logger;
@@ -50,6 +51,10 @@ public class AlphaConfig {
     
     // 调试
     private boolean debugMode = true;
+
+    // 事务管理 (Step-04 B2)
+    private volatile int configVersion = 0;
+    private volatile Properties lastValidProps = null;
     
     private AlphaConfig() {}
     
@@ -58,10 +63,20 @@ public class AlphaConfig {
             Files.createDirectories(configPath.getParent());
             
             if (Files.exists(configPath)) {
-                props.clear();
+                Properties newProps = new Properties();
                 try (InputStream in = Files.newInputStream(configPath)) {
-                    props.load(in);
+                    newProps.load(in);
                 }
+
+                // Step-04 B2: Schema 校验 (fail-closed)
+                ConfigSchema.ValidationResult validation = ConfigSchema.validate(newProps);
+                if (!validation.passed()) {
+                    LOGGER.error("配置校验失败，中止加载。保持上一个有效配置。\n{}", validation.toSummary());
+                    return;
+                }
+
+                props.clear();
+                props.putAll(newProps);
                 
                 wsUrl = props.getProperty("connection.wsUrl", wsUrl);
                 reconnectInterval = parseIntProperty("connection.reconnectInterval", reconnectInterval);
@@ -98,11 +113,19 @@ public class AlphaConfig {
                     save();
                     LOGGER.info("检测到端口配置异常，已自动修正并写回 {}", configPath);
                 }
+
+                // 标记为有效配置
+                lastValidProps = new Properties();
+                lastValidProps.putAll(props);
+                configVersion++;
                 
-                LOGGER.info("配置已加载: playerGroup={}, adminGroup={}, botQQ={}, redisEnabled={}", 
-                    playerGroupId, adminGroupId, botQQ, redisEnabled);
+                LOGGER.info("配置已加载: version={} playerGroup={} adminGroup={} botQQ={} redisEnabled={}", 
+                    configVersion, playerGroupId, adminGroupId, botQQ, redisEnabled);
             } else {
                 save();
+                lastValidProps = new Properties();
+                lastValidProps.putAll(props);
+                configVersion = 1;
                 LOGGER.info("已创建默认配置文件: {}", configPath);
             }
         } catch (Exception e) {
@@ -203,11 +226,152 @@ public class AlphaConfig {
     }
     
     /**
-     * 重新加载配置
+     * 事务式热重载配置 (Step-04 B2)
+     * 流程: parse → validate → staging → atomic swap → audit → rollback
+     * @return 重载结果
      */
-    public void reload() {
-        load();
-        LOGGER.info("配置已重新加载");
+    public ReloadResult reload() {
+        int prevVersion = configVersion;
+        String timestamp = Instant.now().toString();
+        LOGGER.info("[RELOAD-AUDIT] 开始热重载 prevVersion={} time={}", prevVersion, timestamp);
+
+        // 1. Parse: 读取新配置
+        Properties stagingProps = new Properties();
+        try {
+            if (!Files.exists(configPath)) {
+                String msg = "配置文件不存在: " + configPath;
+                LOGGER.error("[RELOAD-AUDIT] 解析失败: {}", msg);
+                return ReloadResult.failure(prevVersion, msg);
+            }
+            try (InputStream in = Files.newInputStream(configPath)) {
+                stagingProps.load(in);
+            }
+        } catch (Exception e) {
+            String msg = "解析配置文件失败: " + e.getMessage();
+            LOGGER.error("[RELOAD-AUDIT] {}", msg, e);
+            return ReloadResult.failure(prevVersion, msg);
+        }
+
+        // 2. Validate: Schema 校验 (staging 中，不影响运行态)
+        ConfigSchema.ValidationResult validation = ConfigSchema.validate(stagingProps);
+        if (!validation.passed()) {
+            String msg = validation.toSummary();
+            LOGGER.error("[RELOAD-AUDIT] 校验失败 (rollback 到 v{}): {}", prevVersion, msg);
+            return ReloadResult.failure(prevVersion, msg);
+        }
+
+        // 3. Staging: 保存旧配置快照用于回滚
+        Properties rollbackSnapshot = new Properties();
+        rollbackSnapshot.putAll(props);
+
+        // 保存旧字段值
+        String oldWsUrl = wsUrl;
+        int oldReconnectInterval = reconnectInterval;
+        int oldListenPort = listenPort;
+        int oldBridgeListenPort = bridgeListenPort;
+        String oldTargetMcHost = targetMcHost;
+        int oldTargetMcPort = targetMcPort;
+        String oldRedisHost = redisHost;
+        int oldRedisPort = redisPort;
+        String oldRedisPassword = redisPassword;
+        int oldRedisDatabase = redisDatabase;
+        boolean oldRedisEnabled = redisEnabled;
+        long oldPlayerGroupId = playerGroupId;
+        long oldAdminGroupId = adminGroupId;
+        String oldAdminQQs = adminQQs;
+        long oldBotQQ = botQQ;
+        boolean oldDebugMode = debugMode;
+
+        // 4. Atomic Swap: 应用新配置
+        try {
+            props.clear();
+            props.putAll(stagingProps);
+
+            wsUrl = props.getProperty("connection.wsUrl", wsUrl);
+            reconnectInterval = parseIntProperty("connection.reconnectInterval", reconnectInterval);
+            listenPort = parseIntProperty(
+                "connection.listenPort",
+                parseIntProperty("server.listenPort", listenPort)
+            );
+            bridgeListenPort = parseIntProperty(
+                "bridge.listenPort",
+                parseIntProperty("connection.bridgePort", bridgeListenPort)
+            );
+            targetMcHost = readStringProperty("minecraft.targetHost", readStringProperty("server.targetMcHost", targetMcHost));
+            targetMcPort = parseIntProperty(
+                "minecraft.targetPort",
+                parseIntProperty("server.targetMcPort", targetMcPort)
+            );
+            normalizePorts();
+
+            redisHost = props.getProperty("redis.host", redisHost);
+            redisPort = parseIntProperty("redis.port", redisPort);
+            redisPassword = props.getProperty("redis.password", redisPassword);
+            redisDatabase = parseIntProperty("redis.database", redisDatabase);
+            redisEnabled = parseBooleanProperty("redis.enabled", redisEnabled);
+
+            playerGroupId = parseLongProperty("messaging.playerGroupId", playerGroupId);
+            adminGroupId = parseLongProperty("messaging.adminGroupId", adminGroupId);
+            adminQQs = props.getProperty("messaging.adminQQs", adminQQs);
+            botQQ = parseLongProperty("messaging.botQQ", botQQ);
+            debugMode = parseBooleanProperty("debug.debugMode", debugMode);
+
+            syncAdminsToDataManager();
+
+            // 更新版本和有效快照
+            lastValidProps = new Properties();
+            lastValidProps.putAll(props);
+            configVersion++;
+
+            // 5. Audit: 记录成功
+            LOGGER.info("[RELOAD-AUDIT] 热重载成功 v{} -> v{} time={}", prevVersion, configVersion, timestamp);
+            return ReloadResult.success(prevVersion, configVersion);
+
+        } catch (Exception e) {
+            // 6. Rollback: 恢复旧配置
+            LOGGER.error("[RELOAD-AUDIT] 应用配置异常，执行回滚到 v{}", prevVersion, e);
+            props.clear();
+            props.putAll(rollbackSnapshot);
+            wsUrl = oldWsUrl;
+            reconnectInterval = oldReconnectInterval;
+            listenPort = oldListenPort;
+            bridgeListenPort = oldBridgeListenPort;
+            targetMcHost = oldTargetMcHost;
+            targetMcPort = oldTargetMcPort;
+            redisHost = oldRedisHost;
+            redisPort = oldRedisPort;
+            redisPassword = oldRedisPassword;
+            redisDatabase = oldRedisDatabase;
+            redisEnabled = oldRedisEnabled;
+            playerGroupId = oldPlayerGroupId;
+            adminGroupId = oldAdminGroupId;
+            adminQQs = oldAdminQQs;
+            botQQ = oldBotQQ;
+            debugMode = oldDebugMode;
+
+            LOGGER.info("[RELOAD-AUDIT] 回滚完成，当前仍为 v{}", configVersion);
+            return ReloadResult.failure(prevVersion, "应用配置异常 (已回滚): " + e.getMessage());
+        }
+    }
+
+    /** 获取当前配置版本号 */
+    public int getConfigVersion() { return configVersion; }
+
+    /**
+     * 热重载结果 (Step-04 B2)
+     */
+    public record ReloadResult(boolean success, int prevVersion, int newVersion, String message) {
+        public static ReloadResult success(int prev, int next) {
+            return new ReloadResult(true, prev, next, "配置版本 v" + prev + " -> v" + next);
+        }
+        public static ReloadResult failure(int prev, String reason) {
+            return new ReloadResult(false, prev, prev, reason);
+        }
+        public String toSummary() {
+            return success
+                    ? "[成功] " + message
+                    : "[失败] 保持 v" + prevVersion + " — " + message;
+        }
     }
 
     private int parseIntProperty(String key, int fallback) {

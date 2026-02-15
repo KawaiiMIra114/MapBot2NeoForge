@@ -69,8 +69,8 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             }
             // 配置 API (#10 设置页面)
             if (path.equals("/api/config")) {
-                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.ADMIN)) {
-                    sendForbidden(ctx, "Permission denied. ADMIN required.");
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasContractPermission(token, com.mapbot.alpha.security.ContractRole.OWNER)) {
+                    sendForbidden(ctx, "Permission denied. OWNER required.");
                     return;
                 }
                 if (req.method() == HttpMethod.GET) {
@@ -87,8 +87,8 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             }
             // 服务器命令 API (问题 #4)
             if (path.matches("/api/servers/.+/command") && req.method() == HttpMethod.POST) {
-                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.OPERATOR)) {
-                    sendForbidden(ctx, "Permission denied. OPERATOR required.");
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasContractPermission(token, com.mapbot.alpha.security.ContractRole.ADMIN)) {
+                    sendForbidden(ctx, "Permission denied. ADMIN required.");
                     return;
                 }
                 handleServerCommand(ctx, req, path);
@@ -96,16 +96,16 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             }
             // 服务器重启/停止 API
             if (path.matches("/api/servers/.+/restart") && req.method() == HttpMethod.POST) {
-                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.OPERATOR)) {
-                    sendForbidden(ctx, "Permission denied. OPERATOR required.");
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasContractPermission(token, com.mapbot.alpha.security.ContractRole.ADMIN)) {
+                    sendForbidden(ctx, "Permission denied. ADMIN required.");
                     return;
                 }
                 handleServerControl(ctx, path, "restart");
                 return;
             }
             if (path.matches("/api/servers/.+/stop") && req.method() == HttpMethod.POST) {
-                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.OPERATOR)) {
-                    sendForbidden(ctx, "Permission denied. OPERATOR required.");
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasContractPermission(token, com.mapbot.alpha.security.ContractRole.ADMIN)) {
+                    sendForbidden(ctx, "Permission denied. ADMIN required.");
                     return;
                 }
                 handleServerControl(ctx, path, "stop");
@@ -113,8 +113,8 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             }
             // 跨服文件 API (STEP 9)
             if (path.startsWith("/api/remote/")) {
-                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.OPERATOR)) {
-                    sendForbidden(ctx, "Permission denied. OPERATOR required.");
+                if (!com.mapbot.alpha.security.AuthManager.INSTANCE.hasContractPermission(token, com.mapbot.alpha.security.ContractRole.ADMIN)) {
+                    sendForbidden(ctx, "Permission denied. ADMIN required.");
                     return;
                 }
                 RemoteFileApiHandler.handle(ctx, req);
@@ -479,11 +479,12 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
 
     private void sendForbidden(ChannelHandlerContext ctx, String message) {
         String escaped = escapeJson(message);
-        byte[] bytes = ("{\"error\":\"" + escaped + "\"}").getBytes(StandardCharsets.UTF_8);
+        byte[] bytes = ("{\"errorCode\":\"AUTH-403\",\"error\":\"" + escaped + "\"}").getBytes(StandardCharsets.UTF_8);
         FullHttpResponse response = new DefaultFullHttpResponse(
                 HttpVersion.HTTP_1_1, HttpResponseStatus.FORBIDDEN,
                 io.netty.buffer.Unpooled.wrappedBuffer(bytes));
         response.headers().set(HttpHeaderNames.CONTENT_TYPE, "application/json");
+        response.headers().set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
         HttpUtil.setContentLength(response, bytes.length);
         ctx.writeAndFlush(response);
     }
@@ -576,9 +577,9 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
     private void handleUsersApi(ChannelHandlerContext ctx, FullHttpRequest req, String uri, String token) {
         var auth = com.mapbot.alpha.security.AuthManager.INSTANCE;
         
-        // 检查 ADMIN 权限
-        if (!auth.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.ADMIN)) {
-            sendJson(ctx, "{\"error\":\"Permission denied. ADMIN required.\"}");
+        // 检查 OWNER 权限 (Step-04 B2: 用户管理需要 OWNER 角色)
+        if (!auth.hasContractPermission(token, com.mapbot.alpha.security.ContractRole.OWNER)) {
+            sendForbidden(ctx, "Permission denied. OWNER required.");
             return;
         }
         
@@ -668,9 +669,9 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
     private void handleMapbotDataApi(ChannelHandlerContext ctx, FullHttpRequest req, String uri, String token) {
         var auth = com.mapbot.alpha.security.AuthManager.INSTANCE;
 
-        // 检查 ADMIN 权限
-        if (!auth.hasPermission(token, com.mapbot.alpha.security.AuthManager.Role.ADMIN)) {
-            sendJson(ctx, "{\"error\":\"Permission denied. ADMIN required.\"}");
+        // 检查 OWNER 权限 (Step-04 B2: MapBot 数据管理需要 OWNER 角色)
+        if (!auth.hasContractPermission(token, com.mapbot.alpha.security.ContractRole.OWNER)) {
+            sendForbidden(ctx, "Permission denied. OWNER required.");
             return;
         }
 
