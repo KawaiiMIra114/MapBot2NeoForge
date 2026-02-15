@@ -16,15 +16,16 @@
 - Step-15: `CONDITIONAL PASS` (F2 运维手册联调与验证, 10 差距, 2026-02-15)
 - Step-16: `CONDITIONAL PASS` (G1 契约与集成测试体系建设, 10 差距, 2026-02-16)
 - Step-17: `CONDITIONAL PASS` (G2 发布门禁自动化, 7 差距, 2026-02-16)
+- Step-18: `CONDITIONAL PASS` (H1 升级迁移演练, 8 差距, 2026-02-16)
 
 ## Current Step
-- Active: Step-18 H1 灰度发布与回滚策略 → READY
-- Previous: Step-17 G2 CONDITIONAL PASS (20260216T010500Z)
+- Active: Step-19 H2 灰度发布执行与监控 → READY
+- Previous: Step-18 H1 CONDITIONAL PASS (20260216T012600Z)
 
 ## Gap Backlog (累计)
-- C1~G1 累计: 159 项 (63 High / 78 Medium / 18 Low)
-- G2 新增: 7 项 (1 High / 5 Medium / 1 Low)
-- 总计: 166 项 (64 High / 83 Medium / 19 Low)
+- C1~G2 累计: 166 项 (64 High / 83 Medium / 19 Low)
+- H1 新增: 8 项 (0 High / 5 Medium / 3 Low)
+- 总计: 174 项 (64 High / 88 Medium / 22 Low)
 
 ## Key Evidence
 | Step | Commit | Evidence |
@@ -41,3 +42,4 @@
 | Step-15 | a6c958b | Evidence/Step15/20260215T221900Z |
 | Step-16 | 92126bb | Evidence/Step16/20260216T005500Z |
 | Step-17 | c339962 | Evidence/Step17/20260216T010500Z |
+| Step-18 | (pending) | Evidence/Step18/20260216T012600Z |
