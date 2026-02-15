@@ -1,0 +1,72 @@
+preflight_read_manifest — Step-09 D2
+======================================
+RUN_ID: 20260215T203100Z
+执行时间: 2026-02-15T20:31:00+08:00
+
+## 已读取文件 (8/8)
+1. Project_Docs/Control/MASTER_PROMPT.md ✓ (前步已读, 内容不变)
+2. Project_Docs/Control/README.md ✓ (前步已读)
+3. Project_Docs/Control/TASKS/README.md ✓ (前步已读)
+4. Project_Docs/Control/CURRENT_STEP.md (10行, Step09 D2 READY) ✓
+5. Project_Docs/Control/TASKS/TASK_STEP_09_D2.md (106行) ✓
+6. Project_Docs/Re_Step/RE_STEP_09_D2_线程与执行模型重构.md (278行) ✓
+7. Project_Docs/SYSTEM_CRITIQUE_AND_REFACTOR_PAPER_V1.md ✓ (前步已读)
+8. Project_Docs/SYSTEM_REFACTOR_DEVELOPMENT_TASKLIST.md ✓ (前步已读)
+
+## 前置产物检查 (Step08 6/6)
+- 01_D1_Change_Scope_and_Gates.md ✓
+- 02_ProtocolVersion_and_Capability_Design.md ✓
+- 03_Idempotency_Dedup_Design.md ✓
+- 04_Disconnect_FastFail_and_Pending_Reclaim.md ✓
+- 05_D1_Contract_Test_and_Chaos_Result.md ✓
+- 06_Solo_Review_Log_D1.md ✓
+前置门禁: PASS (6/6)
+
+## D2 专项代码扫描
+
+### 主线程阻塞 (Thread.sleep/.join/.get)
+- Alpha OneBotClient:130 Thread.sleep(250) — 重连循环
+- Reforged BridgeHandlers:860 Thread.sleep(1000) — 停服倒计时
+- Reforged BridgeClient:195 Thread.sleep(RECONNECT_DELAY_MS) — 重连等待
+- Reforged MapBot:222 Thread.sleep(5000) — 重连等待
+- Reforged MapBot:253 Thread.sleep(1000) — 停机等待
+合计: 5 处
+
+### 越界线程 (new Thread/supplyAsync/ExecutorService)
+裸 new Thread: 8 处
+  - BridgeHandlers:849 停服线程 (匿名)
+  - BridgeClient:162 Bridge主线程 (命名: MapBot-Bridge)
+  - BridgeClient:230 心跳线程 (命名: MapBot-Heartbeat)
+  - BotClient:50 WS线程 (命名: MapBot-WS-Thread)
+  - MapBot:220 重连线程 (匿名!)
+  - DataManager:309 保存线程 (匿名!)
+  - MapbotAlpha:95 ShutdownHook
+  - MapbotAlpha:137 consoleWatcher
+  - RedisManager:87 subscriber线程
+
+supplyAsync: 2 处
+  - MapBot:118 switch_server (默认 ForkJoinPool)
+  - BindCommand:62 resolveGameProfile (默认 ForkJoinPool)
+
+已命名 ExecutorService: 5 个
+  - BridgeClient heartbeatExecutor + messageExecutor
+  - BotClient scheduler
+  - ServerStatusManager scheduler
+  - StopServerCommand SCHEDULER
+
+### 主线程回切 (server.execute)
+BridgeHandlers: 15+ 处 server.execute — 良好模式 ✓
+  - whitelist_add/remove, execute_command, bind_player, give_item 等均回切
+潜在问题: CQCodeParser:140 在解析时获取 MinecraftServer 但可能不在主线程
+
+### 并发容器
+ConcurrentHashMap: 20+ 处 ✓ (良好基础)
+volatile: 5 处 (AuthManager, AlphaConfig, ServerStatusManager)
+AtomicLong/AtomicInteger: 3 处
+
+## Preflight 结论
+前置门禁 PASS。D2 关键差距:
+1. 5 处 Thread.sleep (非全部高风险, 部分在专用线程可接受)
+2. 3 个匿名 new Thread (无生命周期管理: BridgeHandlers:849, MapBot:220, DataManager:309)
+3. 2 处 supplyAsync 使用默认 ForkJoinPool (应改为命名线程池)
+4. CQCodeParser 可能在 IO 线程读取 MinecraftServer
