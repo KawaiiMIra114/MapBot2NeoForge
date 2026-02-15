@@ -1,0 +1,7 @@
+﻿code_coverage  Step-13 E3
+BridgeErrorMapper: 6 BRG_* codes
+BridgeHandlers: SUCCESS:/FAIL: prefix pattern
+ConsoleCommandHandler: API entry point
+ContractRole: 3-level auth
+CompletableFuture: 5s timeout
+coverage_result: BASELINE ESTABLISHED

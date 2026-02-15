@@ -1,0 +1,17 @@
+﻿preflight_read_manifest  Step-13 E3
+RUN_ID: 20260215T215300Z
+== 强制输入读取 ==
+[OK] MASTER_PROMPT.md
+[OK] Control/README.md, TASKS/README.md
+[OK] CURRENT_STEP.md (RUNNING)
+[OK] TASK_STEP_13_E3.md (全面修订对齐RE_STEP)
+[OK] RE_STEP_13_E3_管理面API语义统一.md (301行)
+[OK] validate_delivery.py (232行)
+[OK] CURRENT_STATE.md, NEXT_ACTIONS.md
+== Step12 前置 (6/6) ==
+[OK] 01-06 全部存在
+== E3专项扫描 ==
+API/sendProxyResponse/errorCode/SUCCESS/FAIL: 355+ matches
+BridgeErrorMapper: BRG_* 6码
+BridgeHandlers: SUCCESS:/FAIL: 前缀
+result: ALL INPUTS VERIFIED

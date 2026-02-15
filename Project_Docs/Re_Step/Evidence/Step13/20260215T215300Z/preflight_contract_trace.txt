@@ -1,0 +1,7 @@
+﻿contract_trace  Step-13 E3
+BRIDGE_MESSAGE_CONTRACT.md: ref in Artifact 01/02
+BRIDGE_ERROR_CODE_CONTRACT.md: ref in Artifact 03
+COMMAND_AUTHORIZATION_CONTRACT.md: ref in Artifact 01/04
+DATA_FLOW_AND_STATE.md: ref in Artifact 02
+FAILURE_MODEL.md: ref in Artifact 02/03
+trace_result: ALL CONTRACTS REFERENCED
