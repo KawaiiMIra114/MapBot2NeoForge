@@ -1,0 +1,52 @@
+preflight_read_manifest — Step-07 C2
+======================================
+RUN_ID: 20260215T174400Z
+执行时间: 2026-02-15T17:44:00+08:00
+
+## 已读取文件
+1. Project_Docs/Control/MASTER_PROMPT.md (44行) ✓
+2. Project_Docs/Control/README.md (57行) ✓
+3. Project_Docs/Control/TASKS/README.md (61行) ✓
+4. Project_Docs/Control/CURRENT_STEP.md (9行) ✓
+5. Project_Docs/Control/TASKS/TASK_STEP_07_C2.md (73行) ✓
+6. Project_Docs/Memory_KB/README.md (37行) ✓
+7. Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md (24行) ✓
+8. Project_Docs/Memory_KB/03_Plan/NEXT_ACTIONS.md (18行) ✓
+9. Project_Docs/Re_Step/RE_STEP_07_C2_安全边界与版本兼容评审.md (281行) ✓
+10. Project_Docs/Architecture/SECURITY_BOUNDARY.md (174行) ✓
+11. Project_Docs/Architecture/VERSIONING_AND_COMPATIBILITY.md (143行) ✓
+
+## 前置产物检查 (RE_STEP_07 要求的 Step06 前置门禁)
+Step06 Artifacts 目录: 不存在 ❌
+要求文件 (6/6):
+- 01_Thread_Owner_Matrix_Review.md: 不存在 ❌
+- 02_ForbiddenPattern_Scan_Report.md: 不存在 ❌
+- 03_Failure_StateMachine_Review.md: 不存在 ❌
+- 04_Pending_Lifecycle_and_Compensation.md: 不存在 ❌
+- 05_Chaos_and_Stress_Review_Plan.md: 不存在 ❌
+- 06_Solo_Review_Log_C1.md: 不存在 ❌
+
+前置门禁结果: FAIL (0/6)
+
+## 合同文件 (可达性)
+- BRIDGE_ERROR_CODE_CONTRACT.md ✓
+- BRIDGE_MESSAGE_CONTRACT.md ✓
+- COMMAND_AUTHORIZATION_CONTRACT.md ✓
+- CONFIG_SCHEMA_CONTRACT.md ✓
+- DATA_CONSISTENCY_CONTRACT.md ✓
+- OBSERVABILITY_SLO_CONTRACT.md ✓
+
+## 代码追踪 (安全+版本相关)
+- DEFAULT_TOKEN_SECRET: AuthManager L28 硬编码 "MapBot-Alpha-Secret-2026" ⚠ HIGH
+- alpha.properties L9: 含实际 tokenSecret 值 ⚠ HIGH
+- ws://: HttpRequestDispatcher L175 + AlphaConfig L29 明文 ⚠ HIGH
+- Access-Control-Allow-Origin: 未搜索到 (可能已修复或在不同位置)
+- protocol_version: 未在代码中出现 ⚠ 缺失
+- feature_flag/featureFlag: 未在代码中出现 ⚠ 缺失
+- AuthN/AuthZ 框架: hasContractPermission 8处 + sendForbidden 8处 ✓
+
+## 阻断判定
+RE_STEP_07 文档"前置产物硬门禁"要求 Step06 产物 6/6 存在。
+当前存在率 = 0/6 = FAIL。
+MASTER_PROMPT "禁止跳步"。
+Status → BLOCKED

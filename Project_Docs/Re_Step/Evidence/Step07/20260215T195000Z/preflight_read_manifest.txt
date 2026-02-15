@@ -1,0 +1,44 @@
+preflight_read_manifest — Step-07 C2 (重新执行)
+==================================================
+RUN_ID: 20260215T195000Z
+执行时间: 2026-02-15T19:50:00+08:00
+
+## 已读取文件
+1. Project_Docs/Control/MASTER_PROMPT.md ✓
+2. Project_Docs/Control/TASKS/TASK_STEP_07_C2.md ✓
+3. Project_Docs/Re_Step/RE_STEP_07_C2_安全边界与版本兼容评审.md (281行) ✓
+4. Project_Docs/Architecture/SECURITY_BOUNDARY.md (174行) ✓
+5. Project_Docs/Architecture/VERSIONING_AND_COMPATIBILITY.md (143行) ✓
+6. Project_Docs/Contracts/BRIDGE_MESSAGE_CONTRACT.md ✓
+7. Project_Docs/Contracts/BRIDGE_ERROR_CODE_CONTRACT.md ✓
+8. Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md ✓
+
+## 前置产物检查 (Step06 6/6)
+Step06 Artifacts 目录: 存在 ✓
+- 01_Thread_Owner_Matrix_Review.md ✓
+- 02_ForbiddenPattern_Scan_Report.md ✓
+- 03_Failure_StateMachine_Review.md ✓
+- 04_Pending_Lifecycle_and_Compensation.md ✓
+- 05_Chaos_and_Stress_Review_Plan.md ✓
+- 06_Solo_Review_Log_C1.md ✓
+前置门禁: PASS (6/6)
+
+## 代码追踪 (安全+版本)
+### 安全边界
+- DEFAULT_TOKEN_SECRET: AuthManager L28 硬编码 "MapBot-Alpha-Secret-2026" → HIGH
+- alpha.properties L8/L9: auth.bridge.token + auth.tokenSecret 含实际值 → HIGH
+- ws://: HttpRequestDispatcher L175 (ws://+host+path) + AlphaConfig L29 (ws://127.0.0.1:7000) → HIGH
+- Access-Control-Allow-Origin: HttpRequestDispatcher L254/L292 → HIGH
+- hasContractPermission: AuthManager L381 + HttpRequestDispatcher 7处调用 → 已实现
+- sendForbidden: HttpRequestDispatcher L480 定义 + 7处调用 → 已实现
+- ContractRole: 枚举定义 L17, fromLegacy L29, fromString L43, hasAtLeast L62 → 已实现
+
+### 版本兼容
+- protocol_version: 全代码搜索无结果 → 未实现 HIGH
+- feature_flag/featureFlag: 全代码搜索无结果 → 未实现 MEDIUM
+- request_id: pendingRequests 使用 UUID 作为 key → 部分实现
+- version: BridgeMessageHandler L84/L99 日志记录 → 仅展示未强制
+- semver 校验: 未实现 → HIGH
+
+## Preflight 结论
+前置门禁 PASS。输入齐全。代码追踪完成。可开始产物生成。
