@@ -2,6 +2,7 @@ package com.mapbot.alpha.command.impl;
 
 import com.mapbot.alpha.bridge.BridgeProxy;
 import com.mapbot.alpha.command.ICommand;
+import com.mapbot.alpha.security.ContractRole;
 
 /**
  * 背包查询命令
@@ -27,5 +28,10 @@ public class InventoryCommand implements ICommand {
     @Override
     public boolean adminGroupOnly() {
         return true;
+    }
+
+    @Override
+    public ContractRole requiredRole() {
+        return ContractRole.ADMIN;
     }
 }

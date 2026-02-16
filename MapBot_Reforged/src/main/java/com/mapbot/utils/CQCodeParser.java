@@ -80,8 +80,13 @@ public class CQCodeParser {
         }
         matcher.appendTail(result);
         
+        // 解码 HTML 实体 (NapCat/OneBot 会把 [] 编码为 &#91; &#93;)
+        String decoded = result.toString();
+        decoded = decoded.replace("&#91;", "[").replace("&#93;", "]");
+        decoded = decoded.replace("&amp;", "&");
+        
         // 清理多余空格
-        return result.toString().trim();
+        return decoded.trim();
     }
     
     /**

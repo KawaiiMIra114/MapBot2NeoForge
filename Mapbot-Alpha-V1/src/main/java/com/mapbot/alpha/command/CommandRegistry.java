@@ -3,6 +3,7 @@ package com.mapbot.alpha.command;
 import com.mapbot.alpha.config.AlphaConfig;
 import com.mapbot.alpha.data.DataManager;
 import com.mapbot.alpha.network.OneBotClient;
+import com.mapbot.alpha.security.ContractRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +54,8 @@ public class CommandRegistry {
             return false;
         }
 
+        ContractRole senderRole = QqRoleResolver.resolveRole(senderQQ);
+
         if ("addadmin".equals(name) && DataManager.INSTANCE.getAdmins().isEmpty()) {
             try {
                 String result = cmd.execute(args, senderQQ, sourceGroupId);
@@ -67,21 +70,35 @@ public class CommandRegistry {
         }
 
         if (cmd.adminGroupOnly() && sourceGroupId != AlphaConfig.getAdminGroupId()) {
-            // 私聊仅允许管理员绕过“仅限管理群”限制，普通用户仍拒绝
-            if (!(privateChat && DataManager.INSTANCE.isAdmin(senderQQ))) {
+            // 私聊仅允许 admin/owner 绕过“仅限管理群”限制
+            if (!(privateChat && senderRole.hasAtLeast(ContractRole.ADMIN))) {
                 sendReply(sourceGroupId, senderQQ, privateChat, "[权限] 此命令仅限管理群使用");
                 return true;
             }
         }
 
-        if (cmd.requiresAdmin() && !DataManager.INSTANCE.isAdmin(senderQQ)) {
-            sendReply(sourceGroupId, senderQQ, privateChat, "[权限] 此命令需要管理员权限");
+        if (!senderRole.hasAtLeast(cmd.requiredRole())) {
+            sendReply(
+                sourceGroupId,
+                senderQQ,
+                privateChat,
+                String.format(
+                    "[权限] 此命令需要 %s 权限 (当前: %s)",
+                    QqRoleResolver.roleKey(cmd.requiredRole()),
+                    QqRoleResolver.roleKey(senderRole)
+                )
+            );
             return true;
         }
 
-        int userLevel = DataManager.INSTANCE.getPermission(senderQQ);
-        if (userLevel < cmd.requiredPermLevel()) {
-            sendReply(sourceGroupId, senderQQ, privateChat, "[权限] 权限不足，需要等级 " + cmd.requiredPermLevel());
+        // legacy 兼容：老命令仍可声明 requiresAdmin/requiredPermLevel
+        if (cmd.requiresAdmin() && !senderRole.hasAtLeast(ContractRole.ADMIN)) {
+            sendReply(sourceGroupId, senderQQ, privateChat, "[权限] 此命令需要 admin 权限");
+            return true;
+        }
+
+        if (cmd.requiredPermLevel() > 0 && !senderRole.hasAtLeast(ContractRole.ADMIN)) {
+            sendReply(sourceGroupId, senderQQ, privateChat, "[权限] 此命令需要 admin 权限 (legacy-level)");
             return true;
         }
 

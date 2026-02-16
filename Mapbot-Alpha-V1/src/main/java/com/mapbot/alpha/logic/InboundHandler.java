@@ -192,6 +192,21 @@ public class InboundHandler {
         if (parsed.isEmpty()) return;
         
         List<Long> atQQList = CQCodeParser.extractAtTargets(rawMessage);
+
+        // 解析被 @ 的玩家名
+        java.util.List<String> atPlayerNames = new java.util.ArrayList<>();
+        for (Long atQq : atQQList) {
+            String uuid = com.mapbot.alpha.data.DataManager.INSTANCE.getBinding(atQq);
+            if (uuid != null && !uuid.isBlank()) {
+                String playerName = com.mapbot.alpha.data.DataManager.INSTANCE.getPlayerName(uuid);
+                if (playerName != null && !playerName.isBlank()) {
+                    atPlayerNames.add(playerName);
+                }
+            }
+        }
+
+        // 检测回复消息
+        String replyId = CQCodeParser.extractReplyId(rawMessage);
         
         // 构建消息并广播到所有服务器
         String formattedMsg = String.format("[QQ] %s: %s", nickname, parsed);
@@ -211,6 +226,17 @@ public class InboundHandler {
                 json.append(atQQList.get(i));
             }
             json.append("]");
+        }
+        if (!atPlayerNames.isEmpty()) {
+            json.append(",\"atPlayerNames\":[");
+            for (int i = 0; i < atPlayerNames.size(); i++) {
+                if (i > 0) json.append(",");
+                json.append("\"").append(escapeJson(atPlayerNames.get(i))).append("\"");
+            }
+            json.append("]");
+        }
+        if (replyId != null) {
+            json.append(",\"replyId\":\"").append(escapeJson(replyId)).append("\"");
         }
         json.append("}");
         

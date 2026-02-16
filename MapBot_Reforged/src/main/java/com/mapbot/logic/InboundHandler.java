@@ -212,19 +212,21 @@ public class InboundHandler {
 
     // --- 个性化通知逻辑 ---
 
-    public static void sendPersonalizedMessage(String baseMessage, List<Long> atQQList, List<String> atUuidList, String senderNick) {
+    public static void sendPersonalizedMessage(String baseMessage, List<Long> atQQList, List<String> atPlayerNames, String senderNick) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) return;
+
+        LOGGER.info("[DEBUG @] sendPersonalizedMessage: atQQList={}, atPlayerNames={}, sender={}", atQQList, atPlayerNames, senderNick);
 
         server.execute(() -> {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 boolean isAt = false;
-                String playerUuid = player.getUUID().toString();
+                String playerName = player.getName().getString();
 
-                // 优先使用 atUuidList 直接匹配 (Bridge 模式: Alpha 已解析 UUID)
-                if (atUuidList != null && !atUuidList.isEmpty()) {
-                    for (String uuid : atUuidList) {
-                        if (playerUuid.equals(uuid)) {
+                // 优先使用 atPlayerNames 直接匹配玩家名 (Bridge 模式: Alpha 已解析玩家名)
+                if (atPlayerNames != null && !atPlayerNames.isEmpty()) {
+                    for (String name : atPlayerNames) {
+                        if (playerName.equalsIgnoreCase(name)) {
                             isAt = true;
                             break;
                         }
@@ -234,15 +236,18 @@ public class InboundHandler {
                 // 回退: 使用 atQQList + 本地 DataManager 查找 (直连模式兼容)
                 if (!isAt && atQQList != null) {
                     for (Long qq : atQQList) {
-                        if (playerUuid.equals(DataManager.INSTANCE.getBinding(qq))) {
+                        String boundUuid = DataManager.INSTANCE.getBinding(qq);
+                        if (boundUuid != null && player.getUUID().toString().equals(boundUuid)) {
                             isAt = true;
                             break;
                         }
                     }
                 }
 
+                LOGGER.debug("[DEBUG @] player={} isAt={}", playerName, isAt);
+
                 if (isAt) {
-                    player.sendSystemMessage(Component.literal(baseMessage.replace("@" + player.getName().getString(), "§l§6@" + player.getName().getString() + "§r")));
+                    player.sendSystemMessage(Component.literal(baseMessage.replace("@" + playerName, "§l§6@" + playerName + "§r")));
                     player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 70, 20));
                     player.connection.send(new ClientboundSetTitleTextPacket(Component.literal("§b[QQ] §f" + senderNick + " §6@了你!")));
                     player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 1.0f, 2.0f);
@@ -252,6 +257,7 @@ public class InboundHandler {
             }
         });
     }
+
 
     // --- 通讯辅助方法 ---
 

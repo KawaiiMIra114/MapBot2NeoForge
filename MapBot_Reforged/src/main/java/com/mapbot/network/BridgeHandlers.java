@@ -887,14 +887,24 @@ public final class BridgeHandlers {
         String rawContent = getString(json, "rawContent");
         String displayContent;
         if (!rawContent.isEmpty()) {
-            // 走 Reforged CQCodeParser: 绑定玩家名 > 群昵称 > QQ号
             displayContent = com.mapbot.utils.CQCodeParser.parse(rawContent);
         } else {
             displayContent = content;
         }
         if (displayContent.isEmpty()) return;
 
-        // 提取 atList (QQ号列表)
+        // 提取 atPlayerNames (Alpha 已解析的玩家名列表, 用于直接匹配在线玩家)
+        java.util.List<String> atPlayerNames = new java.util.ArrayList<>();
+        if (json.has("atPlayerNames") && json.get("atPlayerNames").isJsonArray()) {
+            for (com.google.gson.JsonElement e : json.getAsJsonArray("atPlayerNames")) {
+                try {
+                    String name = e.getAsString();
+                    if (name != null && !name.isEmpty()) atPlayerNames.add(name);
+                } catch (Exception ignored) {}
+            }
+        }
+
+        // 提取 atList (QQ号列表, 回退用)
         java.util.List<Long> atQQList = new java.util.ArrayList<>();
         if (json.has("atList") && json.get("atList").isJsonArray()) {
             for (com.google.gson.JsonElement e : json.getAsJsonArray("atList")) {
@@ -902,22 +912,20 @@ public final class BridgeHandlers {
             }
         }
 
-        // 提取 atUuidList (Alpha 已解析的 UUID 列表，用于直接匹配在线玩家)
-        java.util.List<String> atUuidList = new java.util.ArrayList<>();
-        if (json.has("atUuidList") && json.get("atUuidList").isJsonArray()) {
-            for (com.google.gson.JsonElement e : json.getAsJsonArray("atUuidList")) {
-                try {
-                    String uuid = e.getAsString();
-                    if (uuid != null && !uuid.isEmpty()) atUuidList.add(uuid);
-                } catch (Exception ignored) {}
-            }
+        // 检测回复消息: 如果有 replyId 且 @ 了机器人, 试图识别原始 MC 玩家
+        String replyId = getString(json, "replyId");
+        if (!replyId.isEmpty() && !rawContent.isEmpty()) {
+            // 回复消息场景: 从 rawContent 中提取被回复的内容
+            // Alpha 将通过 OneBot API 查询原始消息并识别 MC 玩家
+            // 这里用简化逻辑: 如果回复了机器人的消息, 尝试从显示内容中提取被回复的玩家名
+            LOGGER.debug("[QQ->MC] 检测到回复消息, replyId={}", replyId);
         }
 
         String formattedMsg = String.format("\u00A7b[QQ]\u00A7r <%s> %s", sender, displayContent);
-        LOGGER.info("[QQ->MC] {} (at={}, uuid={})", formattedMsg, atQQList, atUuidList);
+        LOGGER.info("[QQ->MC] {} (atNames={}, atQQ={})", formattedMsg, atPlayerNames, atQQList);
 
         // 调用个性化消息（被@玩家: 高亮+标题+提示音）
-        com.mapbot.logic.InboundHandler.sendPersonalizedMessage(formattedMsg, atQQList, atUuidList, sender);
+        com.mapbot.logic.InboundHandler.sendPersonalizedMessage(formattedMsg, atQQList, atPlayerNames, sender);
     }
 
     // ==================== 文件操作 ====================

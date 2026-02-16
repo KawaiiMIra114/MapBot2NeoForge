@@ -2,8 +2,9 @@ package com.mapbot.alpha.command.impl;
 
 import com.mapbot.alpha.command.CommandRegistry;
 import com.mapbot.alpha.command.ICommand;
+import com.mapbot.alpha.command.QqRoleResolver;
 import com.mapbot.alpha.config.AlphaConfig;
-import com.mapbot.alpha.data.DataManager;
+import com.mapbot.alpha.security.ContractRole;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -17,12 +18,6 @@ import java.util.Set;
 /**
  * 帮助命令
  * #help / #菜单
- *
- * 分组展示：
- * - 功能类
- * - 娱乐类
- * - 工具类
- * - 管理类
  */
 public class HelpCommand implements ICommand {
 
@@ -53,83 +48,73 @@ public class HelpCommand implements ICommand {
         boolean isAdminGroup = sourceGroupId == AlphaConfig.getAdminGroupId();
         boolean isPrivateContext = !isPlayerGroup && !isAdminGroup;
 
-        int userLevel = DataManager.INSTANCE.getPermission(senderQQ);
-        boolean isAdmin = DataManager.INSTANCE.isAdmin(senderQQ);
+        ContractRole callerRole = QqRoleResolver.resolveRole(senderQQ);
 
         StringBuilder sb = new StringBuilder();
         sb.append("=== MapBot 命令帮助 ===\n");
+        sb.append("当前角色: ").append(QqRoleResolver.roleLabel(callerRole)).append("\n");
 
         if (showAll) {
             Set<Category> categoryFilter = categoriesForContext(isPlayerGroup, isAdminGroup, true);
-            renderAll(sb, userLevel, isAdmin, isAdminGroup, isPrivateContext, categoryFilter);
+            renderAll(sb, callerRole, isAdminGroup, isPrivateContext, categoryFilter);
             return sb.toString().trim();
         }
 
         if (isPlayerGroup) {
-            renderAvailable(sb, userLevel, isAdmin, false, false, EnumSet.of(Category.FUNCTION, Category.FUN));
+            renderAvailable(sb, callerRole, false, false, EnumSet.of(Category.FUNCTION, Category.FUN));
             sb.append("\n[提示] 输入 #help all 查看全部命令");
             return sb.toString().trim();
         }
 
         if (isAdminGroup) {
-            renderAvailable(sb, userLevel, isAdmin, true, false, EnumSet.of(Category.ADMIN));
+            renderAvailable(sb, callerRole, true, false, EnumSet.of(Category.ADMIN, Category.TOOL));
             sb.append("\n[提示] 输入 #help all 查看全部命令");
             return sb.toString().trim();
         }
 
-        // 私聊：按“私聊上下文 + 当前权限”展示
-        if (isPrivateContext) {
-            renderAvailable(sb, userLevel, isAdmin, false, true, EnumSet.allOf(Category.class));
-            sb.append("\n[提示] 输入 #help all 查看全部命令");
-            return sb.toString().trim();
-        }
-
-        return CommandRegistry.getHelpText();
+        renderAvailable(sb, callerRole, false, true, EnumSet.allOf(Category.class));
+        sb.append("\n[提示] 输入 #help all 查看全部命令");
+        return sb.toString().trim();
     }
 
     private Set<Category> categoriesForContext(boolean isPlayerGroup, boolean isAdminGroup, boolean showAll) {
         if (isPlayerGroup) {
-            // 玩家群无论简版/完整版都只展示功能+娱乐
             return EnumSet.of(Category.FUNCTION, Category.FUN);
         }
         if (isAdminGroup && !showAll) {
-            // 管理群默认只展示管理命令；#help all 再展示全部
-            return EnumSet.of(Category.ADMIN);
+            return EnumSet.of(Category.ADMIN, Category.TOOL);
         }
         return EnumSet.allOf(Category.class);
     }
 
     private void renderAll(
         StringBuilder sb,
-        int userLevel,
-        boolean isAdmin,
+        ContractRole callerRole,
         boolean inAdminGroup,
         boolean privateContext,
         Set<Category> categoryFilter
     ) {
         sb.append("\n[可用命令]\n");
-        renderByCategory(sb, userLevel, isAdmin, inAdminGroup, privateContext, true, categoryFilter);
+        renderByCategory(sb, callerRole, inAdminGroup, privateContext, true, categoryFilter);
 
         sb.append("\n[暂不可用]\n");
-        renderByCategory(sb, userLevel, isAdmin, inAdminGroup, privateContext, false, categoryFilter);
+        renderByCategory(sb, callerRole, inAdminGroup, privateContext, false, categoryFilter);
     }
 
     private void renderAvailable(
         StringBuilder sb,
-        int userLevel,
-        boolean isAdmin,
+        ContractRole callerRole,
         boolean inAdminGroup,
         boolean privateContext,
         Set<Category> categoryFilter
     ) {
         sb.append("\n[可用命令]\n");
-        renderByCategory(sb, userLevel, isAdmin, inAdminGroup, privateContext, true, categoryFilter);
+        renderByCategory(sb, callerRole, inAdminGroup, privateContext, true, categoryFilter);
     }
 
     private void renderByCategory(
         StringBuilder sb,
-        int userLevel,
-        boolean isAdmin,
+        ContractRole callerRole,
         boolean inAdminGroup,
         boolean privateContext,
         boolean available,
@@ -137,16 +122,24 @@ public class HelpCommand implements ICommand {
     ) {
         Map<Category, List<String>> grouped = groupCommandsByCategory();
         for (Category category : Category.values()) {
-            if (!categoryFilter.contains(category)) continue;
+            if (!categoryFilter.contains(category)) {
+                continue;
+            }
             List<String> names = grouped.get(category);
-            if (names == null || names.isEmpty()) continue;
+            if (names == null || names.isEmpty()) {
+                continue;
+            }
 
             List<String> lines = new ArrayList<>();
             for (String name : names) {
                 ICommand cmd = CommandRegistry.getCommands().get(name);
-                if (cmd == null) continue;
-                boolean canUse = canExecute(cmd, userLevel, isAdmin, inAdminGroup, privateContext);
-                if (canUse != available) continue;
+                if (cmd == null) {
+                    continue;
+                }
+                boolean canUse = canExecute(cmd, callerRole, inAdminGroup, privateContext);
+                if (canUse != available) {
+                    continue;
+                }
 
                 String line = formatLine(name, cmd);
                 if (!canUse) {
@@ -155,7 +148,9 @@ public class HelpCommand implements ICommand {
                 lines.add(line);
             }
 
-            if (lines.isEmpty()) continue;
+            if (lines.isEmpty()) {
+                continue;
+            }
             sb.append("\n[").append(category.title).append("]\n");
             for (String line : lines) {
                 sb.append(line).append("\n");
@@ -182,9 +177,10 @@ public class HelpCommand implements ICommand {
         return switch (cmd) {
             case "help", "list", "status", "myperm", "id", "unbind", "playtime", "time" -> Category.FUNCTION;
             case "sign", "accept", "cdk" -> Category.FUN;
+            case "reload" -> Category.TOOL;
             case "mute", "unmute", "setperm", "addadmin", "removeadmin",
                  "adminunbind", "agreeunbind", "stopserver", "cancelstop",
-                 "inv", "location", "reload" -> Category.ADMIN;
+                 "inv", "location" -> Category.ADMIN;
             default -> Category.OTHER;
         };
     }
@@ -202,7 +198,9 @@ public class HelpCommand implements ICommand {
         if (!aliases.isEmpty()) {
             line.append(" (别名: ");
             for (int i = 0; i < aliases.size(); i++) {
-                if (i > 0) line.append(", ");
+                if (i > 0) {
+                    line.append(", ");
+                }
                 line.append("#").append(aliases.get(i));
             }
             line.append(")");
@@ -217,20 +215,38 @@ public class HelpCommand implements ICommand {
     }
 
     private String permissionTag(ICommand cmd) {
-        if (cmd.requiresAdmin()) return "[需 Admin]";
-        if (cmd.requiredPermLevel() > 0) return "[需 Level " + cmd.requiredPermLevel() + "]";
-        if (cmd.adminGroupOnly()) return "[需 管理群]";
-        return "";
+        List<String> tags = new ArrayList<>();
+        if (cmd.requiredRole() != null && cmd.requiredRole() != ContractRole.USER) {
+            tags.add("需 " + QqRoleResolver.roleKey(cmd.requiredRole()));
+        }
+        if (cmd.requiresAdmin() && (cmd.requiredRole() == null || cmd.requiredRole() == ContractRole.USER)) {
+            tags.add("需 admin (legacy)");
+        }
+        if (cmd.requiredPermLevel() > 0 && (cmd.requiredRole() == null || cmd.requiredRole() == ContractRole.USER)) {
+            tags.add("需 admin (legacy-level)");
+        }
+        if (cmd.adminGroupOnly()) {
+            tags.add("限管理群");
+        }
+        if (tags.isEmpty()) {
+            return "";
+        }
+        return "[" + String.join(" / ", tags) + "]";
     }
 
-    private boolean canExecute(ICommand cmd, int userLevel, boolean isAdmin, boolean inAdminGroup, boolean privateContext) {
+    private boolean canExecute(ICommand cmd, ContractRole callerRole, boolean inAdminGroup, boolean privateContext) {
         if (cmd.adminGroupOnly() && !inAdminGroup) {
-            if (!(privateContext && isAdmin)) {
+            if (!(privateContext && callerRole.hasAtLeast(ContractRole.ADMIN))) {
                 return false;
             }
         }
-        if (cmd.requiresAdmin() && !isAdmin) return false;
-        return userLevel >= cmd.requiredPermLevel();
+        if (!callerRole.hasAtLeast(cmd.requiredRole())) {
+            return false;
+        }
+        if (cmd.requiresAdmin() && !callerRole.hasAtLeast(ContractRole.ADMIN)) {
+            return false;
+        }
+        return cmd.requiredPermLevel() <= 0 || callerRole.hasAtLeast(ContractRole.ADMIN);
     }
 
     @Override

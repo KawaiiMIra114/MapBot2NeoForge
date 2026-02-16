@@ -4,6 +4,7 @@ import com.mapbot.alpha.bridge.BridgeProxy;
 import com.mapbot.alpha.command.ICommand;
 import com.mapbot.alpha.config.AlphaConfig;
 import com.mapbot.alpha.security.AuthManager;
+import com.mapbot.alpha.security.ContractRole;
 
 /**
  * 重载配置命令 (Step-04 B2: 事务闭环)
@@ -39,7 +40,7 @@ public class ReloadCommand implements ICommand {
     }
     
     @Override
-    public boolean requiresAdmin() {
-        return true;
+    public ContractRole requiredRole() {
+        return ContractRole.ADMIN;
     }
 }

@@ -2,8 +2,8 @@ package com.mapbot.alpha.command.impl;
 
 import com.mapbot.alpha.bridge.BridgeProxy;
 import com.mapbot.alpha.command.ICommand;
-import com.mapbot.alpha.data.DataManager;
 import com.mapbot.alpha.network.OneBotClient;
+import com.mapbot.alpha.security.ContractRole;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,8 +15,8 @@ public class StopServerCommand implements ICommand {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/Command/Stop");
 
     @Override
-    public int requiredPermLevel() {
-        return DataManager.PERMISSION_LEVEL_ADMIN;
+    public ContractRole requiredRole() {
+        return ContractRole.ADMIN;
     }
 
     @Override

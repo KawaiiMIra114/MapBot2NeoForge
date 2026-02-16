@@ -1,5 +1,7 @@
 package com.mapbot.alpha.command;
 
+import com.mapbot.alpha.security.ContractRole;
+
 /**
  * 命令接口
  * 从 Reforged 移植
@@ -21,21 +23,31 @@ public interface ICommand {
     String getHelp();
     
     /**
-     * 是否需要管理员权限
+     * 命令最小角色要求（contract 模型）。
+     * USER < ADMIN < OWNER
+     */
+    default ContractRole requiredRole() {
+        return ContractRole.USER;
+    }
+
+    /**
+     * legacy: 是否需要管理员权限。
+     * 兼容旧实现，建议改用 requiredRole()。
      */
     default boolean requiresAdmin() {
         return false;
     }
-    
+
     /**
      * 是否仅限管理群使用
      */
     default boolean adminGroupOnly() {
         return false;
     }
-    
+
     /**
-     * 最低权限等级 (0=普通, 1=VIP, 2=OP)
+     * legacy: 最低权限等级 (0=普通, 1=VIP, 2=OP)。
+     * 兼容旧实现，建议改用 requiredRole()。
      */
     default int requiredPermLevel() {
         return 0;

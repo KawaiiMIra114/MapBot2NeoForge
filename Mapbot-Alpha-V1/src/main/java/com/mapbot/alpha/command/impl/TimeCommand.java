@@ -1,14 +1,16 @@
 package com.mapbot.alpha.command.impl;
 
 import com.mapbot.alpha.command.ICommand;
+import com.mapbot.alpha.command.QqRoleResolver;
 import com.mapbot.alpha.data.DataManager;
 import com.mapbot.alpha.logic.PlaytimeStore;
+import com.mapbot.alpha.security.ContractRole;
 
 /**
  * 在线时长查询（按绑定账号）
  *
  * - #time: 查询自己绑定账号的在线时长（四个周期）
- * - #time @用户 / #time <QQ号>: 超级管理员查询他人
+ * - #time @用户 / #time <QQ号>: admin/owner 查询他人
  */
 public class TimeCommand implements ICommand {
 
@@ -18,9 +20,8 @@ public class TimeCommand implements ICommand {
 
         String raw = args == null ? "" : args.trim();
         if (!raw.isEmpty()) {
-            // 查询他人：仅允许超级管理员
-            if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
-                return "[权限] 仅超级管理员可查询他人在线时长";
+            if (!QqRoleResolver.hasAtLeast(senderQQ, ContractRole.ADMIN)) {
+                return "[权限] 仅 admin/owner 可查询他人在线时长";
             }
 
             String digits = raw.replaceAll("[^0-9]", "");

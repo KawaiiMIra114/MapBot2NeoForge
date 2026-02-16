@@ -2,6 +2,7 @@ package com.mapbot.alpha.command.impl;
 
 import com.mapbot.alpha.command.ICommand;
 import com.mapbot.alpha.data.DataManager;
+import com.mapbot.alpha.security.ContractRole;
 
 /**
  * 强制解绑命令
@@ -35,7 +36,7 @@ public class ForceUnbindCommand implements ICommand {
     }
     
     @Override
-    public boolean requiresAdmin() {
-        return true;
+    public ContractRole requiredRole() {
+        return ContractRole.ADMIN;
     }
 }
