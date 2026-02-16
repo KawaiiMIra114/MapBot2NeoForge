@@ -21,6 +21,7 @@ public class ConfigSchema {
     static {
         // === 连接配置 ===
         str("connection.wsUrl", true);
+        str("connection.wsToken", false);  // OneBot access_token (NapCat 鉴权)
         intRange("connection.reconnectInterval", 1, 300, true);
         intRange("connection.listenPort", 1, 65535, true);
         // legacy 别名

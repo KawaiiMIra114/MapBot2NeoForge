@@ -320,6 +320,7 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
         var cfg = com.mapbot.alpha.config.AlphaConfig.INSTANCE;
         java.util.Map<String, Object> data = new java.util.HashMap<>();
         data.put("wsUrl", cfg.getWsUrl());
+        data.put("wsToken", maskSecret(cfg.getWsToken()));
         data.put("reconnectInterval", cfg.getReconnectInterval());
         data.put("playerGroupId", cfg.getPlayerGroupId());
         data.put("adminGroupId", cfg.getAdminGroupId());
@@ -346,6 +347,13 @@ public class HttpRequestDispatcher extends SimpleChannelInboundHandler<FullHttpR
             
             var cfg = com.mapbot.alpha.config.AlphaConfig.INSTANCE;
             if (data.containsKey("wsUrl")) cfg.setWsUrl(String.valueOf(data.get("wsUrl")));
+            if (data.containsKey("wsToken")) {
+                String submitted = String.valueOf(data.get("wsToken"));
+                // 如果前端回传的是掩码，跳过不更新；否则更新 token
+                if (!submitted.matches("\\*+") && !"null".equals(submitted)) {
+                    cfg.setWsToken(submitted);
+                }
+            }
             if (data.containsKey("adminQQs")) cfg.setAdminQQs(String.valueOf(data.get("adminQQs")));
             
             if (data.containsKey("redisEnabled")) cfg.setRedisEnabled(Boolean.parseBoolean(String.valueOf(data.get("redisEnabled"))));

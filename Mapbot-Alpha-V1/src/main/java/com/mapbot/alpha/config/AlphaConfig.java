@@ -27,6 +27,7 @@ public class AlphaConfig {
     
     // 连接配置
     private String wsUrl = "ws://127.0.0.1:7000";
+    private String wsToken = "";  // OneBot access_token (NapCat 鉴权)
     private int reconnectInterval = 5;
     private int listenPort = SMART_GATEWAY_PORT;
     private int bridgeListenPort = DEFAULT_BRIDGE_PORT;
@@ -79,6 +80,7 @@ public class AlphaConfig {
                 props.putAll(newProps);
                 
                 wsUrl = props.getProperty("connection.wsUrl", wsUrl);
+                wsToken = props.getProperty("connection.wsToken", wsToken);
                 reconnectInterval = parseIntProperty("connection.reconnectInterval", reconnectInterval);
                 listenPort = parseIntProperty(
                     "connection.listenPort",
@@ -155,6 +157,9 @@ public class AlphaConfig {
             }
 
             merged.setProperty("connection.wsUrl", wsUrl);
+            if (wsToken != null && !wsToken.isEmpty()) {
+                merged.setProperty("connection.wsToken", wsToken);
+            }
             merged.setProperty("connection.reconnectInterval", String.valueOf(reconnectInterval));
             merged.setProperty("connection.listenPort", String.valueOf(listenPort));
             merged.setProperty("bridge.listenPort", String.valueOf(bridgeListenPort));
@@ -186,6 +191,7 @@ public class AlphaConfig {
     
     // Getters
     public static String getWsUrl() { return INSTANCE.wsUrl; }
+    public static String getWsToken() { return INSTANCE.wsToken; }
     public static int getReconnectInterval() { return INSTANCE.reconnectInterval; }
     public static int getListenPort() { return INSTANCE.listenPort; }
     public static int getBridgeListenPort() { return INSTANCE.bridgeListenPort; }
@@ -210,6 +216,7 @@ public class AlphaConfig {
     public void setPlayerGroupId(long id) { this.playerGroupId = id; save(); }
     public void setAdminGroupId(long id) { this.adminGroupId = id; save(); }
     public void setWsUrl(String url) { this.wsUrl = url; save(); }
+    public void setWsToken(String token) { this.wsToken = token != null ? token : ""; save(); }
     public void setBotQQ(long qq) { this.botQQ = qq; save(); }
     public void setAdminQQs(String qqs) { 
         this.adminQQs = qqs; 

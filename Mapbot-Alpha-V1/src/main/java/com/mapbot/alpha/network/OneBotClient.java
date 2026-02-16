@@ -32,8 +32,16 @@ public class OneBotClient implements WebSocket.Listener {
         this.serverUrl = url;
         LOGGER.info("正在连接 OneBot: {}", url);
         
-        httpClient.newWebSocketBuilder()
-                .buildAsync(URI.create(url), this)
+        var builder = httpClient.newWebSocketBuilder();
+        
+        // OneBot V11 鉴权: 若配置了 access_token, 通过 Authorization header 传递
+        String token = com.mapbot.alpha.config.AlphaConfig.getWsToken();
+        if (token != null && !token.isEmpty()) {
+            builder.header("Authorization", "Bearer " + token);
+            LOGGER.info("OneBot \u9274\u6743: \u5df2\u643a\u5e26 access_token");
+        }
+        
+        builder.buildAsync(URI.create(url), this)
                 .whenComplete((ws, ex) -> {
                     if (ex != null) {
                         LOGGER.error("OneBot 连接失败: {}", ex.getMessage());
