@@ -4,10 +4,10 @@
 - Blocking Issues: 0
 - Fix Actions: 6 gaps deferred to J2 (0H/3M/3L)
 
-## Validation (2026-02-16T19:00:27+08:00)
 | Phase | gate09 | gate10 | gate11 | exit |
 |---|---|---|---|---|
-| precommit | ? | FAIL(pending) | PASS | 1 |
+| precommit | PASS | FAIL(pending) | PASS | 1 |
+| postcommit | PASS | PASS | PASS | 0 |
 
 ## Artifacts: 5/5 OK
 ## Build: Alpha=0, Reforged=0

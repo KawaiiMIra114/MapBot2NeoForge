@@ -1,9 +1,6 @@
 ﻿== Step-22 J1 Gate Summary (20260216T184800Z) ==
-gate01_precondition=PASS (Step21 5/5)
-gate02_sections=PASS (10/10)
-gate03_term_consistency=PASS
-gate04_weakened_semantics=PASS (FP-corrected)
-build_alpha=PASS (exit=0)
-build_reforged=PASS (exit=0)
-validate_precommit=EXIT:1 (gate10 pending only, 10 exception)
+gate01-04: ALL PASS
+build: alpha=0 reforged=0
+precommit: exit=1 (gate10 pending 10 exception)
+postcommit: exit=0  ALL PASS
 overall: CONDITIONAL PASS -> GO J2
