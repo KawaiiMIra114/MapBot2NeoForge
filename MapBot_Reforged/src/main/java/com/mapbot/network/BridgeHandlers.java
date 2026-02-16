@@ -882,20 +882,31 @@ public final class BridgeHandlers {
         String sender = getString(json, "sender");
         String content = getString(json, "content");
         if (sender.isEmpty() || content.isEmpty()) return;
-        
-        String formattedMsg = String.format("[QQ] %s: %s", sender, content);
-        LOGGER.info("[QQ->MC] {}", formattedMsg);
-        
-        MinecraftServer server = getServer();
-        if (server == null) { LOGGER.warn("收到 QQ 消息但服务器未就绪，丢弃: {}", formattedMsg); return; }
-        
-        server.execute(() -> {
-            MinecraftServer s = getServer();
-            if (s != null) {
-                s.getPlayerList().broadcastSystemMessage(
-                    net.minecraft.network.chat.Component.literal(formattedMsg), false);
+
+        // 优先使用 rawContent (原始 CQ 码) 做名称映射解析
+        String rawContent = getString(json, "rawContent");
+        String displayContent;
+        if (!rawContent.isEmpty()) {
+            // 走 Reforged CQCodeParser: 绑定玩家名 > 群昵称 > QQ号
+            displayContent = com.mapbot.utils.CQCodeParser.parse(rawContent);
+        } else {
+            displayContent = content;
+        }
+        if (displayContent.isEmpty()) return;
+
+        // 提取 atList
+        java.util.List<Long> atQQList = new java.util.ArrayList<>();
+        if (json.has("atList") && json.get("atList").isJsonArray()) {
+            for (com.google.gson.JsonElement e : json.getAsJsonArray("atList")) {
+                try { atQQList.add(e.getAsLong()); } catch (Exception ignored) {}
             }
-        });
+        }
+
+        String formattedMsg = String.format("\u00A7b[QQ]\u00A7r <%s> %s", sender, displayContent);
+        LOGGER.info("[QQ->MC] {} (at={})", formattedMsg, atQQList);
+
+        // 调用个性化消息（被@玩家: 高亮+标题+提示音）
+        com.mapbot.logic.InboundHandler.sendPersonalizedMessage(formattedMsg, atQQList, sender);
     }
 
     // ==================== 文件操作 ====================

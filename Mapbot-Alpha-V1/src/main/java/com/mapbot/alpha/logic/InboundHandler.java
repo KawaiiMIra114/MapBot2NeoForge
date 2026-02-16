@@ -6,10 +6,11 @@ import com.google.gson.JsonParser;
 import com.mapbot.alpha.bridge.BridgeProxy;
 import com.mapbot.alpha.bridge.ServerRegistry;
 import com.mapbot.alpha.command.CommandRegistry;
+import com.mapbot.alpha.command.QqRoleResolver;
 import com.mapbot.alpha.command.impl.*;
 import com.mapbot.alpha.config.AlphaConfig;
-import com.mapbot.alpha.data.DataManager;
 import com.mapbot.alpha.network.OneBotClient;
+import com.mapbot.alpha.security.ContractRole;
 import com.mapbot.alpha.utils.CQCodeParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +71,8 @@ public class InboundHandler {
         CommandRegistry.registerAlias("强制解绑", "adminunbind");
         CommandRegistry.registerAlias("在线时长", "playtime");
         CommandRegistry.registerAlias("时间", "time");
+        CommandRegistry.registerAlias("setrole", "setperm");
+        CommandRegistry.registerAlias("role", "myperm");
         CommandRegistry.registerAlias("兑换码", "cdk");
         CommandRegistry.registerAlias("关服", "stopserver");
         CommandRegistry.registerAlias("取消关服", "cancelstop");
@@ -161,7 +164,7 @@ public class InboundHandler {
         String args = parts.length > 1 ? parts[1] : "";
         
         // 冷却检查
-        if (!DataManager.INSTANCE.isAdmin(senderQQ)) {
+        if (!QqRoleResolver.hasAtLeast(senderQQ, ContractRole.ADMIN)) {
             long now = System.currentTimeMillis();
             if (COMMAND_COOLDOWNS.containsKey(senderQQ) && now - COMMAND_COOLDOWNS.get(senderQQ) < COOLDOWN_MS) {
                 sendCommandFeedback(senderQQ, sourceGroupId, privateChat, "[提示] 慢点，请等待几秒再试");
@@ -198,6 +201,7 @@ public class InboundHandler {
         json.append("{\"type\":\"qq_message\"");
         json.append(",\"sender\":\"").append(escapeJson(nickname)).append("\"");
         json.append(",\"content\":\"").append(escapeJson(parsed)).append("\"");
+        json.append(",\"rawContent\":\"").append(escapeJson(rawMessage)).append("\"");
         json.append(",\"senderQQ\":").append(senderQQ);
         json.append(",\"groupId\":").append(sourceGroupId);
         if (!atQQList.isEmpty()) {

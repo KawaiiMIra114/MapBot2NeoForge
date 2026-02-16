@@ -13,10 +13,11 @@ public class CQCodeParser {
     
     // CQ码正则
     private static final Pattern CQ_PATTERN = Pattern.compile("\\[CQ:(\\w+)(,[^\\]]*)?\\]");
-    private static final Pattern AT_PATTERN = Pattern.compile("\\[CQ:at,qq=(\\d+)\\]");
-    private static final Pattern REPLY_PATTERN = Pattern.compile("\\[CQ:reply,id=(-?\\d+)\\]");
+    // 兼容多参数格式: [CQ:at,qq=123] 或 [CQ:at,qq=123,name=xxx]
+    private static final Pattern AT_PATTERN = Pattern.compile("\\[CQ:at,qq=(\\d+)[^\\]]*\\]");
+    private static final Pattern REPLY_PATTERN = Pattern.compile("\\[CQ:reply,id=(-?\\d+)[^\\]]*\\]");
     private static final Pattern IMAGE_PATTERN = Pattern.compile("\\[CQ:image[^\\]]*\\]");
-    private static final Pattern FACE_PATTERN = Pattern.compile("\\[CQ:face,id=(\\d+)\\]");
+    private static final Pattern FACE_PATTERN = Pattern.compile("\\[CQ:face,id=(\\d+)[^\\]]*\\]");
     
     /**
      * 解析 CQ 码，转换为可读文本
@@ -29,7 +30,7 @@ public class CQCodeParser {
         // 移除回复引用
         result = REPLY_PATTERN.matcher(result).replaceAll("");
         
-        // 转换 @
+        // 转换 @ (兼容多参数格式)
         Matcher atMatcher = AT_PATTERN.matcher(result);
         StringBuffer sb = new StringBuffer();
         while (atMatcher.find()) {
