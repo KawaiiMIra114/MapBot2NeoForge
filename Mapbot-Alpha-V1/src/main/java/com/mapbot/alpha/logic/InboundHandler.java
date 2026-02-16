@@ -417,7 +417,9 @@ public class InboundHandler {
     
     private static String getStringOrNull(JsonObject j, String k) {
         JsonElement e = j.get(k);
-        return (e != null && !e.isJsonNull()) ? e.getAsString() : null;
+        if (e == null || e.isJsonNull()) return null;
+        if (e.isJsonPrimitive()) return e.getAsString();
+        return null; // JsonArray 或 JsonObject 不转为 String
     }
     
     private static long getLongOrZero(JsonObject j, String k) {
