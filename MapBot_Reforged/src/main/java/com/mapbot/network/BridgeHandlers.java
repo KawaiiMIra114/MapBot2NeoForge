@@ -881,16 +881,11 @@ public final class BridgeHandlers {
     static void handleQQMessage(JsonObject json, BridgeClient client) {
         String sender = getString(json, "sender");
         String content = getString(json, "content");
-        if (sender.isEmpty() || content.isEmpty()) return;
+        if (sender.isEmpty()) return;
 
-        // 优先使用 rawContent (原始 CQ 码) 做名称映射解析
-        String rawContent = getString(json, "rawContent");
-        String displayContent;
-        if (!rawContent.isEmpty()) {
-            displayContent = com.mapbot.utils.CQCodeParser.parse(rawContent);
-        } else {
-            displayContent = content;
-        }
+        // Alpha 已经完成了所有名字解析 (sender=游戏ID, content中@QQ→@玩家名)
+        // 直接使用 Alpha 发来的 content, 不再用 Reforged 的 CQCodeParser 重新解析
+        String displayContent = content;
         if (displayContent.isEmpty()) return;
 
         // 提取 atPlayerNames (Alpha 已解析的玩家名列表, 用于直接匹配在线玩家)
@@ -910,15 +905,6 @@ public final class BridgeHandlers {
             for (com.google.gson.JsonElement e : json.getAsJsonArray("atList")) {
                 try { atQQList.add(e.getAsLong()); } catch (Exception ignored) {}
             }
-        }
-
-        // 检测回复消息: 如果有 replyId 且 @ 了机器人, 试图识别原始 MC 玩家
-        String replyId = getString(json, "replyId");
-        if (!replyId.isEmpty() && !rawContent.isEmpty()) {
-            // 回复消息场景: 从 rawContent 中提取被回复的内容
-            // Alpha 将通过 OneBot API 查询原始消息并识别 MC 玩家
-            // 这里用简化逻辑: 如果回复了机器人的消息, 尝试从显示内容中提取被回复的玩家名
-            LOGGER.debug("[QQ->MC] 检测到回复消息, replyId={}", replyId);
         }
 
         String formattedMsg = String.format("\u00A7b[QQ]\u00A7r <%s> %s", sender, displayContent);
