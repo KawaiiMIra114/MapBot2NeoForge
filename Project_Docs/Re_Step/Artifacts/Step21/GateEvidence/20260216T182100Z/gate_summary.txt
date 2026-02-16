@@ -1,9 +1,12 @@
-﻿== Step-21 I2 Gate Summary (20260216T182100Z) ==
-gate01_precondition=PASS (Step20 5/5 exist)
-gate02_sections=PASS (10/10 sections found)
-gate03_term_consistency=PASS (自审+自记录 found)
+﻿== Step-21 I2 Gate Summary (evidence authenticity patch 2026-02-16T18:44:41+08:00) ==
+gate01_precondition=PASS (Step20 5/5)
+gate02_sections=PASS (10/10)
+gate03_term_consistency=PASS
 gate04_weakened_semantics=PASS (0 hits)
 build_alpha=PASS (exit=0)
 build_reforged=PASS (exit=0)
-review_scope=PASS (13 files, 0 code changes)
+review_scope=PASS
+validate_precommit=EXIT:0 PASS
+validate_postcommit=EXIT:0 PASS
 overall: CONDITIONAL PASS -> GO J1
+patch: evidence authenticity fix - replaced 0-byte/placeholder logs with real gate output aggregation.
