@@ -97,8 +97,12 @@ def parse_task(task_path: pathlib.Path) -> Tuple[List[str], List[str], List[str]
 def check_files_exist(base: pathlib.Path, items: List[str]) -> List[str]:
     missing: List[str] = []
     for item in items:
-        if item.startswith("gate09_") or item.startswith("gate10_") or item.startswith("gate11_"):
-            # These are produced by this validator in the current run.
+        basename = pathlib.Path(item).name
+        # Skip files produced by this validator or the validation workflow itself.
+        # gate09_/gate10_/gate11_ are produced in the current run.
+        # validate_ prefixed files (validate_precommit, validate_postcommit,
+        # validate_policy_exception) are timing-dependent workflow outputs.
+        if basename.startswith("gate09_") or basename.startswith("gate10_") or basename.startswith("gate11_") or basename.startswith("validate_"):
             continue
         # item might be a filename or a relative path.
         p = pathlib.Path(item)

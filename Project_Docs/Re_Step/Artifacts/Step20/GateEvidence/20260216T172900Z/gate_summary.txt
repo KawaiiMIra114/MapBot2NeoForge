@@ -1,4 +1,4 @@
-﻿== Step-20 I1 Gate Summary ==
+﻿== Step-20 I1 Gate Summary (patched 20260216T175600Z) ==
 gate01_precondition=PASS
 gate02_sections=PASS
 gate03_term_consistency=PASS
@@ -7,4 +7,8 @@ build_alpha=PASS (5s)
 build_reforged=PASS (6s)
 review_scope=PASS
 task_sync_fix=PASS
+validate_precommit=EXIT:0 PASS (post-patch, validate_ prefix skipped in gate09)
+validate_postcommit=EXIT:0 PASS
+policy_diff=APPLIED (strategy A, validate_delivery.py patched)
 overall: CONDITIONAL PASS -> GO I2
+patch_note: validate_delivery.py check_files_exist now skips validate_ prefix (timing files).
