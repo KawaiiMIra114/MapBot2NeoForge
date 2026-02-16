@@ -23,7 +23,7 @@
 - Step-22: `CONDITIONAL PASS` (J1 复盘与知识沉淀, 6 差距, 2026-02-16)
 
 ## Current Step
-- Active: Step-22 J1 复盘与知识沉淀 → (pending)
+- Active: Step-22 J1 复盘与知识沉淀 → DONE
 - Previous: Step-21 I2 CONDITIONAL PASS (20260216T182100Z)
 
 ## Gap Backlog (累计)
@@ -50,4 +50,4 @@
 | Step-19 | 42fe9d8 | Evidence/Step19/20260216T131600Z |
 | Step-20 | cd160d7 | Evidence/Step20/20260216T172900Z |
 | Step-21 | 96e2039 | Evidence/Step21/20260216T182100Z |
-| Step-22 | (pending) | Evidence/Step22/20260216T184800Z |
+| Step-22 | 6762099 | Evidence/Step22/20260216T184800Z |
