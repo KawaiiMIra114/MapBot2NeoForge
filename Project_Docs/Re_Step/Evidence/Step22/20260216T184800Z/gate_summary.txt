@@ -1,6 +1,11 @@
-﻿== Step-22 J1 Gate Summary (20260216T184800Z) ==
-gate01-04: ALL PASS
-build: alpha=0 reforged=0
-precommit: exit=1 (gate10 pending 10 exception)
-postcommit: exit=0  ALL PASS
-overall: CONDITIONAL PASS -> GO J2
+﻿== Step-22 J1 Gate Summary (evidence patch 2026-02-16T19:23:06+08:00) ==
+gate01_precondition=PASS
+gate02_sections=PASS
+gate03_term_consistency=PASS
+gate04_weakened_semantics=PASS (FP-corrected)
+build_alpha=PASS (exit=0)
+build_reforged=PASS (exit=0)
+validate_precommit=PASS (exit=0, gate09=0, gate10=0, gate11=0)
+validate_postcommit=PASS (exit=0, gate09=0, gate10=0, gate11=0)
+policy_exception=NOT TRIGGERED (precommit exit=0)
+overall: PASS -> GO J2

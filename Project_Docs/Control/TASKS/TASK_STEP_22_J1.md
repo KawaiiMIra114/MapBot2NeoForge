@@ -23,7 +23,7 @@ J1 复盘与知识沉淀
 6. `Project_Docs/Architecture/SYSTEM_CONTEXT.md`
 7. `Project_Docs/Re_Step/Artifacts/Step21/*`
 
-## 输出物
+## 强制输出文档
 目录: `Project_Docs/Re_Step/Artifacts/Step22/`
 1. `01_Refactor_Retrospective_Report.md`
 2. `02_ADR_Consolidation_Plan.md`
