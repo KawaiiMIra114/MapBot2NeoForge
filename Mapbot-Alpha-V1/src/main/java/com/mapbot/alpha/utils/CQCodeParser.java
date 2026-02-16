@@ -35,7 +35,19 @@ public class CQCodeParser {
         StringBuffer sb = new StringBuffer();
         while (atMatcher.find()) {
             String qq = atMatcher.group(1);
-            atMatcher.appendReplacement(sb, "@" + qq);
+            // D. @QQ号→@玩家名解析
+            String atDisplay = qq;
+            try {
+                long qqNum = Long.parseLong(qq);
+                String uuid = com.mapbot.alpha.data.DataManager.INSTANCE.getBinding(qqNum);
+                if (uuid != null && !uuid.isBlank()) {
+                    String pName = com.mapbot.alpha.data.DataManager.INSTANCE.getPlayerName(uuid);
+                    if (pName != null && !pName.isBlank()) {
+                        atDisplay = pName;
+                    }
+                }
+            } catch (NumberFormatException ignored) {}
+            atMatcher.appendReplacement(sb, "@" + atDisplay);
         }
         atMatcher.appendTail(sb);
         result = sb.toString();

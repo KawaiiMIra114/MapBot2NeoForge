@@ -321,13 +321,23 @@ public class InboundHandler {
         // 检测回复消息
         String replyId = CQCodeParser.extractReplyId(rawMessage);
         
+        // B. 发送者名字解析: 已绑定的用户显示游戏ID
+        String displayName = nickname;
+        String senderUuid = com.mapbot.alpha.data.DataManager.INSTANCE.getBinding(senderQQ);
+        if (senderUuid != null && !senderUuid.isBlank()) {
+            String gameName = com.mapbot.alpha.data.DataManager.INSTANCE.getPlayerName(senderUuid);
+            if (gameName != null && !gameName.isBlank()) {
+                displayName = gameName;
+            }
+        }
+        
         // 构建消息并广播到所有服务器
-        String formattedMsg = String.format("[QQ] %s: %s", nickname, parsed);
+        String formattedMsg = String.format("[QQ] %s: %s", displayName, parsed);
         
         // 构建分发消息
         StringBuilder json = new StringBuilder();
         json.append("{\"type\":\"qq_message\"");
-        json.append(",\"sender\":\"").append(escapeJson(nickname)).append("\"");
+        json.append(",\"sender\":\"").append(escapeJson(displayName)).append("\"");
         json.append(",\"content\":\"").append(escapeJson(parsed)).append("\"");
         json.append(",\"rawContent\":\"").append(escapeJson(rawMessage)).append("\"");
         json.append(",\"senderQQ\":").append(senderQQ);
@@ -351,7 +361,7 @@ public class InboundHandler {
         json.append("}");
         
         // 如果是回复消息且 @ 了 bot, 走异步回复识别流程
-        if (replyId != null && atQQList.contains(AlphaConfig.getBotQQ())) {
+        if (replyId != null) {
             String echo = "reply_fwd_" + UUID.randomUUID();
             // 保存 60 秒超时的上下文 (清理过期上下文)
             long now = System.currentTimeMillis();

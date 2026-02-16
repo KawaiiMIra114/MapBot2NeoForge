@@ -132,6 +132,7 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
     
     /**
      * 处理来自 MC 的聊天消息 -> QQ 群
+     * 使用本 Handler 注册的 serverId 作为消息头
      */
     private void handleChat(java.util.Map<String, Object> data) {
         String player = String.valueOf(data.get("player"));
@@ -139,8 +140,9 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
         if (player == null || content == null) return;
         
         long groupId = AlphaConfig.getPlayerGroupId();
-        String format = AlphaConfig.INSTANCE.getBridgeIngameMsgFormat();
-        String qqMsg = format.replace("{player}", player).replace("{content}", content);
+        // 使用服务器注册名, 如果未注册则用默认格式
+        String serverTag = (serverId != null && !serverId.isBlank()) ? serverId : "Server";
+        String qqMsg = "[" + serverTag + "] " + player + ": " + content;
         com.mapbot.alpha.network.OneBotClient.INSTANCE.sendGroupMessage(groupId, qqMsg);
     }
     
