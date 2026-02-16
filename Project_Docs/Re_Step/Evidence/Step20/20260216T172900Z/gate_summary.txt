@@ -1,4 +1,4 @@
-﻿== Step-20 I1 Gate Summary (patched 20260216T175600Z) ==
+﻿== Step-20 I1 Gate Summary (phase-aware hardening 20260216T181000Z) ==
 gate01_precondition=PASS
 gate02_sections=PASS
 gate03_term_consistency=PASS
@@ -7,8 +7,9 @@ build_alpha=PASS (5s)
 build_reforged=PASS (6s)
 review_scope=PASS
 task_sync_fix=PASS
-validate_precommit=EXIT:0 PASS (post-patch, validate_ prefix skipped in gate09)
-validate_postcommit=EXIT:0 PASS
-policy_diff=APPLIED (strategy A, validate_delivery.py patched)
+validate_precommit=EXIT:0 PASS (--phase precommit, Probe-2)
+validate_postcommit=EXIT:0 PASS (--phase postcommit, Probe-3)
+regression_probe_missing_validate=EXIT:1 FAIL (expected, Probe-1 confirms gate not bypassable)
 overall: CONDITIONAL PASS -> GO I2
-patch_note: validate_delivery.py check_files_exist now skips validate_ prefix (timing files).
+patch_note: validate_delivery.py rewritten with --phase precommit|postcommit.
+  No global validate_ skip. Phase-aware _should_skip() logic.

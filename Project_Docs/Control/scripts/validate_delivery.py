@@ -3,12 +3,21 @@
 Hard delivery validator for Control + Task package workflow.
 
 Usage:
-  python3 Project_Docs/Control/scripts/validate_delivery.py \
-    --task Project_Docs/Control/TASKS/TASK_STEP_10_D3.md \
-    --evidence-dir Project_Docs/Re_Step/Evidence/Step10/20260215T205400Z \
-    --current-state Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md \
-    --current-step Project_Docs/Control/CURRENT_STEP.md \
+  python3 Project_Docs/Control/scripts/validate_delivery.py \\
+    --phase postcommit \\
+    --task Project_Docs/Control/TASKS/TASK_STEP_10_D3.md \\
+    --evidence-dir Project_Docs/Re_Step/Evidence/Step10/20260215T205400Z \\
+    --current-state Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md \\
+    --current-step Project_Docs/Control/CURRENT_STEP.md \\
     --step-label "Step-10"
+
+Phase semantics:
+  precommit  - Run before git commit. gate10 (pending) expected to fail.
+               validate_postcommit.* allowed missing. gate09_/gate10_/gate11_
+               produced by this run are skipped.
+  postcommit - Run after git commit + hash backfill. All files must exist.
+               gate09_/gate10_/gate11_ produced by this run are skipped.
+               Default phase if --phase is omitted (strict by default).
 """
 
 from __future__ import annotations
@@ -18,13 +27,27 @@ import pathlib
 import re
 import subprocess
 import sys
-from typing import List, Optional, Tuple
+from typing import List, Optional, Set, Tuple
 
 
 HEADER_RE = re.compile(r"^##\s+(.+?)\s*$")
 BULLET_RE = re.compile(r"^\s*-\s+(.+?)\s*$")
 NUMBER_RE = re.compile(r"^\s*\d+\.\s+(.+?)\s*$")
 BACKTICK_RE = re.compile(r"`([^`]+)`")
+
+# Files produced by this validator in the current run (always skipped).
+SELF_PRODUCED_PREFIXES = ("gate09_", "gate10_", "gate11_")
+
+# Files that only exist after postcommit (skipped during precommit only).
+POSTCOMMIT_ONLY_PREFIXES = ("validate_postcommit",)
+
+# Files conditionally required at precommit (policy_exception needed
+# only when precommit.exit != 0, but we cannot know that ahead of time,
+# so we skip it at precommit and require it at postcommit).
+PRECOMMIT_CONDITIONAL_PREFIXES = ("validate_policy_exception",)
+
+# Delivery summary is overwritten by this validator each run.
+DELIVERY_SUMMARY = "delivery_integrity_summary.log"
 
 
 def read_text(path: pathlib.Path) -> str:
@@ -94,15 +117,38 @@ def parse_task(task_path: pathlib.Path) -> Tuple[List[str], List[str], List[str]
     return evidence_items, artifact_items, evidence_errors + artifact_errors
 
 
-def check_files_exist(base: pathlib.Path, items: List[str]) -> List[str]:
+def _should_skip(basename: str, phase: str) -> bool:
+    """Determine whether a file should be skipped based on phase."""
+    # Always skip files produced by this validator in the current run.
+    for prefix in SELF_PRODUCED_PREFIXES:
+        if basename.startswith(prefix):
+            return True
+    # delivery_integrity_summary.log is overwritten by this validator.
+    if basename == DELIVERY_SUMMARY:
+        return True
+    # Phase-dependent skips.
+    if phase == "precommit":
+        for prefix in POSTCOMMIT_ONLY_PREFIXES:
+            if basename.startswith(prefix):
+                return True
+        for prefix in PRECOMMIT_CONDITIONAL_PREFIXES:
+            if basename.startswith(prefix):
+                return True
+    # postcommit: nothing else is skipped. All validate_* must exist.
+    return False
+
+
+def check_files_exist(base: pathlib.Path, items: List[str],
+                      phase: str = "postcommit") -> Tuple[List[str], List[str]]:
+    """
+    Returns (missing, skipped) file lists.
+    """
     missing: List[str] = []
+    skipped: List[str] = []
     for item in items:
         basename = pathlib.Path(item).name
-        # Skip files produced by this validator or the validation workflow itself.
-        # gate09_/gate10_/gate11_ are produced in the current run.
-        # validate_ prefixed files (validate_precommit, validate_postcommit,
-        # validate_policy_exception) are timing-dependent workflow outputs.
-        if basename.startswith("gate09_") or basename.startswith("gate10_") or basename.startswith("gate11_") or basename.startswith("validate_"):
+        if _should_skip(basename, phase):
+            skipped.append(item)
             continue
         # item might be a filename or a relative path.
         p = pathlib.Path(item)
@@ -113,7 +159,7 @@ def check_files_exist(base: pathlib.Path, items: List[str]) -> List[str]:
                     missing.append(item)
             else:
                 missing.append(str(base / item))
-    return missing
+    return missing, skipped
 
 
 def parse_taskfile_from_current_step(current_step: pathlib.Path) -> str:
@@ -159,6 +205,9 @@ def write_gate(evidence_dir: pathlib.Path, gate_name: str, lines: List[str], ok:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--phase", choices=["precommit", "postcommit"],
+                    default="postcommit",
+                    help="Validation phase: precommit or postcommit (default: postcommit)")
     ap.add_argument("--task", required=True)
     ap.add_argument("--evidence-dir", required=True)
     ap.add_argument("--current-state", required=True)
@@ -166,6 +215,7 @@ def main() -> int:
     ap.add_argument("--step-label", required=True)
     args = ap.parse_args()
 
+    phase = args.phase
     task = pathlib.Path(args.task)
     evidence_dir = pathlib.Path(args.evidence_dir)
     current_state = pathlib.Path(args.current_state)
@@ -177,25 +227,29 @@ def main() -> int:
     gate9_ok = True
     gate9_lines.append(f"task={task}")
     gate9_lines.append(f"evidence_dir={evidence_dir}")
+    gate9_lines.append(f"phase={phase}")
     if parse_errors:
         gate9_ok = False
         gate9_lines.append("parse_errors:")
         gate9_lines.extend(f"- {e}" for e in parse_errors)
 
-    ev_missing = check_files_exist(evidence_dir, evidence_items)
+    ev_missing, ev_skipped = check_files_exist(evidence_dir, evidence_items, phase)
     if ev_missing:
         gate9_ok = False
         gate9_lines.append("missing_evidence:")
         gate9_lines.extend(f"- {m}" for m in ev_missing)
     else:
         gate9_lines.append(f"evidence_items_ok={len(evidence_items)}")
+    if ev_skipped:
+        gate9_lines.append(f"skipped_by_phase({phase}):")
+        gate9_lines.extend(f"- {s}" for s in ev_skipped)
 
     # Artifact dir inference from task file.
     task_md = read_text(task)
     artifact_sec = section_lines(task_md, "强制输出文档")
     artifact_dir_s = extract_dir(artifact_sec)
     artifact_dir = pathlib.Path(artifact_dir_s) if artifact_dir_s else pathlib.Path(".")
-    art_missing = check_files_exist(artifact_dir, artifact_items)
+    art_missing, art_skipped = check_files_exist(artifact_dir, artifact_items, phase)
     if art_missing:
         gate9_ok = False
         gate9_lines.append("missing_artifacts:")
@@ -218,6 +272,7 @@ def main() -> int:
     summary.write_text(
         "\n".join(
             [
+                f"phase={phase}",
                 f"gate09_evidence_completeness={'PASS' if gate9_ok else 'FAIL'}",
                 f"gate10_commit_not_pending={'PASS' if ok10 else 'FAIL'}",
                 f"gate11_next_taskfile_exists={'PASS' if next_task_ok else 'FAIL'}",

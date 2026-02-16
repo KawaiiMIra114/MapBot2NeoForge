@@ -58,7 +58,7 @@
 2. 发现阻断项时，置为 `Status: BLOCKED` 并写入 `BlockReason`。
 3. 本步通过门禁并完成提交后，必须推进指针到下一步并设为 `Status: READY`。
 4. 每次状态变更必须更新 `EffectiveDate`。
-5. 未更新 `CURRENT_STEP.md` 的执行结果，不得宣称“已完成”。
+5. 未更新 `CURRENT_STEP.md` 的执行结果，不得宣称"已完成"。
 
 ## 8. 执行前自检
 开始前必须确认：
@@ -68,13 +68,16 @@
 4. 证据目录可创建且可写。
 
 ## 9. 提交前强制校验（必须落证据）
-1. 强制证据文件“逐项存在性”检查，输出 missing 列表（必须为空）。
+1. 强制证据文件"逐项存在性"检查，输出 missing 列表（必须为空）。
 2. `CURRENT_STATE.md` 当前 Step 的 Commit 字段不得为 `(pending)`。
 3. `CURRENT_STEP.md` 若已推进到下一步，则 `TaskFile` 文件必须存在。
 4. 任一失败必须输出 `NO-GO`，并回填阻断项，不得口头放行。
-5. 必须执行并留存机器验收脚本结果：
+5. 必须执行并留存机器验收脚本结果（注意 `--phase` 参数）：
+
+Precommit（commit 前）：
 ```bash
 python3 Project_Docs/Control/scripts/validate_delivery.py \
+  --phase precommit \
   --task "Project_Docs/Control/TASKS/<TASK_FILE>.md" \
   --evidence-dir "Project_Docs/Re_Step/Evidence/Step<NN>/<RUN_ID>" \
   --current-state "Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md" \
@@ -82,14 +85,36 @@ python3 Project_Docs/Control/scripts/validate_delivery.py \
   --step-label "Step-<NN>"
 ```
 
+Postcommit（commit + hash 回填后）：
+```bash
+python3 Project_Docs/Control/scripts/validate_delivery.py \
+  --phase postcommit \
+  --task "Project_Docs/Control/TASKS/<TASK_FILE>.md" \
+  --evidence-dir "Project_Docs/Re_Step/Evidence/Step<NN>/<RUN_ID>" \
+  --current-state "Project_Docs/Memory_KB/02_Status/CURRENT_STATE.md" \
+  --current-step "Project_Docs/Control/CURRENT_STEP.md" \
+  --step-label "Step-<NN>"
+```
+
+**Phase 语义**：
+- `--phase precommit`：允许 `validate_postcommit.*` 缺失，`validate_policy_exception.*` 条件性缺失。
+- `--phase postcommit`（默认）：所有 `validate_*` 文件必须存在。
+- 不指定 `--phase` 时默认 `postcommit`（偏严格）。
+
 ## 10. Precommit 验收例外策略（gate10 pending）
-`validate_delivery.py` 的 precommit 阶段在 commit 之前运行。
+`validate_delivery.py --phase precommit` 在 commit 之前运行。
 此时 `CURRENT_STATE.md` 中当前步骤的 Commit 字段值为 `(pending)`，
 因此 `gate10_commit_not_pending` **必然 FAIL**。
 
 **规则**：
 1. `validate_precommit.exit=1` 是可接受的 **当且仅当** 唯一失败原因是 `gate10_commit_not_pending=FAIL (pending)`。
-2. `gate09` 与 `gate11` 必须 PASS。
+2. `gate09` 与 `gate11` 在 `--phase precommit` 下必须 PASS。
 3. 必须同时留存 `validate_policy_exception.log` 证明唯一失败原因。
-4. `validate_postcommit.exit` 必须为 `0`（确认 commit 已解决 pending）。
+4. `validate_postcommit.exit` 必须为 `0`（`--phase postcommit`，确认 commit 已解决 pending 且所有 validate_* 文件完整）。
 5. 若 precommit 存在 gate10 以外的失败，即 NO-GO。
+
+**Phase-aware 文件校验规则**：
+| Phase | gate09 必须存在 | gate09 允许缺失 |
+|---|---|---|
+| precommit | 全部证据 + validate_precommit.* | validate_postcommit.*, validate_policy_exception.* |
+| postcommit | 全部证据 + 全部 validate_* | 无 |

@@ -1,20 +1,19 @@
-﻿# Step-20 I1 Final Verdict (patched 20260216T175600Z)
+﻿# Step-20 I1 Final Verdict (phase-aware hardening 20260216T181000Z)
 Verdict: CONDITIONAL PASS -> GO I2
 Blocking: 0
 Gaps: 2 (1H/1M/0L)
 Artifacts: 5/5
 Build: Alpha PASS (5s), Reforged PASS (6s)
-Stabilization: 6 legacy + 5 tech-debt, P0 all have degradation plans
-Three-way consistency: 4 deviations (0 P0)
-RC Readiness: 8/10 met + 2 degraded
-Baseline: 5 metrics tightened
 Cumulative: 182 gaps (66H/92M/24L)
 
-## Gate Patch Note (Strategy A - Strict Mode)
-- Date: 2026-02-16T17:56:00+08:00
-- Issue: precommit gate09 FAIL due to validate_postcommit/policy_exception files not yet existing
-- Root Cause: validate_delivery.py check_files_exist skipped gate09_/gate10_/gate11_ but not validate_ prefix
-- Fix: Extended skip list to include validate_ prefix (timing-dependent workflow outputs)
-- Rule Impact: README 10 UNCHANGED, validate_delivery.py patched
-- Business conclusion: UNCHANGED
-- Post-patch precommit: gate09=PASS, gate10=PASS, gate11=PASS, exit=0
+## Gate Hardening Patch (Phase-Aware)
+- Date: 2026-02-16T18:10:00+08:00
+- Issue: validate_delivery.py blanket-skipped all validate_ prefix files
+- Root Cause: Previous fix (45d70c5) overgeneralized skip logic
+- Fix: Complete rewrite with --phase precommit|postcommit parameter
+  - precommit: skips validate_postcommit.* and validate_policy_exception.*
+  - postcommit (default): NO validate_* files skipped, all must exist
+  - _should_skip() categorized skip list, no blanket prefix
+- Rule Impact: README 9 and 10 updated with phase semantics + rule table
+- Regression: 3 probes passed (Probe-1 confirms delete=FAIL)
+- Unresolved: None from this patch
