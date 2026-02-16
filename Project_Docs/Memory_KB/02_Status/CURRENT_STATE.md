@@ -19,15 +19,16 @@
 - Step-18: `CONDITIONAL PASS` (H1 升级迁移演练, 8 差距, 2026-02-16)
 - Step-19: `CONDITIONAL PASS` (H2 灰度发布与回滚控制, 6 差距, 2026-02-16)
 - Step-20: `CONDITIONAL PASS` (I1 稳定化冲刺, 2 差距, 2026-02-16)
+- Step-21: `CONDITIONAL PASS` (I2 开源治理落地, 7 差距, 2026-02-16)
 
 ## Current Step
-- Active: Step-21 I2 开源与交付准备 → READY
+- Active: Step-21 I2 开源治理落地 → (pending)
 - Previous: Step-20 I1 CONDITIONAL PASS (20260216T172900Z)
 
 ## Gap Backlog (累计)
-- C1~H2 累计: 180 项 (65 High / 91 Medium / 24 Low)
-- I1 新增: 2 项 (1 High / 1 Medium / 0 Low)
-- 总计: 182 项 (66 High / 92 Medium / 24 Low)
+- C1~I1 累计: 182 项 (66 High / 92 Medium / 24 Low)
+- I2 新增: 7 项 (0 High / 5 Medium / 2 Low)
+- 总计: 189 项 (66 High / 97 Medium / 26 Low)
 
 ## Key Evidence
 | Step | Commit | Evidence |
@@ -47,3 +48,4 @@
 | Step-18 | 028369d | Evidence/Step18/20260216T012600Z |
 | Step-19 | 42fe9d8 | Evidence/Step19/20260216T131600Z |
 | Step-20 | cd160d7 | Evidence/Step20/20260216T172900Z |
+| Step-21 | (pending) | Evidence/Step21/20260216T182100Z |

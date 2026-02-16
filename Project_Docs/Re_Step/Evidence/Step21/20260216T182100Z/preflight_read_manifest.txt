@@ -1,0 +1,10 @@
+﻿=== Step-21 I2 Preflight Read Manifest ===
+timestamp: 2026-02-16T18:21:00+08:00
+1. RE_STEP_21_I2_开源治理落地.md               READ OK (295 lines)
+2. TASK_STEP_21_I2.md                            READ OK (modified to align)
+3. CURRENT_STEP.md                               READ OK -> RUNNING
+4. CURRENT_STATE.md                              READ OK
+5. Manuals/RELEASE_CHECKLIST.md                  READ OK
+6. Architecture/VERSIONING_AND_COMPATIBILITY.md  READ OK
+7. Contracts/PRIVACY_POLICY.md                   READ OK
+8. Step20 Artifacts (5/5)                        READ OK - ALL EXIST
