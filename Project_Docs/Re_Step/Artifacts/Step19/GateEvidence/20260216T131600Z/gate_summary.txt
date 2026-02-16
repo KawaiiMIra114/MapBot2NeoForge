@@ -1,4 +1,4 @@
-﻿== Step-19 H2 Gate Summary ==
+﻿== Step-19 H2 Gate Summary (patched 20260216T135700Z) ==
 gate01_precondition=PASS
 gate02_sections=PASS
 gate03_term_consistency=PASS
@@ -7,4 +7,8 @@ build_alpha=PASS
 build_reforged=PASS
 review_scope=PASS
 task_sync_fix=PASS
+validate_precommit=EXIT:1 (gate10 pending exception ACCEPTED)
+validate_postcommit=EXIT:0 PASS
+validate_policy_exception=ACCEPTED
 overall: CONDITIONAL PASS -> GO I1
+patch_note: Evidence logs reconstructed; policy exception documented.

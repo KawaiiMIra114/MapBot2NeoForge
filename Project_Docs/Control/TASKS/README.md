@@ -81,3 +81,15 @@ python3 Project_Docs/Control/scripts/validate_delivery.py \
   --current-step "Project_Docs/Control/CURRENT_STEP.md" \
   --step-label "Step-<NN>"
 ```
+
+## 10. Precommit 验收例外策略（gate10 pending）
+`validate_delivery.py` 的 precommit 阶段在 commit 之前运行。
+此时 `CURRENT_STATE.md` 中当前步骤的 Commit 字段值为 `(pending)`，
+因此 `gate10_commit_not_pending` **必然 FAIL**。
+
+**规则**：
+1. `validate_precommit.exit=1` 是可接受的 **当且仅当** 唯一失败原因是 `gate10_commit_not_pending=FAIL (pending)`。
+2. `gate09` 与 `gate11` 必须 PASS。
+3. 必须同时留存 `validate_policy_exception.log` 证明唯一失败原因。
+4. `validate_postcommit.exit` 必须为 `0`（确认 commit 已解决 pending）。
+5. 若 precommit 存在 gate10 以外的失败，即 NO-GO。
