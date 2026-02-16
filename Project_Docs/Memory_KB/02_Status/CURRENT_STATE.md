@@ -24,7 +24,7 @@
 - Step-23: `CONDITIONAL PASS` (J2 长期治理机制, 4 差距, 2026-02-16)
 
 ## Current Step
-- Active: Step-23 J2 长期治理机制 → (pending)
+- Active: Step-23 J2 长期治理机制 → DONE
 - Previous: Step-22 J1 CONDITIONAL PASS (20260216T184800Z)
 
 ## Gap Backlog (累计)
@@ -52,4 +52,4 @@
 | Step-20 | cd160d7 | Evidence/Step20/20260216T172900Z |
 | Step-21 | 96e2039 | Evidence/Step21/20260216T182100Z |
 | Step-22 | 6762099 | Evidence/Step22/20260216T184800Z |
-| Step-23 | (pending) | Evidence/Step23/20260216T192700Z |
+| Step-23 | 891c110 | Evidence/Step23/20260216T192700Z |
