@@ -152,6 +152,9 @@ public class InboundHandler {
             if (senderQQ == AlphaConfig.getBotQQ()) {
                 String msg = rawMsg != null ? rawMsg : msgContent;
                 if (msg != null) {
+                    // NapCat 的 raw_message 包含 HTML 实体, 需要反转义
+                    msg = msg.replace("&#91;", "[").replace("&#93;", "]")
+                             .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">");
                     // 格式1: [serverId] 玩家名: 内容  (MC→QQ 聊天消息)
                     java.util.regex.Matcher m1 = java.util.regex.Pattern.compile("\\[.*?\\]\\s+(\\S+?):\\s").matcher(msg);
                     if (m1.find()) {
