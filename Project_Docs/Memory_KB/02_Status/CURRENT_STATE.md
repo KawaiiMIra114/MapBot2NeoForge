@@ -22,7 +22,7 @@
 - Step-21: `CONDITIONAL PASS` (I2 开源治理落地, 7 差距, 2026-02-16)
 
 ## Current Step
-- Active: Step-21 I2 开源治理落地 → (pending)
+- Active: Step-21 I2 开源治理落地 → DONE
 - Previous: Step-20 I1 CONDITIONAL PASS (20260216T172900Z)
 
 ## Gap Backlog (累计)
@@ -48,4 +48,4 @@
 | Step-18 | 028369d | Evidence/Step18/20260216T012600Z |
 | Step-19 | 42fe9d8 | Evidence/Step19/20260216T131600Z |
 | Step-20 | cd160d7 | Evidence/Step20/20260216T172900Z |
-| Step-21 | (pending) | Evidence/Step21/20260216T182100Z |
+| Step-21 | 96e2039 | Evidence/Step21/20260216T182100Z |
