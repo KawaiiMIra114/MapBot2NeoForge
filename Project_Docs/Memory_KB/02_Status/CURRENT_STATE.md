@@ -25,7 +25,7 @@
 - Step-24: `CONDITIONAL PASS` (CLOSE 全量核查与最终验收, 0 新增差距, 2026-02-16)
 
 ## Current Step
-- Active: Step-23 J2 长期治理机制 → DONE
+- Active: Step-24 CLOSE 全量核查与最终验收 → CLOSED (bb31cd1)
 - Previous: Step-23 J2 CONDITIONAL PASS (20260216T192700Z)
 
 ## Gap Backlog (累计)
