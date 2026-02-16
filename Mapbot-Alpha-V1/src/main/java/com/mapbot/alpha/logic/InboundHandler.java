@@ -133,39 +133,54 @@ public class InboundHandler {
         ReplyForwardContext ctx = PENDING_REPLY_CONTEXTS.remove(echo);
         if (ctx == null) return;
         
-        // 提取原始消息中的玩家名 (格式: [server] <玩家名> 内容 或包含 玩家名)
+        // 提取原始消息中的玩家名
         String replyToPlayer = null;
         JsonObject data = json.getAsJsonObject("data");
         if (data != null) {
-            // 确认原始消息是 bot 自己发的
+            // 诊断日志: 查看 get_msg 返回了什么
+            String rawMsg = getStringOrNull(data, "raw_message");
+            String msgContent = getStringOrNull(data, "message");
             JsonObject sender = data.getAsJsonObject("sender");
             long senderQQ = 0;
             if (sender != null) {
                 com.google.gson.JsonElement uidEl = sender.get("user_id");
                 if (uidEl != null && !uidEl.isJsonNull()) senderQQ = uidEl.getAsLong();
             }
+            LOGGER.info("[Reply] get_msg 响应: senderQQ={}, raw_message={}, message={}", senderQQ, rawMsg, msgContent);
+            
+            // 确认原始消息是 bot 自己发的
             if (senderQQ == AlphaConfig.getBotQQ()) {
-                String msg = getStringOrNull(data, "raw_message");
-                if (msg == null) msg = getStringOrNull(data, "message");
+                String msg = rawMsg != null ? rawMsg : msgContent;
                 if (msg != null) {
-                    // 尝试匹配 <玩家名> 格式
-                    int lt = msg.indexOf("<");
-                    int gt = msg.indexOf(">");
-                    if (lt >= 0 && gt > lt) {
-                        replyToPlayer = msg.substring(lt + 1, gt).trim();
+                    // 格式1: [serverId] 玩家名: 内容  (MC→QQ 聊天消息)
+                    java.util.regex.Matcher m1 = java.util.regex.Pattern.compile("\\[.*?\\]\\s+(\\S+?):\\s").matcher(msg);
+                    if (m1.find()) {
+                        replyToPlayer = m1.group(1);
                     }
-                    // 尝试匹配 [+] 玩家名 格式 (加入事件)
+                    // 格式2: <玩家名> 内容  (旧格式兼容)
+                    if (replyToPlayer == null) {
+                        int lt = msg.indexOf("<");
+                        int gt = msg.indexOf(">");
+                        if (lt >= 0 && gt > lt) {
+                            replyToPlayer = msg.substring(lt + 1, gt).trim();
+                        }
+                    }
+                    // 格式3: [+] 玩家名 (加入事件)
                     if (replyToPlayer == null) {
                         java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[\\+\\]\\s+(\\S+)").matcher(msg);
                         if (m.find()) replyToPlayer = m.group(1);
                     }
-                    // 尝试匹配 [-] 玩家名 格式 (离开事件)
+                    // 格式4: [-] 玩家名 (离开事件)
                     if (replyToPlayer == null) {
                         java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[-\\]\\s+(\\S+)").matcher(msg);
                         if (m.find()) replyToPlayer = m.group(1);
                     }
                 }
+            } else {
+                LOGGER.info("[Reply] 原始消息不是 bot 发的 (senderQQ={}, botQQ={}), 跳过", senderQQ, AlphaConfig.getBotQQ());
             }
+        } else {
+            LOGGER.warn("[Reply] get_msg 响应中没有 data 字段, 完整响应: {}", json);
         }
         
         LOGGER.info("[Reply] 原始消息玩家: {}", replyToPlayer);
