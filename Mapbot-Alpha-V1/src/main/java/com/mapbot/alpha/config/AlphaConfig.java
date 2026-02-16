@@ -48,7 +48,7 @@ public class AlphaConfig {
     private long botQQ = 2133782376L;
     
     // 消息格式配置
-    private String bridgeIngameMsgFormat = "[群消息] {player}: {content}";
+    private String bridgeIngameMsgFormat = "[SMP] {player}: {content}";
     
     // 调试
     private boolean debugMode = true;

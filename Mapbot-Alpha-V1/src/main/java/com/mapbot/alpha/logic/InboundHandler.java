@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
 /**
  * 入站消息处理器
@@ -28,6 +29,13 @@ public class InboundHandler {
     /** 命令冷却缓存 */
     private static final ConcurrentHashMap<Long, Long> COMMAND_COOLDOWNS = new ConcurrentHashMap<>();
     private static final long COOLDOWN_MS = 5000;
+    
+    // 回复消息回调上下文
+    private static final ConcurrentHashMap<String, ReplyForwardContext> PENDING_REPLY_CONTEXTS = new ConcurrentHashMap<>();
+    
+    private record ReplyForwardContext(String nickname, String rawMessage, long senderQQ, long sourceGroupId,
+                                        java.util.List<Long> atQQList, java.util.List<String> atPlayerNames,
+                                        long timestamp) {}
     
     static {
         // 注册所有命令
@@ -89,6 +97,7 @@ public class InboundHandler {
             String postType = getStringOrNull(json, "post_type");
             
             if (postType == null) {
+                handleApiEcho(json);
                 return;
             }
             
@@ -103,6 +112,110 @@ public class InboundHandler {
     }
 }
 
+    /**
+     * 处理 OneBot API 回包 (echo 响应)
+     */
+    private static void handleApiEcho(JsonObject json) {
+        com.google.gson.JsonElement echoEl = json.get("echo");
+        if (echoEl == null || echoEl.isJsonNull()) return;
+        String echo = echoEl.getAsString();
+        
+        if (echo.startsWith("reply_fwd_")) {
+            handleReplyForwardResponse(json, echo);
+        }
+    }
+    
+    /**
+     * 处理回复消息的 get_msg 响应
+     * 从原始消息内容中提取被回复的 MC 玩家名, 然后转发到 Bridge
+     */
+    private static void handleReplyForwardResponse(JsonObject json, String echo) {
+        ReplyForwardContext ctx = PENDING_REPLY_CONTEXTS.remove(echo);
+        if (ctx == null) return;
+        
+        // 提取原始消息中的玩家名 (格式: [server] <玩家名> 内容 或包含 玩家名)
+        String replyToPlayer = null;
+        JsonObject data = json.getAsJsonObject("data");
+        if (data != null) {
+            // 确认原始消息是 bot 自己发的
+            JsonObject sender = data.getAsJsonObject("sender");
+            long senderQQ = 0;
+            if (sender != null) {
+                com.google.gson.JsonElement uidEl = sender.get("user_id");
+                if (uidEl != null && !uidEl.isJsonNull()) senderQQ = uidEl.getAsLong();
+            }
+            if (senderQQ == AlphaConfig.getBotQQ()) {
+                String msg = getStringOrNull(data, "raw_message");
+                if (msg == null) msg = getStringOrNull(data, "message");
+                if (msg != null) {
+                    // 尝试匹配 <玩家名> 格式
+                    int lt = msg.indexOf("<");
+                    int gt = msg.indexOf(">");
+                    if (lt >= 0 && gt > lt) {
+                        replyToPlayer = msg.substring(lt + 1, gt).trim();
+                    }
+                    // 尝试匹配 [+] 玩家名 格式 (加入事件)
+                    if (replyToPlayer == null) {
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[\\+\\]\\s+(\\S+)").matcher(msg);
+                        if (m.find()) replyToPlayer = m.group(1);
+                    }
+                    // 尝试匹配 [-] 玩家名 格式 (离开事件)
+                    if (replyToPlayer == null) {
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\[-\\]\\s+(\\S+)").matcher(msg);
+                        if (m.find()) replyToPlayer = m.group(1);
+                    }
+                }
+            }
+        }
+        
+        LOGGER.info("[Reply] 原始消息玩家: {}", replyToPlayer);
+        
+        // 如果提取到了玩家名, 加入 atPlayerNames
+        java.util.List<String> atPlayerNames = ctx.atPlayerNames;
+        if (replyToPlayer != null && !replyToPlayer.isBlank()) {
+            if (!atPlayerNames.contains(replyToPlayer)) {
+                atPlayerNames.add(replyToPlayer);
+            }
+        }
+        
+        // 现在构建 JSON 并转发到 Bridge
+        String parsed = CQCodeParser.parse(ctx.rawMessage);
+        if (parsed.isEmpty()) return;
+        
+        // 如果回复了 bot, 替换 @botQQ 为 @玩家名
+        if (replyToPlayer != null) {
+            parsed = parsed.replace("@" + AlphaConfig.getBotQQ(), "@" + replyToPlayer);
+        }
+        
+        StringBuilder jsonOut = new StringBuilder();
+        jsonOut.append("{\"type\":\"qq_message\"");
+        jsonOut.append(",\"sender\":\"").append(escapeJson(ctx.nickname)).append("\"");
+        jsonOut.append(",\"content\":\"").append(escapeJson(parsed)).append("\"");
+        jsonOut.append(",\"rawContent\":\"").append(escapeJson(ctx.rawMessage)).append("\"");
+        jsonOut.append(",\"senderQQ\":").append(ctx.senderQQ);
+        jsonOut.append(",\"groupId\":").append(ctx.sourceGroupId);
+        if (!ctx.atQQList.isEmpty()) {
+            jsonOut.append(",\"atList\":[");
+            for (int i = 0; i < ctx.atQQList.size(); i++) {
+                if (i > 0) jsonOut.append(",");
+                jsonOut.append(ctx.atQQList.get(i));
+            }
+            jsonOut.append("]");
+        }
+        if (!atPlayerNames.isEmpty()) {
+            jsonOut.append(",\"atPlayerNames\":[");
+            for (int i = 0; i < atPlayerNames.size(); i++) {
+                if (i > 0) jsonOut.append(",");
+                jsonOut.append("\"").append(escapeJson(atPlayerNames.get(i))).append("\"");
+            }
+            jsonOut.append("]");
+        }
+        jsonOut.append("}");
+        
+        ServerRegistry.INSTANCE.broadcast(jsonOut.toString());
+        LOGGER.debug("[QQ->MC] (reply) [QQ] {}: {}", ctx.nickname, parsed);
+    }
+    
     private static void handleChatMessage(JsonObject json) {
         String messageType = getStringOrNull(json, "message_type");
         if (messageType == null) {
@@ -235,10 +348,25 @@ public class InboundHandler {
             }
             json.append("]");
         }
-        if (replyId != null) {
-            json.append(",\"replyId\":\"").append(escapeJson(replyId)).append("\"");
-        }
         json.append("}");
+        
+        // 如果是回复消息且 @ 了 bot, 走异步回复识别流程
+        if (replyId != null && atQQList.contains(AlphaConfig.getBotQQ())) {
+            String echo = "reply_fwd_" + UUID.randomUUID();
+            // 保存 60 秒超时的上下文 (清理过期上下文)
+            long now = System.currentTimeMillis();
+            PENDING_REPLY_CONTEXTS.entrySet().removeIf(e -> (now - e.getValue().timestamp()) > 60_000);
+            PENDING_REPLY_CONTEXTS.put(echo, new ReplyForwardContext(
+                nickname, rawMessage, senderQQ, sourceGroupId, atQQList, atPlayerNames, now));
+            
+            // 发送 get_msg API 请求查询被回复的原始消息
+            String getMsgJson = String.format(
+                "{\"action\":\"get_msg\",\"params\":{\"message_id\":%s},\"echo\":\"%s\"}",
+                replyId, echo);
+            OneBotClient.INSTANCE.sendPacket(getMsgJson);
+            LOGGER.info("[Reply] 检测到回复消息, 查询原始消息 replyId={}, echo={}", replyId, echo);
+            return; // 异步处理, 等 handleReplyForwardResponse 回调
+        }
         
         ServerRegistry.INSTANCE.broadcast(json.toString());
         LOGGER.debug("[QQ->MC] {}", formattedMsg);
