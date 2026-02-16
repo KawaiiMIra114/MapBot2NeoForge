@@ -1,0 +1,13 @@
+﻿=== Step-22 J1 Preflight Read Manifest ===
+timestamp: 2026-02-16T18:48:00+08:00
+1. RE_STEP_22_J1 READ OK (296 lines)
+2. TASK_STEP_22_J1 READ OK -> REWRITTEN to align
+3. CURRENT_STEP READ OK -> RUNNING
+4. CURRENT_STATE READ OK (Step-21 DONE, 189 gaps)
+5. SYSTEM_REFACTOR_DEVELOPMENT_TASKLIST READ OK (265 lines)
+6. INDEX.md READ OK (75 lines)
+7. GLOSSARY.md READ OK (86 lines)
+8. Step21 Artifacts 5/5 READ OK
+9. Contracts/*.md READ OK (from prior conversation)
+10. Architecture/*.md READ OK (from prior conversation)
+11. Manuals/*.md READ OK (from prior conversation)
