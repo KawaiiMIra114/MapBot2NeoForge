@@ -894,7 +894,7 @@ public final class BridgeHandlers {
         }
         if (displayContent.isEmpty()) return;
 
-        // 提取 atList
+        // 提取 atList (QQ号列表)
         java.util.List<Long> atQQList = new java.util.ArrayList<>();
         if (json.has("atList") && json.get("atList").isJsonArray()) {
             for (com.google.gson.JsonElement e : json.getAsJsonArray("atList")) {
@@ -902,11 +902,22 @@ public final class BridgeHandlers {
             }
         }
 
+        // 提取 atUuidList (Alpha 已解析的 UUID 列表，用于直接匹配在线玩家)
+        java.util.List<String> atUuidList = new java.util.ArrayList<>();
+        if (json.has("atUuidList") && json.get("atUuidList").isJsonArray()) {
+            for (com.google.gson.JsonElement e : json.getAsJsonArray("atUuidList")) {
+                try {
+                    String uuid = e.getAsString();
+                    if (uuid != null && !uuid.isEmpty()) atUuidList.add(uuid);
+                } catch (Exception ignored) {}
+            }
+        }
+
         String formattedMsg = String.format("\u00A7b[QQ]\u00A7r <%s> %s", sender, displayContent);
-        LOGGER.info("[QQ->MC] {} (at={})", formattedMsg, atQQList);
+        LOGGER.info("[QQ->MC] {} (at={}, uuid={})", formattedMsg, atQQList, atUuidList);
 
         // 调用个性化消息（被@玩家: 高亮+标题+提示音）
-        com.mapbot.logic.InboundHandler.sendPersonalizedMessage(formattedMsg, atQQList, sender);
+        com.mapbot.logic.InboundHandler.sendPersonalizedMessage(formattedMsg, atQQList, atUuidList, sender);
     }
 
     // ==================== 文件操作 ====================

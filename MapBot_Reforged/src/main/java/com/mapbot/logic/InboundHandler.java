@@ -188,7 +188,7 @@ public class InboundHandler {
             return;
         }
 
-        sendPersonalizedMessage(String.format("§b[QQ]§r <%s> %s", nickname, parsed), atQQList, nickname);
+        sendPersonalizedMessage(String.format("§b[QQ]§r <%s> %s", nickname, parsed), atQQList, null, nickname);
     }
 
     // --- 核心事件逻辑 ---
@@ -212,17 +212,32 @@ public class InboundHandler {
 
     // --- 个性化通知逻辑 ---
 
-    public static void sendPersonalizedMessage(String baseMessage, List<Long> atQQList, String senderNick) {
+    public static void sendPersonalizedMessage(String baseMessage, List<Long> atQQList, List<String> atUuidList, String senderNick) {
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) return;
 
         server.execute(() -> {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 boolean isAt = false;
-                for (Long qq : atQQList) {
-                    if (player.getUUID().toString().equals(DataManager.INSTANCE.getBinding(qq))) {
-                        isAt = true;
-                        break;
+                String playerUuid = player.getUUID().toString();
+
+                // 优先使用 atUuidList 直接匹配 (Bridge 模式: Alpha 已解析 UUID)
+                if (atUuidList != null && !atUuidList.isEmpty()) {
+                    for (String uuid : atUuidList) {
+                        if (playerUuid.equals(uuid)) {
+                            isAt = true;
+                            break;
+                        }
+                    }
+                }
+
+                // 回退: 使用 atQQList + 本地 DataManager 查找 (直连模式兼容)
+                if (!isAt && atQQList != null) {
+                    for (Long qq : atQQList) {
+                        if (playerUuid.equals(DataManager.INSTANCE.getBinding(qq))) {
+                            isAt = true;
+                            break;
+                        }
                     }
                 }
 
@@ -305,7 +320,7 @@ public class InboundHandler {
             parsed = parsed.replace("@" + BotConfig.getBotQQ(), "@" + originalPlayer);
         }
         
-        sendPersonalizedMessage(String.format("§b[QQ]§r <%s> %s", ctx.replierNickname, parsed), ctx.atQQList, ctx.replierNickname);
+        sendPersonalizedMessage(String.format("§b[QQ]§r <%s> %s", ctx.replierNickname, parsed), ctx.atQQList, null, ctx.replierNickname);
     }
 
     private static void handleGroupMemberListResponse(JsonObject json) {
