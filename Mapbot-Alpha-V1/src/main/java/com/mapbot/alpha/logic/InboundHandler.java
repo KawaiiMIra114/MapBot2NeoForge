@@ -367,7 +367,7 @@ public class InboundHandler {
             long now = System.currentTimeMillis();
             PENDING_REPLY_CONTEXTS.entrySet().removeIf(e -> (now - e.getValue().timestamp()) > 60_000);
             PENDING_REPLY_CONTEXTS.put(echo, new ReplyForwardContext(
-                nickname, rawMessage, senderQQ, sourceGroupId, atQQList, atPlayerNames, now));
+                displayName, rawMessage, senderQQ, sourceGroupId, atQQList, atPlayerNames, now));
             
             // 发送 get_msg API 请求查询被回复的原始消息
             String getMsgJson = String.format(
