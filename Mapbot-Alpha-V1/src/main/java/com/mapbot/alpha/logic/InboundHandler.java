@@ -283,9 +283,9 @@ public class InboundHandler {
         if (rawMessage.startsWith("#")) {
             handleCommandDispatch(rawMessage.substring(1).trim(), senderQQ, sourceGroupId, false);
         } 
-        // 普通消息转发到 MC
-        else if (isFromPlayerGroup) {
-            forwardToMinecraft(rawMessage, nickname, senderQQ, sourceGroupId);
+        // /q 消息转发到 MC (只有 /q 开头的消息才转发, 去掉 /q 前缀)
+        else if (isFromPlayerGroup && rawMessage.startsWith("/q ")) {
+            forwardToMinecraft(rawMessage.substring(3), nickname, senderQQ, sourceGroupId);
         }
     }
     

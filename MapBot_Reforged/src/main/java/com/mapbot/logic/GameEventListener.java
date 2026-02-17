@@ -289,10 +289,15 @@ public class GameEventListener {
                 return;
             }
 
+            // 只转发挑战(Challenge/紫色)成就, 过滤普通(Task)和目标(Goal)
+            if (display.getType() != net.minecraft.advancements.AdvancementType.CHALLENGE) {
+                return;
+            }
+
             String title = display.getTitle().getString();
             String playerName = player.getName().getString();
 
-            String msg = String.format("[进度] %s 获得进度: %s", playerName, title);
+            String msg = String.format("[进度] %s 完成了挑战: %s", playerName, title);
             BridgeClient.INSTANCE.sendChat("系统", msg);
         } catch (Exception e) {
             LOGGER.debug("进度播报解析失败", e);
