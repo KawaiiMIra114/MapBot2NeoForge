@@ -160,11 +160,10 @@ public class GameEventListener {
         }
         
         // 格式: [玩家名] 消息内容
-        String formattedMessage = String.format("[%s] %s", playerName, message);
-        
-        LOGGER.debug("转发聊天消息: {}", formattedMessage);
-        // STEP 12: 通过 Bridge 发送到 Alpha Core，再由 Alpha 转发到 QQ
-        BridgeClient.INSTANCE.sendChat(playerName, message);
+        // 不再自动转发聊天到 QQ, 只有 /q 命令才转发
+        // String formattedMessage = String.format("[%s] %s", playerName, message);
+        // LOGGER.debug("转发聊天消息: {}", formattedMessage);
+        // BridgeClient.INSTANCE.sendChat(playerName, message);
     }
 
     /**

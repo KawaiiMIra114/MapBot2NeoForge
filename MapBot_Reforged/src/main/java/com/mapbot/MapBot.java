@@ -139,7 +139,55 @@ public class MapBot {
                 )
         );
 
-        LOGGER.info("已注册游戏命令: /mapbot cdk, /server <server_name>");
+        // /q <message> - 转发消息到 QQ 群
+        event.getDispatcher().register(
+            Commands.literal("q")
+                .then(Commands.argument("message", StringArgumentType.greedyString())
+                    .executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayerOrException();
+                        String message = StringArgumentType.getString(ctx, "message");
+                        String playerName = player.getName().getString();
+                        String uuid = player.getUUID().toString();
+
+                        // 禁言检查
+                        long expiry = BridgeClient.INSTANCE.checkMuteExpiry(uuid);
+                        if (expiry != 0L) {
+                            if (expiry == -1L || System.currentTimeMillis() <= expiry) {
+                                String timeStr = (expiry == -1L) ? "永久" :
+                                    new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(expiry));
+                                ctx.getSource().sendFailure(Component.literal("§c你已被禁言！解除时间: " + timeStr));
+                                return 0;
+                            }
+                        }
+
+                        // 处理 @提及
+                        String finalMessage = message;
+                        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("^@(\\S+)\\s*(.*)$").matcher(message);
+                        if (matcher.matches()) {
+                            String targetName = matcher.group(1);
+                            String content = matcher.group(2) != null ? matcher.group(2) : "";
+                            net.minecraft.server.MinecraftServer server = ctx.getSource().getServer();
+                            if (server != null) {
+                                java.util.Optional<com.mojang.authlib.GameProfile> profile = server.getProfileCache().get(targetName);
+                                if (profile.isPresent()) {
+                                    String targetUuid = profile.get().getId().toString();
+                                    long targetQQ = BridgeClient.INSTANCE.getQQByUUID(targetUuid);
+                                    if (targetQQ != -1L && targetQQ != 0L) {
+                                        finalMessage = String.format("[CQ:at,qq=%d]%s", targetQQ, content);
+                                    }
+                                }
+                            }
+                        }
+
+                        // 转发到 QQ
+                        BridgeClient.INSTANCE.sendChat(playerName, finalMessage);
+                        ctx.getSource().sendSuccess(() -> Component.literal("§a[QQ] 消息已发送"), false);
+                        return 1;
+                    })
+                )
+        );
+
+        LOGGER.info("已注册游戏命令: /mapbot cdk, /server <server_name>, /q <message>");
     }
     
     /**
