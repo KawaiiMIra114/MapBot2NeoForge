@@ -281,9 +281,15 @@ public class InboundHandler {
         
         // 命令处理
         if (rawMessage.startsWith("#")) {
-            handleCommandDispatch(rawMessage.substring(1).trim(), senderQQ, sourceGroupId, false);
+            String afterHash = rawMessage.substring(1).trim();
+            // #q 转发消息到 MC (特殊处理, 不走 CommandRegistry)
+            if (isFromPlayerGroup && (afterHash.startsWith("q ") || afterHash.startsWith("Q "))) {
+                forwardToMinecraft(afterHash.substring(2), nickname, senderQQ, sourceGroupId);
+            } else {
+                handleCommandDispatch(afterHash, senderQQ, sourceGroupId, false);
+            }
         } 
-        // /q 消息转发到 MC (只有 /q 开头的消息才转发, 去掉 /q 前缀)
+        // /q 消息转发到 MC (兼容 / 前缀)
         else if (isFromPlayerGroup && rawMessage.startsWith("/q ")) {
             forwardToMinecraft(rawMessage.substring(3), nickname, senderQQ, sourceGroupId);
         }
