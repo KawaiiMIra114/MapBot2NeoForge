@@ -44,7 +44,12 @@ public class AcceptCommand implements ICommand {
                 ("[领取成功] 物品已发放到背包 (" + result.substring(result.indexOf(':') + 1) + ")") :
                 "[领取成功] 物品已发放到背包";
         } else if (result.startsWith("FAIL:OFFLINE")) {
-            return "[领取失败] 玩家不在线\n[提示] 请使用 #cdk 获取兑换码";
+            String code = signMgr.createCdk(senderQQ, itemJson);
+            if (code == null) {
+                return "[领取失败] 玩家不在线\n[提示] 暂无法生成兑换码，请稍后使用 #cdk 获取兑换码";
+            }
+            return "[领取失败] 玩家全服离线，已生成兑换码: " + code +
+                "\n[提示] 请在游戏内使用 /mapbot cdk " + code + " 领取奖励";
         } else if (result.startsWith("FAIL:INVENTORY_FULL")) {
             return "[领取失败] 背包空间不足\n[提示] 请清理背包后重试";
         } else {
