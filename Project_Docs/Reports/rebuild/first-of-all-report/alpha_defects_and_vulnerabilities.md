@@ -22,7 +22,12 @@
 - **极高**。这是极度危险的双重事实源（Dual Source of Truth）。当 Alpha 和 Reforged 均持有签到逻辑与玩家数据管理逻辑时，任何一端的规则变动（如签到奖励池变更、时区更改）若未进行双边同步代码修改，将导致严重的数据不一致和行为异常。
 - 业务边界极其模糊，Alpha 应该作为纯粹的网关/分发中心，还是承接所有游戏外逻辑的运算节点，当前代码体现出摇摆不定。
 
-### 1.2 核心职能弃用静默 (Abandoned Core Function)
+### 1.2 跨服群组绑定的架构级定死 (Hardcoded Global Routing)
+**表现**: 在当前的“中心化 Alpha 模式”下，`alpha.properties` 全局写死了唯一的 `playerGroupId` 和 `adminGroupId`。在 `InboundHandler.java` 中的 `forwardToMinecraft` 逻辑里，所有的 QQ 消息通过 `ServerRegistry.INSTANCE.broadcast()` 无差别广播给所有连接的 Reforged 子服。
+**危害风险**:
+- **高**。这违背了多服中枢（Multi-server Hub）的设计初衷。当后续有独立的 `survival`（生存服）、`creative`（创造服）同时连接到 Alpha 后，玩家将无法在独立群组对应独立服务器聊天。Alpha 层面不应该全局硬编码这些业务路由参数，这会导致多服消息通道彻底混战串话。
+
+### 1.3 核心职能弃用静默 (Abandoned Core Function)
 **表现**: `MapbotAlpha.java` 主入口中，原本负责拉起并守护 Minecraft 服务端生命周期的 `ProcessManager.INSTANCE.startServer(...)` 调用被人为注释。
 **危害风险**:
 - **高**。Alpha 的立项初衷之一就是成为脱离 MC 独立存活的监控面板与守护进程。在失去 `ProcessManager` 的实际调用后，一旦 Minecraft 服务器因 OOM 或其它异常崩溃，Alpha 将毫无察觉，且完全丧失了崩溃重启与故障接管的能力，退化为一个单纯的消息转发中间件。
@@ -45,7 +50,12 @@
 
 ## 3. 配置与环境冗余 (Redundancy in Environment)
 
-### 3.1 废弃的 TOML 配置文件 (已紧急清理)
+### 3.1 Reforged 端的历史遗留配置污染 (Cross-project Configuration Misdirection)
+**表现**: 考虑到**“目前有且仅有一种运作方式，即连接 alpha 运行”**的大前提，`MapBot_Reforged` 项目中的 `BotConfig.java` 仍然冗余地暴露和保留了：`wsUrl`, `playerGroupId`, `adminGroupId`, `botQQ`, `reconnectInterval` 这类必须交由 Alpha 全权连接的 OneBot 参数。
+**危害风险**: 
+- **极高（认知负荷）**。协作者会在启动服务端时，看到配置生成了两个 `playerGroupId` 和 WebSocket 地址（分别在服内和Alpha配置里），极大概率产生配置幻觉甚至双开连接冲突（尽管代码做了 `isStandaloneOneBotMode` 判断，但保留无用的前台配置项是严重的防呆设计缺失）。
+
+### 3.2 废弃的 TOML 配置文件 (已紧急清理)
 **表现**: 目录内曾提供 `src/main/resources/application.toml`，但在引擎启动阶段（`AlphaConfig`）仅读取 `config/alpha.properties`。
 **危害风险**: 
 - **低 (已解决)**。极易误导协作者修改虚假配置，该问题已在本次审查行动中主动移除文件。
