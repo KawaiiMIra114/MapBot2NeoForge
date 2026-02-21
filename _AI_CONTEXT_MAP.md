@@ -19,3 +19,6 @@
 ```bash
 python3 Project_Docs/scripts/docs_sync.py
 ```
+
+## 智能体对话轨迹 (Agent Trace Context)
+- [Nexus] [2026-02-21 21:19:00] [创建初始缺陷报告与设定全体智能体管控契约《MAPBOT_GLOBAL_PROTOCOLS.md》，清理废弃的旧版控制脚本，确立上下文汇报追溯原则。] [pending-commit]
