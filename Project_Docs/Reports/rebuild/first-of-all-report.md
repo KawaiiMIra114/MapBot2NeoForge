@@ -35,10 +35,21 @@
 
 ---
 
-## 三、 冗余与无意义配置 (Redundant Configs)
+## 三、 冗余与无意义代码 (Redundant Configs & Code)
 
-### 1. 僵尸切服配置节点
-- 在 `BotConfig` 中存在新加的 `transferHost` 和 `transferPort` 字段，但在实际执行桥接切服指令 (`MapBot.java` 的 `/server <server_name>`) 时，逻辑通过 `BridgeClient` 直接上报目标名称，完全未用到当前服务器上报外网主机与端口这一逻辑进行负载分配。这些成为代码坏味道的无用配置。
+> **修订批注**：经查证 Alpha 源码库，`transferHost` 和 `transferPort` 实际上被 Alpha Core 中的 `BridgeMessageHandler` (处理 `switch_server_request`) 强依赖作为跨服重定向目标池。它们 **不是** 冗余配置，先前对此处的定性有误，现予以纠正。
+
+在“未来只通过 Alpha 中枢模式连接”的架构前提下，真正冗余的配置文件和代码如下：
+
+### 1. 冗余的直连 WebSocket 客户端模块
+- `MapBot_Reforged` 内部存在一个独立完整的 `com.mapbot.network.BotClient`。它的作用是直连 OneBot (NapCat)。由于双端统一采用 Alpha 通信，该类可以且应当被**彻底删除**。
+
+### 2. 冗余的 BotConfig 字段
+随 `BotClient` 的作废，以下配置文件属性在 `BotConfig.java` (Reforged 端) 中将再无任何实际调用，应当清理以对齐《配置规范契约》的最小必要原则：
+- `wsUrl` 和 `reconnectInterval`：Alpha Core 已经接管并维护自身与 NapCat 的连接，不需要在子服重复配置。
+- `playerGroupId` 和 `adminGroupId`：群消息路由鉴权现在由 Alpha 决定并透传，子服不再需要知道群号。
+- `botQQ`：@机器人的检测也完全由 Alpha 完成，子服仅处理 Alpha 转发加工过的内部指令。
+- *（注：相对应地，这些配置项在 `Mapbot-Alpha-V1` 的 `AlphaConfig.java` 中均被查证为有效使用，Alpha 端不存在对应的跨服冗余字段。）*
 
 ---
 
