@@ -1,4 +1,4 @@
-package com.mapbot.alpha.bridge;
+package com.mapbot.common.protocol;
 
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Bridge 错误映射器（Alpha 侧）
+ * Bridge 错误映射器（Alpha & Reforged 共享）
  * 优先级：结构化错误码 > 字符串映射 > BRG_INTERNAL_999
  */
 public final class BridgeErrorMapper {
@@ -61,6 +61,16 @@ public final class BridgeErrorMapper {
 
         boolean retryable = isRetryableCode(selected, retryableDefault);
         return new ErrorMeta(selected, normalizedRaw, retryable, mappingConflict);
+    }
+    
+    public static boolean looksLikeError(String text) {
+        if (text == null || text.isBlank()) return true;
+        String s = text.trim().toLowerCase(Locale.ROOT);
+        if (s.startsWith("fail:")) return true;
+        if (s.contains("[错误]") || s.contains("错误")) return true;
+        if (s.contains("timeout") || s.contains("超时")) return true;
+        if (s.contains("unauthorized")) return true;
+        return false;
     }
 
     public static Map<String, Object> registerAckFailurePayload(String rawError, String explicitErrorCode, boolean retryableDefault) {

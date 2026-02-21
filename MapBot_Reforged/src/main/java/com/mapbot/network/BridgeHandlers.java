@@ -6,6 +6,8 @@
  */
 package com.mapbot.network;
 
+import com.mapbot.common.protocol.BridgeErrorMapper;
+
 import com.google.gson.JsonObject;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;

@@ -26,6 +26,7 @@ dependencies {
 
     // Redis 客户端
     implementation 'redis.clients:jedis:5.1.0'
+    implementation project(':MapBot_Common')
 }
 
 application {

@@ -1,0 +1,3 @@
+rootProject.name = 'mapbot-alpha-v1'
+include ':MapBot_Common'
+project(':MapBot_Common').projectDir = new File('../MapBot_Common')

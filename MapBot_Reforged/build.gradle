@@ -102,3 +102,7 @@ dependencies {
     // Example only
     // implementation "com.some.mod:artifact:version"
 }
+
+dependencies {
+    implementation project(':MapBot_Common')
+}

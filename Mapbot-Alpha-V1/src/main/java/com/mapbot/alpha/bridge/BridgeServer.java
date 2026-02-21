@@ -1,5 +1,7 @@
 package com.mapbot.alpha.bridge;
 
+import com.mapbot.common.protocol.BridgeErrorMapper;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;

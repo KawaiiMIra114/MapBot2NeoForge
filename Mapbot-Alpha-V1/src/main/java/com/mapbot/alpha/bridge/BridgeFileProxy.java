@@ -1,5 +1,7 @@
 package com.mapbot.alpha.bridge;
 
+import com.mapbot.common.protocol.BridgeErrorMapper;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
