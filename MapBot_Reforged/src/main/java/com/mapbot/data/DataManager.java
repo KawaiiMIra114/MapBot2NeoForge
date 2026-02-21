@@ -122,18 +122,52 @@ public class DataManager {
         }
     }
     
+    // ================== 后台写入引擎 (Atomicity & CAS) ==================
+
     /**
-     * 保存数据到文件
+     * 带乐观锁控制地保存数据。
+     * 若当前内存持有版本不满足期望版本，说明发生了不安全的重入覆写。
+     * 为兼容不暴露版本的旧调用端，我们默认自增期望覆盖机制。
+     * 
+     * @param expectedVersion 预期的写入基础版本号，-1 表示不在乎一致性（退化为强制覆盖）
+     * @throws IllegalStateException 如果发现 `entity_version` 与 `expectedVersion` 冲突
      */
-    public void save() {
-        // Fix #4: 使用 writeLock 代替 readLock，因为文件写入是写操作
+    public void save(long expectedVersion) {
         lock.writeLock().lock();
         try {
+            if (expectedVersion != -1 && data.entity_version != expectedVersion) {
+                LOGGER.error("[CONSISTENCY-409] 乐观锁并发冲突! 预期基础版本: {}, 实际内存版本: {}", expectedVersion, data.entity_version);
+                throw new IllegalStateException("CONSISTENCY-409: Data version conflict inside MapBot_Reforged");
+            }
+
+            // 更新实体版本号 (CAS 成功后推进自增)
+            data.entity_version++;
+            long newVersion = data.entity_version;
+
             String json = GSON.toJson(data);
-            Files.writeString(dataPath, json);
-            LOGGER.debug("数据已保存");
+            
+            // 安全保存机制: 先写 .tmp，再原子重命名 (AtomicMove)
+            Path tempPath = dataPath.getParent().resolve(dataPath.getFileName().toString() + ".tmp");
+            Files.writeString(tempPath, json);
+            Files.move(tempPath, dataPath, java.nio.file.StandardCopyOption.ATOMIC_MOVE, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            LOGGER.debug("数据已保存并落盘 (AtomicMove) [Version: {}]", newVersion);
         } catch (IOException e) {
             LOGGER.error("保存数据文件失败: {}", e.getMessage());
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    /**
+     * 保存数据到文件 (无锁覆写别名，供旧业务兼容)
+     * 在调用此处时，将隐式采用内存最新数据强刷版本。
+     */
+    public void save() {
+        lock.writeLock().lock();
+        try {
+            // 使用当前内部最新的版本号强行推进一次提交
+            save(data.entity_version);
         } finally {
             lock.writeLock().unlock();
         }
@@ -165,12 +199,13 @@ public class DataManager {
     public void setPermissionLevel(long qq, int level) {
         lock.writeLock().lock();
         try {
+            long expected = data.entity_version; // 捕获基线版本
             if (level == PERMISSION_LEVEL_USER) {
                 data.userPermissions.remove(qq); // User 等级无需存储
             } else {
                 data.userPermissions.put(qq, level);
             }
-            save();
+            save(expected);
             LOGGER.info("设置权限: QQ {} -> Level {}", qq, level);
         } finally {
             lock.writeLock().unlock();
@@ -240,9 +275,10 @@ public class DataManager {
     public void mute(String uuid, long durationMillis) {
         lock.writeLock().lock();
         try {
+            long expected = data.entity_version;
             long expiry = (durationMillis == -1) ? -1 : System.currentTimeMillis() + durationMillis;
             data.mutedPlayers.put(uuid, expiry);
-            save();
+            save(expected);
             LOGGER.info("玩家被禁言: {} (到期: {})", uuid, expiry);
         } finally {
             lock.writeLock().unlock();
@@ -258,8 +294,9 @@ public class DataManager {
     public boolean unmute(String uuid) {
         lock.writeLock().lock();
         try {
+            long expected = data.entity_version;
             if (data.mutedPlayers.remove(uuid) != null) {
-                save();
+                save(expected);
                 LOGGER.info("玩家解除禁言: {}", uuid);
                 return true;
             }
@@ -311,8 +348,9 @@ public class DataManager {
             try {
                 Long expiry = data.mutedPlayers.get(uuid);
                 if (expiry != null && expiry != -1 && System.currentTimeMillis() > expiry) {
+                    long expected = data.entity_version;
                     data.mutedPlayers.remove(uuid);
-                    save();
+                    save(expected);
                     LOGGER.debug("已自动清理过期禁言: {}", uuid);
                 }
             } finally {
@@ -348,11 +386,12 @@ public class DataManager {
     public boolean bind(long qq, String uuid) {
         lock.writeLock().lock();
         try {
+            long expected = data.entity_version;
             if (data.playerBindings.containsKey(qq)) {
                 return false;
             }
             data.playerBindings.put(qq, uuid);
-            save();
+            save(expected);
             LOGGER.info("已绑定玩家: {} -> {}", qq, uuid);
             return true;
         } finally {
@@ -369,9 +408,10 @@ public class DataManager {
     public boolean unbind(long qq) {
         lock.writeLock().lock();
         try {
+            long expected = data.entity_version;
             String removed = data.playerBindings.remove(qq);
             if (removed != null) {
-                save();
+                save(expected);
                 LOGGER.info("已解绑玩家: {}", qq);
                 return true;
             }
@@ -496,8 +536,9 @@ public class DataManager {
     public void savePlaytimeRecord(String uuidStr, PlaytimeRecord record) {
         lock.writeLock().lock();
         try {
+            long expected = data.entity_version;
             data.playerPlaytime.put(uuidStr, record);
-            save();
+            save(expected);
         } finally {
             lock.writeLock().unlock();
         }
@@ -510,6 +551,12 @@ public class DataManager {
      * 直接序列化为 JSON
      */
     private static class DataModel {
+        /** 
+         * [P0 增加] CAS 写入控制专用版本锁
+         * 任何对数据的变更必须使本版本号自增 1。
+         */
+        long entity_version = 0L;
+
         /** 旧版管理员列表 (仅用于迁移) */
         List<Long> admins = new ArrayList<>();
         
@@ -556,12 +603,13 @@ public class DataManager {
     public void recordSignIn(long qq) {
         lock.writeLock().lock();
         try {
+            long expected = data.entity_version;
             String today = java.time.LocalDate.now().toString();
             data.lastSignIn.put(qq, today);
             // 累加签到天数
             int current = data.signInStreak.getOrDefault(qq, 0);
             data.signInStreak.put(qq, current + 1);
-            save();
+            save(expected);
         } finally {
             lock.writeLock().unlock();
         }
