@@ -9,13 +9,13 @@
 **目标**: 根绝严重破坏《数据一致性契约》的问题，提取跨端通信载体，实施并发安全保护。
 
 ### 任务 01: 建立双端 `Common` 共享模块 
-* **指派**: `Nexus` / `Aegis` (协同)
-* **状态**: `[IN-PROGRESS]`
+* **指派**: `Aegis`
+* **状态**: `[DONE]`
 * **描述**: 抽离 Alpha 与 Reforged 端相同的底层 `Message`, `BridgeError`, 和网络封包规范到独立的库，消灭重复的实体类，重新对接构建脚本依赖。
 
 ### 任务 02: Reforged 端 `DataManager` 引擎换血 
 * **指派**: `Atlas` 
-* **状态**: `[TODO]`
+* **状态**: `[IN-PROGRESS]`
 * **描述**: 废止不安全的 `Files.writeString`，使用全量带 CAS 版本号的写入机制 (`expected_version`) 与原子的 `.tmp` 文件替换保存动作，支持并发下的 `CONSISTENCY-409` 保护。
 
 ### 任务 03: Alpha 业务越权肃清 (单端计算原则)
