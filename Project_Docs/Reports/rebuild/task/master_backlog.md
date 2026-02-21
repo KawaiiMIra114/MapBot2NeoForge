@@ -10,7 +10,7 @@
 
 ### 任务 01: 建立双端 `Common` 共享模块 
 * **指派**: `Nexus` / `Aegis` (协同)
-* **状态**: `[TODO]`
+* **状态**: `[IN-PROGRESS]`
 * **描述**: 抽离 Alpha 与 Reforged 端相同的底层 `Message`, `BridgeError`, 和网络封包规范到独立的库，消灭重复的实体类，重新对接构建脚本依赖。
 
 ### 任务 02: Reforged 端 `DataManager` 引擎换血 
