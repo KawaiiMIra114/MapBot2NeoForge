@@ -30,7 +30,7 @@
 
 ### 任务 04: Reforged 侧鉴权引擎 (`AuthorizationEngine`) 拔高
 * **指派**: `Atlas`
-* **状态**: `[IN-PROGRESS]`
+* **状态**: `[DONE]`
 * **描述**: 全面剔除 0/1/2 架构，实现 `owner/admin/user` 层级判定；植入拦截 Audit Log (审计日志) 以及针对越权刷命令的 Rate-Limit (速率拦截器)，规范输出 `AUTH-403`。
 
 ### 任务 05: Alpha 路由解耦与跨服通道建立
