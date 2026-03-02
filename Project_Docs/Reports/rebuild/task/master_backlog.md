@@ -54,5 +54,5 @@
 
 ### 任务 08: 找回 Alpha 进程守护荣光
 * **指派**: `Aegis`
-* **状态**: `[TODO]`
+* **状态**: `[IN-PROGRESS]`
 * **描述**: 恢复被注释遗弃的 `ProcessManager.startServer(...)` 核心调起逻辑。保证当 Minecraft 服务端进程崩塌时，Alpha 能够自发重启它并接手控制台接管。
