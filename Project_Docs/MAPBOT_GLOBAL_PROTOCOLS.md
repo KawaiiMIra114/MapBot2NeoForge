@@ -80,6 +80,12 @@
 3. **需遵守 (Constraints)**: 设置技术红线（严禁碰触发包范围外的特有框架代码）、必过的验收闸门（如 `gradlew build`）和请求更高权限仲裁的死锁熔断点。
 4. **回答与汇报模板**: 提供结构化的文本大纲，让其将最终成果标准化落入 `_AI_CONTEXT_MAP` 与单次动作报告区。
 
+### 3.5 Memorix 跨会话记忆管理 (Cross-Session Memory)
+本项目已全局配置了 **Memorix MCP** 作为跨会话、跨 IDE 的持久化记忆层。所有智能体（Nexus / Aegis / Atlas）必须遵循以下规则：
+1. **存储义务**：每次对话结束前，必须通过 `memorix_store` 将本次会话的关键信息（目标、变更、决策、踩坑）存入记忆库。
+2. **检索约定**：当接到新任务或遭遇疑似历史问题时，应使用 `memorix_search` 获取现有记忆，避免重复劳动或架构矛盾。
+3. **详细规范**：存储分类、触发条件、命名标准等完整细则见 `Project_Docs/Reports/rebuild/task/prompt/rules/AGENT_DISPATCH_RULES.md` 第 5-6 章。
+
 ---
 
 ## 四、 历史旧档处理声明
