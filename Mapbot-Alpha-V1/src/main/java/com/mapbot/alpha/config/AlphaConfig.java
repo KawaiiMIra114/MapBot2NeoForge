@@ -50,6 +50,11 @@ public class AlphaConfig {
     // 消息格式配置
     private String bridgeIngameMsgFormat = "[SMP] {player}: {content}";
     
+    // 守护进程配置 (Task #08)
+    private boolean daemonEnabled = false;
+    private String daemonWorkDir = "./server";
+    private String daemonCommand = "run.bat";
+    
     // 调试
     private boolean debugMode = true;
 
@@ -108,6 +113,11 @@ public class AlphaConfig {
                 adminQQs = props.getProperty("messaging.adminQQs", adminQQs);
                 botQQ = parseLongProperty("messaging.botQQ", botQQ);
                 debugMode = parseBooleanProperty("debug.debugMode", debugMode);
+                
+                // Task #08: 守护进程配置
+                daemonEnabled = parseBooleanProperty("daemon.enabled", daemonEnabled);
+                daemonWorkDir = readStringProperty("daemon.workDir", daemonWorkDir);
+                daemonCommand = readStringProperty("daemon.command", daemonCommand);
                 
                 // 同步管理员到 DataManager
                 syncAdminsToDataManager();
@@ -178,6 +188,11 @@ public class AlphaConfig {
             merged.setProperty("messaging.botQQ", String.valueOf(botQQ));
             merged.setProperty("debug.debugMode", String.valueOf(debugMode));
 
+            // Task #08: 守护进程配置
+            merged.setProperty("daemon.enabled", String.valueOf(daemonEnabled));
+            merged.setProperty("daemon.workDir", daemonWorkDir);
+            merged.setProperty("daemon.command", daemonCommand);
+
             try (OutputStream out = Files.newOutputStream(configPath)) {
                 merged.store(out, "MapBot Alpha Core Configuration");
             }
@@ -204,6 +219,11 @@ public class AlphaConfig {
     public static boolean isDebugMode() { return INSTANCE.debugMode; }
     public String getBridgeIngameMsgFormat() { return bridgeIngameMsgFormat; }
     public String getAdminQQs() { return adminQQs; }
+    
+    // Daemon Getters (Task #08)
+    public static boolean isDaemonEnabled() { return INSTANCE.daemonEnabled; }
+    public static String getDaemonWorkDir() { return INSTANCE.daemonWorkDir; }
+    public static String getDaemonCommand() { return INSTANCE.daemonCommand; }
     
     // Redis Getters
     public String getRedisHost() { return redisHost; }
@@ -322,6 +342,11 @@ public class AlphaConfig {
             adminQQs = props.getProperty("messaging.adminQQs", adminQQs);
             botQQ = parseLongProperty("messaging.botQQ", botQQ);
             debugMode = parseBooleanProperty("debug.debugMode", debugMode);
+
+            // Task #08: 守护进程热重载
+            daemonEnabled = parseBooleanProperty("daemon.enabled", daemonEnabled);
+            daemonWorkDir = readStringProperty("daemon.workDir", daemonWorkDir);
+            daemonCommand = readStringProperty("daemon.command", daemonCommand);
 
             syncAdminsToDataManager();
 

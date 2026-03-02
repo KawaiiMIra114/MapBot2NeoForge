@@ -85,15 +85,25 @@ public class MapbotAlpha {
         com.mapbot.alpha.metrics.MetricsCollector.INSTANCE.start();
         LOGGER.info("[METRICS] 性能指标收集器已启动");
         
-        // 5. (可选) 启动 MC 服务器进程
-        // ProcessManager.INSTANCE.startServer("./MapBot_Reforged/run", "java -Xmx2G -jar server.jar nogui");
+        // 5. Task #08: 配置驱动的进程守护
+        if (AlphaConfig.isDaemonEnabled()) {
+            LOGGER.info("[DAEMON] daemon.enabled=true, 启动 MC 服务器守护...");
+            ProcessManager.INSTANCE.startDaemon();
+        } else {
+            LOGGER.info("[DAEMON] daemon.enabled=false, 跳过进程守护");
+        }
 
         // 5.2. 控制台 stop/exit 触发优雅关闭
         startConsoleStopWatcher();
 
-        // 5.5. 添加退出钩子
+        // 5.5. 添加退出钩子 (Task #08: 增加守护进程清理)
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOGGER.info("[SYSTEM] 正在关闭，保存数据...");
+            
+            // Task #08: 停止守护循环并尽力销毁子进程
+            ProcessManager.INSTANCE.stopDaemon();
+            ProcessManager.INSTANCE.destroyProcess();
+            
             long playerGroupId = AlphaConfig.getPlayerGroupId();
             if (playerGroupId > 0) {
                 boolean sent = OneBotClient.INSTANCE.sendGroupMessageBlocking(playerGroupId, "吃饱睡觉。", 1200);
