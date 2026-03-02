@@ -11,19 +11,28 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 服务器注册表
  * 管理所有已连接的 MC 服务器
+ * Task #05: 新增 targetGroupId 支持动态群组绑定
  */
 public class ServerRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger("Mapbot/Bridge/Registry");
     public static final ServerRegistry INSTANCE = new ServerRegistry();
     
     private final Map<String, ServerInfo> servers = new ConcurrentHashMap<>();
-    
+
     public void register(String serverId, Channel channel) {
-        register(serverId, channel, null, 0);
+        register(serverId, channel, null, 0, 0);
     }
 
     public void register(String serverId, Channel channel, String transferHost, int transferPort) {
-        servers.put(serverId, new ServerInfo(serverId, channel, transferHost, transferPort));
+        register(serverId, channel, transferHost, transferPort, 0);
+    }
+
+    /**
+     * 注册服务器（Task #05: 支持 targetGroupId）
+     * @param targetGroupId 子服声明的目标QQ群号，0 表示未指定（回退全局默认）
+     */
+    public void register(String serverId, Channel channel, String transferHost, int transferPort, long targetGroupId) {
+        servers.put(serverId, new ServerInfo(serverId, channel, transferHost, transferPort, targetGroupId));
         LOGGER.info("服务器已注册: {} (当前连接数: {})", serverId, servers.size());
     }
     
@@ -49,6 +58,15 @@ public class ServerRegistry {
     
     public int getServerCount() {
         return servers.size();
+    }
+
+    /**
+     * 获取子服绑定的目标群号
+     * @return 子服声明的 targetGroupId，0 表示未指定
+     */
+    public long getTargetGroupId(String serverId) {
+        ServerInfo info = servers.get(serverId);
+        return info != null ? info.targetGroupId : 0;
     }
     
     /**
@@ -104,6 +122,7 @@ public class ServerRegistry {
     
     /**
      * 服务器信息
+     * Task #05: 新增 targetGroupId 字段
      */
     public static class ServerInfo {
         public final String serverId;
@@ -111,18 +130,20 @@ public class ServerRegistry {
         public final long connectedAt;
         public final String transferHost;
         public final int transferPort;
+        public final long targetGroupId;
         public long lastHeartbeat;
         public String players = "0";
         public String tps = "20.0";
         public String memory = "0MB";
         
-        public ServerInfo(String serverId, Channel channel, String transferHost, int transferPort) {
+        public ServerInfo(String serverId, Channel channel, String transferHost, int transferPort, long targetGroupId) {
             this.serverId = serverId;
             this.channel = channel;
             this.connectedAt = System.currentTimeMillis();
             this.lastHeartbeat = this.connectedAt;
             this.transferHost = transferHost;
             this.transferPort = transferPort;
+            this.targetGroupId = targetGroupId;
         }
         
         public boolean isOnline() {
@@ -139,6 +160,7 @@ public class ServerRegistry {
                    "\"players\":\"" + players + "\"," +
                    "\"tps\":\"" + tps + "\"," +
                    "\"memory\":\"" + memory + "\"," +
+                   "\"targetGroupId\":" + targetGroupId + "," +
                    "\"uptime\":" + getUptimeMs() + "}";
         }
     }
