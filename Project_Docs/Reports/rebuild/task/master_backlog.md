@@ -20,7 +20,7 @@
 
 ### 任务 03: Alpha 业务越权肃清 (单端计算原则)
 * **指派**: `Aegis`
-* **状态**: `[IN-PROGRESS]`
+* **状态**: `[REVIEW]`
 * **描述**: 清除 Alpha 侧所有的 `logic` 包（如自己保管的 `SignManager`, `PlaytimeStore` 等副本业务代码）。将 Alpha 退化为网关，签到计算与分发完全交由 Reforged 回传代理计算结果。
 
 ---
