@@ -3,78 +3,29 @@ package com.mapbot.alpha.command.impl;
 import com.mapbot.alpha.bridge.BridgeProxy;
 import com.mapbot.alpha.command.ICommand;
 import com.mapbot.alpha.data.DataManager;
-import com.mapbot.alpha.logic.SignManager;
 
 /**
- * 领取奖励命令 (Task #022 Redis 版)
+ * 领取奖励命令 (Task #03 重构: Bridge 转发模式)
  * #accept / #领取
+ * 
+ * Alpha 不再本地管理待领取奖励，全部转发给 Reforged 端处理。
  */
 public class AcceptCommand implements ICommand {
     
     @Override
     public String execute(String args, long senderQQ, long sourceGroupId) {
-        var dm = DataManager.INSTANCE;
-        var signMgr = SignManager.INSTANCE;
-        
         // 绑定检查
-        String uuid = dm.getBinding(senderQQ);
+        String uuid = DataManager.INSTANCE.getBinding(senderQQ);
         if (uuid == null) {
             return "[领取失败] 请先使用 #id 绑定账号";
         }
-
-        uuid = refreshBindingUuidIfNeeded(senderQQ, uuid);
         
-        // 检查是否有待领取奖励
-        String itemJson = signMgr.getPendingReward(senderQQ);
-        if (itemJson == null) {
-            return "[领取失败] 无待领取奖励\n[提示] 请先使用 #sign 签到";
+        // 转发给 Reforged 端处理领取业务
+        String result = BridgeProxy.INSTANCE.acceptReward(senderQQ);
+        if (result == null || result.isEmpty()) {
+            return "[错误] 服务器离线或无响应";
         }
-        
-        // 请求 Mod 端发放物品
-        String result = BridgeProxy.INSTANCE.giveItemToOnlineServers(uuid, itemJson);
-        
-        if (result == null) {
-            return "[领取失败] 服务器无响应\n[提示] 请使用 #cdk 获取兑换码";
-        }
-        
-        if (result.startsWith("SUCCESS")) {
-            // 发放成功，删除待领取
-            signMgr.removePendingReward(senderQQ);
-            return result.contains(":") ?
-                ("[领取成功] 物品已发放到背包 (" + result.substring(result.indexOf(':') + 1) + ")") :
-                "[领取成功] 物品已发放到背包";
-        } else if (result.startsWith("FAIL:OFFLINE")) {
-            return "[领取失败] 玩家不在线\n[提示] 请使用 #cdk 获取兑换码";
-        } else if (result.startsWith("FAIL:INVENTORY_FULL")) {
-            return "[领取失败] 背包空间不足\n[提示] 请清理背包后重试";
-        } else {
-            return "[领取失败] " + result.replace("FAIL:", "");
-        }
-    }
-
-    private String refreshBindingUuidIfNeeded(long senderQQ, String currentUuid) {
-        if (currentUuid == null || currentUuid.isBlank()) return currentUuid;
-        String trimmed = currentUuid.trim();
-        if (BridgeProxy.INSTANCE.isPlayerOnline(trimmed)) {
-            return trimmed;
-        }
-
-        String playerName = BridgeProxy.INSTANCE.resolveNameByUuid(trimmed);
-        if (playerName == null || playerName.isBlank()) {
-            return trimmed;
-        }
-
-        String resolvedUuid = BridgeProxy.INSTANCE.resolveUuidByName(playerName);
-        if (resolvedUuid == null || resolvedUuid.isBlank()) {
-            return trimmed;
-        }
-        resolvedUuid = resolvedUuid.trim();
-        if (trimmed.equalsIgnoreCase(resolvedUuid)) {
-            return trimmed;
-        }
-
-        boolean updated = DataManager.INSTANCE.updateBinding(senderQQ, resolvedUuid);
-        return updated ? resolvedUuid : trimmed;
+        return result;
     }
     
     @Override

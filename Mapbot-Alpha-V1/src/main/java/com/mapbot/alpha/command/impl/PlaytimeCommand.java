@@ -1,11 +1,13 @@
 package com.mapbot.alpha.command.impl;
 
+import com.mapbot.alpha.bridge.BridgeProxy;
 import com.mapbot.alpha.command.ICommand;
-import com.mapbot.alpha.logic.PlaytimeStore;
 
 /**
- * 在线时长查询命令
+ * 在线时长查询命令 (Task #03 重构: Bridge 转发模式)
  * #playtime <玩家名> [模式]
+ * 
+ * Alpha 不再本地读取 PlaytimeStore，全部转发给 Reforged 端处理。
  */
 public class PlaytimeCommand implements ICommand {
     
@@ -25,24 +27,13 @@ public class PlaytimeCommand implements ICommand {
                 return "[错误] 模式必须是 0-3 的数字";
             }
         }
-
-        String uuid = com.mapbot.alpha.bridge.BridgeProxy.INSTANCE.resolveUuidByName(targetName);
-        if (uuid == null) {
-            return "[错误] 玩家不存在或无法解析UUID: " + targetName;
+        
+        // 转发给 Reforged 端查询在线时长
+        String result = BridgeProxy.INSTANCE.getPlaytime(targetName, mode);
+        if (result == null || result.isEmpty()) {
+            return "[错误] 服务器离线或无响应";
         }
-
-        var record = PlaytimeStore.INSTANCE.getPlaytime(uuid);
-        long ms = switch (mode) {
-            case 0 -> record.dailyMs;
-            case 1 -> record.weeklyMs;
-            case 2 -> record.monthlyMs;
-            case 3 -> record.totalMs;
-            default -> record.totalMs;
-        };
-
-        String[] periods = {"日", "周", "月", "总"};
-        String period = (mode >= 0 && mode < periods.length) ? periods[mode] : "总";
-        return String.format("[在线时长] %s (%s)\n时长: %s", targetName, period, PlaytimeStore.formatDurationMs(ms));
+        return result;
     }
     
     @Override

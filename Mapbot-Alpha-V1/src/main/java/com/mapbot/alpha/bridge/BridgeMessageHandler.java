@@ -292,6 +292,7 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
 
     /**
      * P0: 上报在线时长增量（由 Reforged 端触发）
+     * Task #03: 内联 Redis 写入，消除对已删除 PlaytimeStore 的依赖
      */
     private void handlePlaytimeAdd(java.util.Map<String, Object> data) {
         String uuid = readNonBlank(data.get("uuid"));
@@ -302,7 +303,56 @@ public class BridgeMessageHandler extends SimpleChannelInboundHandler<String> {
             }
             return;
         }
-        com.mapbot.alpha.logic.PlaytimeStore.INSTANCE.addPlaytime(uuid, deltaMs);
+        
+        // 直接写入 Redis（原 PlaytimeStore.addPlaytime 逻辑简化为中转存储）
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
+        if (redis.isEnabled()) {
+            try {
+                String key = "mapbot:playtime:" + uuid;
+                String existing = redis.execute(jedis -> jedis.get(key));
+                
+                java.util.Map<String, Object> record;
+                if (existing != null && !existing.isEmpty()) {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        java.util.Map<String, Object> parsed = com.mapbot.alpha.utils.JsonUtils.fromJson(existing, java.util.Map.class);
+                        record = parsed != null ? new java.util.LinkedHashMap<>(parsed) : new java.util.LinkedHashMap<>();
+                    } catch (Exception e) {
+                        record = new java.util.LinkedHashMap<>();
+                    }
+                } else {
+                    record = new java.util.LinkedHashMap<>();
+                }
+                
+                long dailyMs = parseLong(record.get("dailyMs")) + deltaMs;
+                long weeklyMs = parseLong(record.get("weeklyMs")) + deltaMs;
+                long monthlyMs = parseLong(record.get("monthlyMs")) + deltaMs;
+                long totalMs = parseLong(record.get("totalMs")) + deltaMs;
+                
+                record.put("dailyMs", dailyMs);
+                record.put("weeklyMs", weeklyMs);
+                record.put("monthlyMs", monthlyMs);
+                record.put("totalMs", totalMs);
+                record.put("lastReset", java.time.LocalDate.now(java.time.ZoneId.systemDefault()).toString());
+                
+                String json = com.mapbot.alpha.utils.JsonUtils.toJson(record);
+                redis.execute(jedis -> jedis.set(key, json));
+            } catch (Exception e) {
+                LOGGER.error("在线时长 Redis 写入失败: uuid={}", uuid, e);
+            }
+        } else {
+            LOGGER.debug("Redis 未启用，忽略在线时长上报: uuid={}", uuid);
+        }
+    }
+    
+    private long parseLong(Object value) {
+        if (value == null) return 0L;
+        if (value instanceof Number n) return n.longValue();
+        try {
+            return Long.parseLong(String.valueOf(value).trim());
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
     }
 
     /**

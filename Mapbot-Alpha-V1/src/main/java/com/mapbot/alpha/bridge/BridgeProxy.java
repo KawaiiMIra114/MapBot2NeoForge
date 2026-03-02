@@ -616,15 +616,21 @@ public class BridgeProxy {
     
     /**
      * 请求 Alpha 验证并兑换 CDK (由 Mod 端调用)
+     * Task #03: 内联 Redis CDK 操作，消除对已删除 SignManager 的依赖
      * @param code 兑换码
      * @param uuid 玩家 UUID
      * @return "VALID:{itemJson}" 或 "INVALID:原因"
      */
     public String redeemCdk(String code, String uuid) {
-        var signManager = com.mapbot.alpha.logic.SignManager.INSTANCE;
+        var redis = com.mapbot.alpha.database.RedisManager.INSTANCE;
         var dataManager = DataManager.INSTANCE;
         
-        String cdkJson = signManager.getCdkInfo(code);
+        if (!redis.isEnabled()) {
+            return "INVALID:Redis 未启用";
+        }
+        
+        // 直接从 Redis 读取 CDK 信息（原 SignManager.getCdkInfo）
+        String cdkJson = redis.execute(jedis -> jedis.get("mapbot:cdk:" + code));
         if (cdkJson == null) {
             return "INVALID:无效的兑换码";
         }
@@ -638,7 +644,8 @@ public class BridgeProxy {
             
             // 检查过期
             if (System.currentTimeMillis() > expiry) {
-                signManager.removeCdk(code);
+                // 直接从 Redis 删除过期 CDK（原 SignManager.removeCdk）
+                redis.execute(jedis -> jedis.del("mapbot:cdk:" + code));
                 return "INVALID:兑换码已过期";
             }
             
@@ -649,7 +656,7 @@ public class BridgeProxy {
             }
             
             // 有效，删除 CDK 并返回物品
-            signManager.removeCdk(code);
+            redis.execute(jedis -> jedis.del("mapbot:cdk:" + code));
             return "VALID:" + itemJson;
             
         } catch (Exception e) {
