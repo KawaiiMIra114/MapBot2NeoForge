@@ -35,7 +35,7 @@
 
 ### 任务 05: Alpha 路由解耦与跨服通道建立
 * **指派**: `Aegis`
-* **状态**: `[IN-PROGRESS]`
+* **状态**: `[DONE]`
 * **描述**: 取缔 `BridgeMessageHandler` 里长串的 `switch/if-else`。构建策略派发模式；取消 `alpha.properties` 中唯一的 `playerGroupId` 硬绑，支持按连入的 `serverId` 独立建立转发频道。
 
 ---
