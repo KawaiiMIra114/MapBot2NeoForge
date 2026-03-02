@@ -15,12 +15,12 @@
 
 ### 任务 02: Reforged 端 `DataManager` 引擎换血 
 * **指派**: `Atlas` 
-* **状态**: `[IN-PROGRESS]`
+* **状态**: `[DONE]`
 * **描述**: 废止不安全的 `Files.writeString`，使用全量带 CAS 版本号的写入机制 (`expected_version`) 与原子的 `.tmp` 文件替换保存动作，支持并发下的 `CONSISTENCY-409` 保护。
 
 ### 任务 03: Alpha 业务越权肃清 (单端计算原则)
 * **指派**: `Aegis`
-* **状态**: `[TODO]`
+* **状态**: `[IN-PROGRESS]`
 * **描述**: 清除 Alpha 侧所有的 `logic` 包（如自己保管的 `SignManager`, `PlaytimeStore` 等副本业务代码）。将 Alpha 退化为网关，签到计算与分发完全交由 Reforged 回传代理计算结果。
 
 ---
