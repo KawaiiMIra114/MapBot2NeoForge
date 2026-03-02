@@ -1,6 +1,7 @@
 package com.mapbot.command;
 
 import com.mapbot.data.DataManager;
+import com.mapbot.security.CommandCategory;
 import com.mapbot.logic.InboundHandler;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
@@ -11,8 +12,8 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
  */
 public class ForceUnbindCommand implements ICommand {
     @Override
-    public int getRequiredLevel() {
-        return DataManager.PERMISSION_LEVEL_ADMIN;
+    public CommandCategory getCategory() {
+        return CommandCategory.GOVERNANCE;
     }
 
     @Override

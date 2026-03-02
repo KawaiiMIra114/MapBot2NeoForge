@@ -1,6 +1,7 @@
 package com.mapbot.command;
 
 import com.mapbot.data.DataManager;
+import com.mapbot.security.CommandCategory;
 import com.mapbot.logic.InboundHandler;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,8 +16,8 @@ import java.util.UUID;
 public class MuteCommand implements ICommand {
     
     @Override
-    public int getRequiredLevel() {
-        return DataManager.PERMISSION_LEVEL_MOD; // 协管员及以上
+    public CommandCategory getCategory() {
+        return CommandCategory.OPS_WRITE; // 运维管理操作
     }
     
     @Override

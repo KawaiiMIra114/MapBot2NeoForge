@@ -1,6 +1,7 @@
 package com.mapbot.command;
 
 import com.mapbot.data.DataManager;
+import com.mapbot.security.CommandCategory;
 import com.mapbot.logic.InboundHandler;
 
 /**
@@ -9,8 +10,8 @@ import com.mapbot.logic.InboundHandler;
  */
 public class RemoveAdminCommand implements ICommand {
     @Override
-    public int getRequiredLevel() {
-        return DataManager.PERMISSION_LEVEL_ADMIN;
+    public CommandCategory getCategory() {
+        return CommandCategory.GOVERNANCE;
     }
 
     @Override

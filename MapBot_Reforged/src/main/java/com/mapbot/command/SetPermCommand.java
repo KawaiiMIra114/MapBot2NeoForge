@@ -1,6 +1,7 @@
 package com.mapbot.command;
 
 import com.mapbot.data.DataManager;
+import com.mapbot.security.CommandCategory;
 import com.mapbot.logic.InboundHandler;
 
 /**
@@ -10,8 +11,8 @@ import com.mapbot.logic.InboundHandler;
 public class SetPermCommand implements ICommand {
 
     @Override
-    public int getRequiredLevel() {
-        return DataManager.PERMISSION_LEVEL_ADMIN; // 仅超管可用
+    public CommandCategory getCategory() {
+        return CommandCategory.GOVERNANCE; // 权限治理: 仅 OWNER
     }
 
     @Override

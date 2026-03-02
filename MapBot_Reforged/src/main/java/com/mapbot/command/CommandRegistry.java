@@ -1,7 +1,8 @@
 package com.mapbot.command;
 
-import com.mapbot.data.DataManager;
 import com.mapbot.logic.InboundHandler;
+import com.mapbot.security.AuthorizationEngine;
+import com.mapbot.security.AuthorizationEngine.AuthResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,7 +12,10 @@ import java.util.Set;
 
 /**
  * 命令注册表
- * 负责命令的分发和权限检查
+ * 负责命令的注册、分发和鉴权（通过 AuthorizationEngine 代理）。
+ *
+ * Task04 重构: 移除内联的 DataManager 权限数字比较，
+ * 全部改为调用 AuthorizationEngine.authorize()。
  */
 public class CommandRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger("MapBot/Command");
@@ -44,6 +48,7 @@ public class CommandRegistry {
     
     /**
      * 分发命令
+     * 使用 AuthorizationEngine 进行鉴权判定，取代旧版魔法数字比较。
      * 
      * @param commandName 命令名称
      * @param args 参数字符串
@@ -58,14 +63,14 @@ public class CommandRegistry {
             return false;
         }
         
-        // 权限检查
-        int userLevel = DataManager.INSTANCE.getPermissionLevel(senderQQ);
-        int requiredLevel = cmd.getRequiredLevel();
-        
-        if (userLevel < requiredLevel) {
-            InboundHandler.sendReplyToQQ(sourceGroupId, 
-                String.format("[权限拒绝] 此命令需要 Level %d 权限 (当前: %d)", requiredLevel, userLevel));
-            return true;
+        // 通过 AuthorizationEngine 统一鉴权
+        AuthResult result = AuthorizationEngine.INSTANCE.authorize(
+                senderQQ, commandName.toLowerCase(), cmd.getCategory());
+
+        if (!result.isAllowed()) {
+            // 鉴权失败 — 返回 AUTH-403 拒绝消息
+            InboundHandler.sendReplyToQQ(sourceGroupId, result.getMessage());
+            return true; // 命令已识别，但被拒绝
         }
         
         try {

@@ -1,6 +1,7 @@
 package com.mapbot.command;
 
 import com.mapbot.data.DataManager;
+import com.mapbot.security.CommandCategory;
 import com.mapbot.logic.InboundHandler;
 import com.mapbot.logic.ServerStatusManager;
 import net.minecraft.server.MinecraftServer;
@@ -30,8 +31,8 @@ public class StopServerCommand implements ICommand {
     private static volatile ScheduledFuture<?> currentCountdown = null;
 
     @Override
-    public int getRequiredLevel() {
-        return DataManager.PERMISSION_LEVEL_ADMIN;
+    public CommandCategory getCategory() {
+        return CommandCategory.SENSITIVE_WRITE; // 高风险: 停服操作
     }
 
     @Override

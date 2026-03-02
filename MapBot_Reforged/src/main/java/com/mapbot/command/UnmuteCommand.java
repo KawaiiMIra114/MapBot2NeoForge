@@ -1,6 +1,7 @@
 package com.mapbot.command;
 
 import com.mapbot.data.DataManager;
+import com.mapbot.security.CommandCategory;
 import com.mapbot.logic.InboundHandler;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,8 +14,8 @@ import net.neoforged.neoforge.server.ServerLifecycleHooks;
 public class UnmuteCommand implements ICommand {
 
     @Override
-    public int getRequiredLevel() {
-        return DataManager.PERMISSION_LEVEL_MOD;
+    public CommandCategory getCategory() {
+        return CommandCategory.OPS_WRITE;
     }
 
     @Override
