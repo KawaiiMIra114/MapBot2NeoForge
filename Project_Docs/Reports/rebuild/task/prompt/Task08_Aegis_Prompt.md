@@ -21,15 +21,18 @@
 1. **配置驱动设计**：在 `AlphaConfig.java` 中增加如下守护进程专属配置：
    - `daemon.enabled` (布尔，默认 `false`)
    - `daemon.workDir` (字符串，默认 `./server`)
-   - `daemon.command` (字符串，默认 `bat/sh` 脚本路径或 `java -Xmx8G -jar neoforge.jar nogui`)
-2. **改写 ProcessManager**：改造 `startServer` 为守护模式。当 `serverProcess.waitFor()` 返回后，判断如果配置了 `daemon.enabled`，则在经过一定的退避时间（例如 5~10 秒，防止秒崩导致的无限死循环）后，自动重新拉起进程。
-3. **恢复入口调用**：在 `MapbotAlpha.java` 被注释的地方，恢复调用。但要求改为读取配置：如果 `AlphaConfig.isDaemonEnabled()` 为 true，则调用 `ProcessManager.INSTANCE.startServer(workDir, command)`。
-4. **生命周期绑定**：在 `MapbotAlpha.java` 的 `Runtime.getRuntime().addShutdownHook` 中，确保当 Alpha 进程被强杀或正常退出时，清理拉起的 MC 子进程（如 `ProcessManager.INSTANCE.stopServer()`，可以尝试发 stop 或直接 destroy），防止留存孤儿进程。
+   - `daemon.command` (字符串，必须是 `.bat`, `.cmd` 等可执行脚本路径，如 `run.bat`。如果后缀不合法，需在启动前提出警告或拒接启动。)
+2. **改写 ProcessManager 弹出独立终端**：
+   - 用户的真实操作系统是 **Windows**。要求在启动 MC 服务端时，**单独打开一个新的终端窗口**来显示控制台。
+   - 对策：你需要将启动命令拼接为 `cmd.exe /c start /WAIT "MapBot-Minecraft-Server" <daemon.command>`。
+   - 关键说明：使用 `start /WAIT` 能够让 Java 的 `serverProcess.waitFor()` 正常阻塞，直到那个新弹出的黑窗口被关闭，从而不破坏你的崩溃重启判定。
+3. **改造守护与退避逻辑**：当 `serverProcess.waitFor()` 返回（即黑窗口关闭后），判断如果 `AlphaConfig.isDaemonEnabled()` 仍为 true，则在经过一定的退避时间（例如 5~10 秒，防止秒崩导致的无限刷屏弹窗）后，自动重新拉起进程。
+4. **生命周期绑定**：在 `MapbotAlpha.java` 的 ShutdownHook 中，确保 Alpha 进程关闭时，如果有办法就一起关闭那个弹窗子进程（可选，尽力而为即可）。
 
 ## ⚠️ 三、必须遵守的纪律 (Constraints)
-1. **防死循环重启**：如果目标路径下没有 jar 包，或者 Java 版本不对，MC 会瞬间退出。如果你直接 `while(true)` 重启，会导致 CPU 满载并疯狂刷屏。必须设置**退避逻辑**（如崩溃间隔小于特定阈值则终止守护，或固定延迟 10 秒后重试）。
-2. **纯 Alpha 侧任务**：该任务完全属于 Alpha 侧的网络和进程控制，严禁修改 Reforged 端的任何代码。
-3. **保留原有的流捕获能力**：`ProcessManager` 中原有的对 `stdout/stderr` 的捕获、日志历史记录 (`logHistory`) 及 Web 端广播 (`LogWebSocketHandler`) 必须无损保留。
+1. **防死循环重启体验**：弹窗式启动一旦陷入死循环会产生极度恶劣的体验（满屏弹黑窗口）。你**必须**实现崩溃时间检测：如果是10秒内的瞬间退出，应触发较长延迟（比如等待30秒）或者直接终止守护并报错，绝不能无限极速弹窗。
+2. **I/O 捕获的妥协**：由于弹出了独立终端，原来的 `ProcessBufferedReader` 将无法再捕获到内容，Web 端也收不到日志。你需要把原本的 `captureLog` 逻辑废弃或注释掉，并在日志中明确打印：“MC 服务器已在独立窗口运行，Alpha 不再接管控制台输入输出”。
+3. **纯 Alpha 侧任务**：该任务完全属于 Alpha 侧的网络和进程控制，严禁修改 Reforged 端的任何代码。
 4. **编译与记录**：修改完毕后，确保 `Mapbot-Alpha-V1` 独立编译无报错。并通过 `memorix_store` 存储工作记忆。
 
 ## 📝 四、最终回答与汇报模板 (Reporting Template)
